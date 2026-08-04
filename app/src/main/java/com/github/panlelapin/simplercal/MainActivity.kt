@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.provider.CalendarContract
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -55,6 +56,9 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -69,9 +73,10 @@ import java.time.temporal.TemporalAdjusters
 private const val PREFERENCES_NAME = "simplercal"
 private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
-private const val EMPHASIZED_DAY_COUNT = 3
-private const val EMPHASIZED_DAY_WEIGHT = 21f
-private const val STANDARD_DAY_WEIGHT = 9.25f
+private const val EXPANDED_DAY_COUNT = 3
+private const val EXPANDED_DAY_WEIGHT = 21f
+private const val COMPACT_DAY_WEIGHT = 9.25f
+private const val DAY_CONTENT_ROW_COUNT = 9
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -84,7 +89,6 @@ private data class WeekDay(
     val abbreviation: String,
     val dayOfMonth: Int,
     val isWeekend: Boolean,
-    val weight: Float,
 )
 
 /** Hosts the single launcher screen for SimplerCal. */
@@ -115,6 +119,9 @@ private fun SimplerCalApp() {
         }
     MaterialTheme(colorScheme = colorScheme) {
         var isSettingsVisible by remember { mutableStateOf(false) }
+        if (isSettingsVisible) {
+            BackHandler(onBack = { isSettingsVisible = false })
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             HelloScreen(onSettings = { isSettingsVisible = true })
             if (isSettingsVisible) {
@@ -165,21 +172,40 @@ private fun HelloScreen(onSettings: () -> Unit) {
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun WeekView() {
     val days = remember { currentWeek() }
+    var expandedStartIndex by remember { mutableStateOf(0) }
     val bottomGestureInset =
         WindowInsets.mandatorySystemGestures.asPaddingValues().calculateBottomPadding()
     Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomGestureInset)) {
-        days.forEach { day -> DayRow(day) }
+        days.forEachIndexed { index, day ->
+            val isExpanded = index in expandedStartIndex until expandedStartIndex + EXPANDED_DAY_COUNT
+            DayRow(
+                day = day,
+                isExpanded = isExpanded,
+                onClick = {
+                    if (!isExpanded) expandedStartIndex = expandedStartIndexFor(index)
+                },
+            )
+        }
     }
 }
 
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
-private fun ColumnScope.DayRow(day: WeekDay) {
+private fun ColumnScope.DayRow(
+    day: WeekDay,
+    isExpanded: Boolean,
+    onClick: () -> Unit,
+) {
+    val stateDescription = if (isExpanded) "expanded" else "compact"
     Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .weight(day.weight),
+                .weight(if (isExpanded) EXPANDED_DAY_WEIGHT else COMPACT_DAY_WEIGHT)
+                .clickable(role = Role.Button, onClick = onClick)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "${day.abbreviation} ${day.dayOfMonth}, $stateDescription"
+                },
         shape = RectangleShape,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
         color =
@@ -189,30 +215,45 @@ private fun ColumnScope.DayRow(day: WeekDay) {
                 colorResource(R.color.screen_background)
             },
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(day.abbreviation, style = MaterialTheme.typography.titleMedium)
-            Text(day.dayOfMonth.toString(), style = MaterialTheme.typography.titleLarge)
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            DayDateRow(modifier = Modifier.fillMaxWidth().weight(1f), day = day)
+            if (isExpanded) {
+                repeat(DAY_CONTENT_ROW_COUNT - 1) {
+                    Spacer(modifier = Modifier.fillMaxWidth().weight(1f))
+                }
+            }
         }
     }
 }
 
+@Composable
+@Suppress("FunctionName", "ktlint:standard:function-naming")
+private fun DayDateRow(modifier: Modifier, day: WeekDay) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(day.abbreviation, style = MaterialTheme.typography.titleMedium)
+        Text(day.dayOfMonth.toString(), style = MaterialTheme.typography.titleLarge)
+    }
+}
+
+private fun expandedStartIndexFor(dayIndex: Int): Int =
+    when (dayIndex) {
+        0, 1 -> 0
+        2, 3, 4 -> dayIndex - 1
+        5, 6 -> 4
+        else -> error("Day index must be between 0 and 6")
+    }
+
 private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
     val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    return DAY_ABBREVIATIONS.mapIndexed { index, abbreviation ->
-        val date = monday.plusDays(index.toLong())
+    return DAY_ABBREVIATIONS.mapIndexed { dayIndex, abbreviation ->
+        val date = monday.plusDays(dayIndex.toLong())
         WeekDay(
             abbreviation = abbreviation,
             dayOfMonth = date.dayOfMonth,
             isWeekend = date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY,
-            weight =
-                if (index < EMPHASIZED_DAY_COUNT) {
-                    EMPHASIZED_DAY_WEIGHT
-                } else {
-                    STANDARD_DAY_WEIGHT
-                },
         )
     }
 }

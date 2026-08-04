@@ -24,9 +24,26 @@
   - the three-letter English day abbreviation (`Mon` through `Sun`);
   - the day-of-month number directly below the abbreviation.
 - Compute the displayed dates from the current week, with Monday as its first day.
-- Distribute the available safe height as follows:
-  - Monday, Tuesday, and Wednesday each occupy 21 percent;
-  - Thursday, Friday, Saturday, and Sunday each occupy 9.25 percent.
+- All seven day containers use the same structure and each contains nine logical content
+  rows. Every container has one of two display states:
+  - expanded: display all nine content rows;
+  - compact: display only the date row and hide the other eight rows.
+- The date row is the existing day-and-date block: the three-letter day abbreviation is
+  shown with the day-of-month number directly below it.
+- Exactly three consecutive containers must be expanded and the other four must be
+  compact at all times. Initially, Monday, Tuesday, and Wednesday are expanded.
+- Distribute the available safe height according to the current states:
+  - each of the three expanded containers occupies 21 percent;
+  - the four compact containers each occupy 9.25 percent.
+- The complete visible surface of every day container is clickable. Clicking a compact
+  container moves the expanded three-day group as follows:
+  - clicking Monday or Tuesday expands Monday, Tuesday, and Wednesday;
+  - clicking Wednesday, Thursday, or Friday expands the clicked day, the previous day,
+    and the following day;
+  - clicking Saturday or Sunday expands Friday, Saturday, and Sunday.
+- After each state change, every container outside the selected three-day group becomes
+  compact automatically, preserving exactly three expanded and four compact containers.
+  Clicking a container that is already expanded does not change the state.
 - Use a visible one-dp separator around every day container. Use the themed `onSurface`
   color so separators remain dark in the light theme and visible in the dark theme.
 - Saturday and Sunday use a distinct neutral background:
@@ -40,10 +57,8 @@
   neutral screen background continues underneath to the bottom edge. Read the raw bottom
   value from `WindowInsets.mandatorySystemGestures.asPaddingValues()` so the required
   gesture area is reserved even on devices whose navigation-bar inset is zero.
-- The day containers are not clickable yet. They will eventually be clickable across
-  their complete visible surface. When that behavior is added, keep the full click target
-  above the system inset, use Material interaction feedback, and expose each row as one
-  accessible semantic element.
+- Keep every full click target above the system inset, use Material interaction feedback,
+  and expose each day container as one accessible semantic element.
 
 ## Settings screen
 
