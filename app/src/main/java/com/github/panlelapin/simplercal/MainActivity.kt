@@ -13,6 +13,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -105,16 +106,7 @@ private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 private val DAY_SEPARATOR_THICKNESS = 1.5.dp
 private val DAY_SUBCONTAINER_CORNER_RADIUS = 24.dp
 private val MINIMUM_RIGHT_GESTURE_GUTTER = 24.dp
-private val DAY_LABEL_CONTAINER_SHAPE =
-    RoundedCornerShape(
-        topStart = DAY_SUBCONTAINER_CORNER_RADIUS,
-        bottomStart = DAY_SUBCONTAINER_CORNER_RADIUS,
-    )
-private val DAY_CONTENT_CONTAINER_SHAPE =
-    RoundedCornerShape(
-        topEnd = DAY_SUBCONTAINER_CORNER_RADIUS,
-        bottomEnd = DAY_SUBCONTAINER_CORNER_RADIUS,
-    )
+private val DAY_SUBCONTAINER_SHAPE = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS)
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -287,59 +279,64 @@ private fun WeekView() {
         }
         contentExpandedDays = expandedDayIndices(selectedDayIndex)
     }
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(bottom = bottomGestureInset, end = rightGestureInset)
-                .pointerInput(Unit) {
-                    var isDragEnabled = false
-                    detectVerticalDragGestures(
-                        onDragStart = { position ->
-                            val dayIndex =
-                                dayIndexAtPosition(
-                                    y = position.y,
-                                    height = size.height,
-                                    weights = currentAnimatedDayWeights.value,
-                                )
-                            isDragEnabled = dayIndex in expandedDayIndices(currentSelectedDayIndex.value)
-                            if (isDragEnabled) currentStartDrag.value()
-                        },
-                        onDragCancel = {
-                            if (isDragEnabled) currentEndDrag.value()
-                            isDragEnabled = false
-                        },
-                        onDragEnd = {
-                            if (isDragEnabled) currentEndDrag.value()
-                            isDragEnabled = false
-                        },
-                        onVerticalDrag = { change, _ ->
-                            if (isDragEnabled) {
-                                change.consume()
-                                val focusPosition =
-                                    dayFocusAtPosition(
-                                        y = change.position.y,
+    Row(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .weight(1f)
+                    .padding(bottom = bottomGestureInset)
+                    .pointerInput(Unit) {
+                        var isDragEnabled = false
+                        detectVerticalDragGestures(
+                            onDragStart = { position ->
+                                val dayIndex =
+                                    dayIndexAtPosition(
+                                        y = position.y,
                                         height = size.height,
                                         weights = currentAnimatedDayWeights.value,
                                     )
-                                currentDragToFocus.value(focusPosition)
-                            }
-                        },
-                    )
-                },
-    ) {
-        days.forEachIndexed { index, day ->
-            val isExpanded = index in expandedDayIndices(selectedDayIndex)
-            val isContentExpanded = index in contentExpandedDays
-            DayRow(
-                day = day,
-                isExpanded = isExpanded,
-                isContentExpanded = isContentExpanded,
-                weight = animatedDayWeights[index],
-                dayLabelColumnWidth = dayLabelColumnWidth,
-                onClick = { selectDay(index) },
-            )
+                                isDragEnabled =
+                                    dayIndex in expandedDayIndices(currentSelectedDayIndex.value)
+                                if (isDragEnabled) currentStartDrag.value()
+                            },
+                            onDragCancel = {
+                                if (isDragEnabled) currentEndDrag.value()
+                                isDragEnabled = false
+                            },
+                            onDragEnd = {
+                                if (isDragEnabled) currentEndDrag.value()
+                                isDragEnabled = false
+                            },
+                            onVerticalDrag = { change, _ ->
+                                if (isDragEnabled) {
+                                    change.consume()
+                                    val focusPosition =
+                                        dayFocusAtPosition(
+                                            y = change.position.y,
+                                            height = size.height,
+                                            weights = currentAnimatedDayWeights.value,
+                                        )
+                                    currentDragToFocus.value(focusPosition)
+                                }
+                            },
+                        )
+                    },
+        ) {
+            days.forEachIndexed { index, day ->
+                val isExpanded = index in expandedDayIndices(selectedDayIndex)
+                val isContentExpanded = index in contentExpandedDays
+                DayRow(
+                    day = day,
+                    isExpanded = isExpanded,
+                    isContentExpanded = isContentExpanded,
+                    weight = animatedDayWeights[index],
+                    dayLabelColumnWidth = dayLabelColumnWidth,
+                    onClick = { selectDay(index) },
+                )
+            }
         }
+        Spacer(modifier = Modifier.fillMaxHeight().width(rightGestureInset))
     }
 }
 
@@ -457,6 +454,7 @@ private fun ColumnScope.DayRow(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
                     .padding(2.dp),
         ) {
             DayLabelContainer(
@@ -485,7 +483,7 @@ private fun DayLabelContainer(
     val verticalAlignment = if (isExpanded) Alignment.TopEnd else Alignment.CenterEnd
     Surface(
         modifier = Modifier.width(width).fillMaxHeight(),
-        shape = DAY_LABEL_CONTAINER_SHAPE,
+        shape = DAY_SUBCONTAINER_SHAPE,
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
@@ -516,9 +514,9 @@ private fun DayContentContainer(
 ) {
     Surface(
         modifier = modifier,
-        shape = DAY_CONTENT_CONTAINER_SHAPE,
+        shape = DAY_SUBCONTAINER_SHAPE,
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
-        color = Color.Transparent,
+        color = colorResource(R.color.screen_background),
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),

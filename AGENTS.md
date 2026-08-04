@@ -59,10 +59,11 @@
   finger is released, producing a dock-style magnification movement without scaling content.
 - Use `MaterialTheme.colorScheme.surfaceContainer`, the exact colour of the top app bar,
   for the 1.5 dp separators around every day container and its two inner containers. Do
-  not use black or white separator lines. The left and right inner containers have 24 dp
-  rounded outer corners and join directly, with no gap between them. Use this same colour
-  as the fill of each left inner container and for the area below the day containers,
-  including the system-gesture inset area.
+  not use black or white separator lines. Each left and right inner container has all four
+  corners rounded by 24 dp. Their shared background is `surfaceContainer`, so no white
+  gap is visible between them or under their rounded corners. Use this same colour as the
+  fill of each left inner container and for the area below the day containers, including
+  the system-gesture inset area.
 - All day containers, including Saturday and Sunday, use:
   - `#FFFFFF` in the light theme;
   - `#000000` in the dark theme.
