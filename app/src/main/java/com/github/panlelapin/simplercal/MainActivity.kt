@@ -16,17 +16,20 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.mandatorySystemGestures
@@ -35,6 +38,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -55,14 +59,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
@@ -72,6 +81,7 @@ import androidx.core.view.WindowInsetsCompat
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 
 private const val PREFERENCES_NAME = "simplercal"
 private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
@@ -80,7 +90,8 @@ private const val EXPANDED_DAY_COUNT = 3
 private const val EXPANDED_DAY_WEIGHT = 21f
 private const val COMPACT_DAY_WEIGHT = 9.25f
 private const val DAY_CONTENT_ROW_COUNT = 9
-private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 180
+private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 720
+private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -177,6 +188,7 @@ private fun HelloScreen(onSettings: () -> Unit) {
 private fun WeekView() {
     val days = remember { currentWeek() }
     var expandedStartIndex by remember { mutableStateOf(0) }
+    val dayLabelColumnWidth = dayLabelColumnWidth()
     val bottomGestureInset =
         WindowInsets.mandatorySystemGestures.asPaddingValues().calculateBottomPadding()
     Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomGestureInset)) {
@@ -195,8 +207,9 @@ private fun WeekView() {
                 day = day,
                 isExpanded = isExpanded,
                 weight = animatedWeight,
+                dayLabelColumnWidth = dayLabelColumnWidth,
                 onClick = {
-                    if (!isExpanded) expandedStartIndex = expandedStartIndexFor(index)
+                    expandedStartIndex = expandedStartIndexFor(index)
                 },
             )
         }
@@ -209,6 +222,7 @@ private fun ColumnScope.DayRow(
     day: WeekDay,
     isExpanded: Boolean,
     weight: Float,
+    dayLabelColumnWidth: Dp,
     onClick: () -> Unit,
 ) {
     val stateDescription = if (isExpanded) "expanded" else "compact"
@@ -230,8 +244,73 @@ private fun ColumnScope.DayRow(
                 colorResource(R.color.screen_background)
             },
     ) {
+        Row(modifier = Modifier.fillMaxSize()) {
+            DayLabelContainer(
+                day = day,
+                isExpanded = isExpanded,
+                width = dayLabelColumnWidth,
+            )
+            Spacer(
+                modifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .width(1.dp)
+                        .background(MaterialTheme.colorScheme.onSurface),
+            )
+            DayContentContainer(
+                day = day,
+                isExpanded = isExpanded,
+                modifier = Modifier.fillMaxHeight().weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+@Suppress("FunctionName", "ktlint:standard:function-naming")
+private fun DayLabelContainer(
+    day: WeekDay,
+    isExpanded: Boolean,
+    width: Dp,
+) {
+    val verticalAlignment = if (isExpanded) Alignment.TopEnd else Alignment.CenterEnd
+    Surface(
+        modifier = Modifier.width(width).fillMaxHeight(),
+        shape = RectangleShape,
+        color = androidx.compose.ui.graphics.Color.Transparent,
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = verticalAlignment,
+        ) {
+            Text(
+                text = day.abbreviation.uppercase(Locale.ROOT),
+                modifier =
+                    if (isExpanded) {
+                        Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING, top = 8.dp)
+                    } else {
+                        Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING)
+                    },
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+    }
+}
+
+@Composable
+@Suppress("FunctionName", "ktlint:standard:function-naming")
+private fun DayContentContainer(
+    day: WeekDay,
+    isExpanded: Boolean,
+    modifier: Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RectangleShape,
+        color = androidx.compose.ui.graphics.Color.Transparent,
+    ) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            DayDateRow(modifier = Modifier.fillMaxWidth().weight(1f), day = day)
+            DateNumberRow(modifier = Modifier.fillMaxWidth().weight(1f), day = day)
             if (isExpanded) {
                 repeat(DAY_CONTENT_ROW_COUNT - 1) {
                     Spacer(modifier = Modifier.fillMaxWidth().weight(1f))
@@ -243,14 +322,29 @@ private fun ColumnScope.DayRow(
 
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
-private fun DayDateRow(modifier: Modifier, day: WeekDay) {
-    Column(
+private fun DateNumberRow(modifier: Modifier, day: WeekDay) {
+    Box(
         modifier = modifier,
-        verticalArrangement = Arrangement.Center,
+        contentAlignment = Alignment.CenterStart,
     ) {
-        Text(day.abbreviation, style = MaterialTheme.typography.titleMedium)
         Text(day.dayOfMonth.toString(), style = MaterialTheme.typography.titleLarge)
     }
+}
+
+@Composable
+@Suppress("FunctionName", "ktlint:standard:function-naming")
+private fun dayLabelColumnWidth(): Dp {
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val textStyle = MaterialTheme.typography.titleMedium
+    val widestLabelWidth =
+        DAY_ABBREVIATIONS.maxOf { abbreviation ->
+            textMeasurer.measure(
+                text = AnnotatedString(abbreviation.uppercase(Locale.ROOT)),
+                style = textStyle,
+            ).size.width
+        }
+    return with(density) { widestLabelWidth.toDp() } + DAY_LABEL_HORIZONTAL_PADDING * 2
 }
 
 private fun expandedStartIndexFor(dayIndex: Int): Int =

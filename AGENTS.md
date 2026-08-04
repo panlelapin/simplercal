@@ -20,31 +20,33 @@
     yet.
 - Below the top bar, display the current calendar week as seven full-width horizontal
   containers arranged vertically from Monday through Sunday.
-- Each container displays on its left side:
-  - the three-letter English day abbreviation (`Mon` through `Sun`);
-  - the day-of-month number directly below the abbreviation.
+- Each day container contains two full-height inner containers arranged horizontally. Their
+  widths are the same in all seven day containers:
+  - the left inner container is only wide enough for the widest three-letter uppercase
+    English day abbreviation (`MON` through `SUN`); its text is right-aligned, vertically
+    centered when compact, and aligned at the top when expanded;
+  - the right inner container takes the remaining width and contains the day-of-month
+    number and the logical content rows.
 - Compute the displayed dates from the current week, with Monday as its first day.
 - All seven day containers use the same structure and each contains nine logical content
   rows. Every container has one of two display states:
   - expanded: display all nine content rows;
   - compact: display only the date row and hide the other eight rows.
-- The date row is the existing day-and-date block: the three-letter day abbreviation is
-  shown with the day-of-month number directly below it.
+- The date row in the right inner container displays the day-of-month number.
 - Exactly three consecutive containers must be expanded and the other four must be
   compact at all times. Initially, Monday, Tuesday, and Wednesday are expanded.
 - Distribute the available safe height according to the current states:
   - each of the three expanded containers occupies 21 percent;
   - the four compact containers each occupy 9.25 percent.
-- The complete visible surface of every day container is clickable. Clicking a compact
+- The complete visible surface of every day container is clickable. Clicking any
   container moves the expanded three-day group as follows:
   - clicking Monday or Tuesday expands Monday, Tuesday, and Wednesday;
   - clicking Wednesday, Thursday, or Friday expands the clicked day, the previous day,
     and the following day;
   - clicking Saturday or Sunday expands Friday, Saturday, and Sunday.
-- After each state change, every container outside the selected three-day group becomes
-  compact automatically, preserving exactly three expanded and four compact containers.
-  Clicking a container that is already expanded does not change the state.
-- Animate all affected container heights together with a short transition. The top and
+- After each click, every container outside the selected three-day group becomes compact
+  automatically, preserving exactly three expanded and four compact containers.
+- Animate all affected container heights together over 720 milliseconds. The top and
   bottom separators must move with their containers as the new three-day group expands
   and the former group compacts.
 - Use a visible one-dp separator around every day container. Use the themed `onSurface`
