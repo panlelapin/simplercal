@@ -54,6 +54,37 @@ configuration, minSdk 34, targetSdk 36, release shrinking, and non-debuggable
 development signing. Local quality may compile Kotlin for type resolution; it must not
 assemble, sign, or claim an APK.
 
+## Window and Material layout defaults
+
+Activities must not be immersive or full-screen by default: never hide the Android status
+bar or navigation bar. The status bar must remain visible, and the first app content must
+start at the normal Material spacing below the system bar rather than being glued to the
+top edge. On Android 15+ edge-to-edge may be enforced by the target SDK, so handle
+`WindowInsets`/Compose insets correctly instead of assuming that disabling edge-to-edge
+is possible. Keep tappable app-bar content out of system-bar overlap.
+
+Use Material 3 layout primitives where applicable, especially `Scaffold` with a
+`TopAppBar`/`CenterAlignedTopAppBar` and the scaffold content padding. Keep the title
+between the navigation icon and right-side actions, preserve standard touch targets, and
+use monochrome icons with meaningful content descriptions. Do not add custom top padding
+that duplicates the app bar's system-bar insets.
+
+## Design references
+
+For every design question, read `references/design-sources.md` first. Treat it as the
+offline design reference for this skill, then consult the linked official sources when
+the question depends on current guidance or a resource update:
+
+- Android Mobile design guidance: `https://developer.android.com/design/ui/mobile`
+- Official Android UI kit: `https://goo.gle/android-ui-kit`
+- Official Android Design Figma community: `https://www.figma.com/@androiddesign`
+- Material Design 3: `https://m3.material.io/`
+
+The Figma links are official online design resources, not self-contained local HTML
+archives. Do not claim that a `.fig` file is available offline unless it has actually
+been exported and stored in the skill resources. Use the local reference for offline
+work and the canonical links for current component specifications, kits, and updates.
+
 ## Remote build workflow
 
 Copy `scripts/check-github-stuff`, `scripts/check-local`, `scripts/make-remote`, and

@@ -2,18 +2,19 @@ package com.github.panlelapin.simplercal
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Bundle
 import android.provider.CalendarContract
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,8 +22,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,14 +44,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import androidx.core.net.toUri
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 
 private const val PREFERENCES_NAME = "simplercal"
 private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
@@ -59,6 +66,15 @@ private data class CalendarChoice(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            show(WindowInsetsCompat.Type.systemBars())
+            val isNightMode =
+                resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+                    Configuration.UI_MODE_NIGHT_YES
+            isAppearanceLightStatusBars = !isNightMode
+            isAppearanceLightNavigationBars = !isNightMode
+        }
         setContent { SimplerCalApp() }
     }
 }
@@ -84,29 +100,33 @@ private fun SimplerCalApp() {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun HelloScreen(onSettings: () -> Unit) {
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(
-                    onClick = onSettings,
-                    modifier = Modifier.semantics { contentDescription = "Settings" },
-                ) { Text("⚙", fontSize = 24.sp) }
-                Text(
-                    "Hello",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                )
-                TextButton(
-                    onClick = {},
-                    modifier = Modifier.semantics { contentDescription = "Change view" },
-                ) { Text("▦", fontSize = 24.sp) }
-            }
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Hello") },
+                navigationIcon = {
+                    IconButton(onClick = onSettings) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_settings),
+                            contentDescription = "Settings",
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {}) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_today),
+                            contentDescription = "Today",
+                        )
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
+        Surface(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Hello", style = MaterialTheme.typography.headlineMedium)
             }
@@ -115,18 +135,10 @@ private fun HelloScreen(onSettings: () -> Unit) {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 @Suppress("CognitiveComplexMethod", "FunctionName", "LongMethod", "ktlint:standard:function-naming")
 private fun SettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val releaseVersion =
-        remember {
-            val packageInfo =
-                context.packageManager.getPackageInfo(
-                    context.packageName,
-                    PackageManager.PackageInfoFlags.of(0),
-                )
-            packageInfo.versionName ?: "---"
-        }
     var calendars by remember { mutableStateOf(emptyList<CalendarChoice>()) }
     var selectedId by remember {
         mutableStateOf(
@@ -135,28 +147,49 @@ private fun SettingsScreen(onBack: () -> Unit) {
                 .getLong(SELECTED_CALENDAR_KEY, -1L),
         )
     }
-    val hasPermission =
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.READ_CALENDAR,
-        ) == PackageManager.PERMISSION_GRANTED
+    var isCalendarPickerVisible by remember { mutableStateOf(false) }
+    var hasPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_CALENDAR,
+            ) == PackageManager.PERMISSION_GRANTED,
+        )
+    }
     val permissionLauncher =
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission(),
-        ) { if (it) calendars = loadCalendars(context) }
+        ) { isGranted ->
+            hasPermission = isGranted
+            if (isGranted) calendars = loadCalendars(context)
+        }
     LaunchedEffect(hasPermission) {
         if (hasPermission) calendars = loadCalendars(context)
     }
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-        ) {
-            TextButton(onClick = onBack) { Text("Back") }
-            Text(
-                "Settings",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+    val selectedCalendarName = calendars.firstOrNull { it.id == selectedId }?.name
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Settings") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_back),
+                            contentDescription = "Back",
+                        )
+                    }
+                },
             )
+        },
+    ) { innerPadding ->
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
+        ) {
             Spacer(Modifier.height(24.dp))
             Text("Calendar", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
@@ -166,42 +199,59 @@ private fun SettingsScreen(onBack: () -> Unit) {
                 Button(onClick = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) }) {
                     Text("Allow")
                 }
-            } else if (calendars.isEmpty()) {
-                Text("No visible calendars available.")
             } else {
-                calendars.forEach { calendar ->
-                    TextButton(onClick = {
-                        selectedId = calendar.id
-                        context.getSharedPreferences(PREFERENCES_NAME, 0).edit {
-                            putLong(SELECTED_CALENDAR_KEY, calendar.id)
-                        }
-                    }) {
-                        Text(
-                            if (selectedId ==
-                                calendar.id
-                            ) {
-                                "● ${calendar.name}"
-                            } else {
-                                "○ ${calendar.name}"
-                            },
-                        )
-                    }
+                Button(
+                    onClick = { isCalendarPickerVisible = true },
+                    enabled = calendars.isNotEmpty(),
+                ) {
+                    Text(selectedCalendarName ?: "Choose calendar")
                 }
+                if (calendars.isEmpty()) Text("No visible calendars available.")
             }
             Spacer(Modifier.height(32.dp))
             Text(
-                text = "SimplerCal v.$releaseVersion",
+                text = "SimplerCal v${BuildConfig.OFFICIAL_RELEASE_VERSION}",
                 modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
             )
             Text(
                 text = GITHUB_URL,
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, GITHUB_URL.toUri()))
+                        },
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center,
             )
         }
+    }
+    if (isCalendarPickerVisible) {
+        AlertDialog(
+            onDismissRequest = { isCalendarPickerVisible = false },
+            confirmButton = {
+                TextButton(onClick = { isCalendarPickerVisible = false }) { Text("Cancel") }
+            },
+            title = { Text("Choose calendar") },
+            text = {
+                Column {
+                    calendars.forEach { calendar ->
+                        TextButton(onClick = {
+                            selectedId = calendar.id
+                            context.getSharedPreferences(PREFERENCES_NAME, 0).edit {
+                                putLong(SELECTED_CALENDAR_KEY, calendar.id)
+                            }
+                            isCalendarPickerVisible = false
+                        }) {
+                            Text(calendar.name)
+                        }
+                    }
+                }
+            },
+        )
     }
 }
 

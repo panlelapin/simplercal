@@ -1,5 +1,7 @@
 import dev.detekt.gradle.extensions.FailOnSeverity
 
+val officialReleaseVersion = providers.environmentVariable("OFFICIAL_RELEASE_VERSION").orElse("---")
+
 plugins {
     id("com.android.application")
     id("dev.detekt")
@@ -16,6 +18,11 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+        buildConfigField(
+            "String",
+            "OFFICIAL_RELEASE_VERSION",
+            "\"${officialReleaseVersion.get()}\"",
+        )
 
         ndk {
             abiFilters += setOf("arm64-v8a")
@@ -23,6 +30,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 
