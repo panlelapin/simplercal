@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -102,8 +103,17 @@ private const val EXPANDED_CONTENT_LINE_COUNT = 9
 private const val COMPACT_CONTENT_LINE_COUNT = 1
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 private val DAY_SEPARATOR_THICKNESS = 1.5.dp
-private val DAY_SUBCONTAINER_CORNER_RADIUS = 6.dp
-private val DAY_SUBCONTAINER_GAP = 2.dp
+private val DAY_SUBCONTAINER_CORNER_RADIUS = 12.dp
+private val DAY_LABEL_CONTAINER_SHAPE =
+    RoundedCornerShape(
+        topStart = DAY_SUBCONTAINER_CORNER_RADIUS,
+        bottomStart = DAY_SUBCONTAINER_CORNER_RADIUS,
+    )
+private val DAY_CONTENT_CONTAINER_SHAPE =
+    RoundedCornerShape(
+        topEnd = DAY_SUBCONTAINER_CORNER_RADIUS,
+        bottomEnd = DAY_SUBCONTAINER_CORNER_RADIUS,
+    )
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -242,8 +252,9 @@ private fun WeekView() {
     val currentDragToFocus = rememberUpdatedState(dragToFocus)
     val currentEndDrag = rememberUpdatedState(endDrag)
     val dayLabelColumnWidth = dayLabelColumnWidth()
-    val bottomGestureInset =
-        WindowInsets.mandatorySystemGestures.asPaddingValues().calculateBottomPadding()
+    val mandatoryGesturePadding = WindowInsets.mandatorySystemGestures.asPaddingValues()
+    val bottomGestureInset = mandatoryGesturePadding.calculateBottomPadding()
+    val rightGestureInset = mandatoryGesturePadding.calculateRightPadding(LocalLayoutDirection.current)
     LaunchedEffect(animationRequest) {
         if (isDragging) return@LaunchedEffect
         val startWeights = animatedDayWeights
@@ -275,7 +286,7 @@ private fun WeekView() {
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(bottom = bottomGestureInset)
+                .padding(bottom = bottomGestureInset, end = rightGestureInset)
                 .pointerInput(Unit) {
                     var isDragEnabled = false
                     detectVerticalDragGestures(
@@ -437,7 +448,7 @@ private fun ColumnScope.DayRow(
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
         color =
             if (day.isWeekend) {
-                colorResource(R.color.weekend_background)
+                MaterialTheme.colorScheme.surfaceContainer
             } else {
                 colorResource(R.color.screen_background)
             },
@@ -454,7 +465,6 @@ private fun ColumnScope.DayRow(
                 width = dayLabelColumnWidth,
                 separatorColor = separatorColor,
             )
-            Spacer(modifier = Modifier.width(DAY_SUBCONTAINER_GAP))
             DayContentContainer(
                 isExpanded = isContentExpanded,
                 separatorColor = separatorColor,
@@ -475,7 +485,7 @@ private fun DayLabelContainer(
     val verticalAlignment = if (isExpanded) Alignment.TopEnd else Alignment.CenterEnd
     Surface(
         modifier = Modifier.width(width).fillMaxHeight(),
-        shape = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS),
+        shape = DAY_LABEL_CONTAINER_SHAPE,
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
@@ -506,7 +516,7 @@ private fun DayContentContainer(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS),
+        shape = DAY_CONTENT_CONTAINER_SHAPE,
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
         color = Color.Transparent,
     ) {

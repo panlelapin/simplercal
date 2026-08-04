@@ -59,12 +59,10 @@
   finger is released, producing a dock-style magnification movement without scaling content.
 - Use `MaterialTheme.colorScheme.surfaceContainer`, the exact colour of the top app bar,
   for the 1.5 dp separators around every day container and its two inner containers. Do
-  not use black or white separator lines. The left and right inner containers have subtly
-  rounded 6 dp corners. Use this same colour as the fill of each left inner container and
-  for the area below the day containers, including the system-gesture inset area.
-- Saturday and Sunday use a distinct neutral background:
-  - `#E4E4E4` in the light theme;
-  - `#202020` in the dark theme.
+  not use black or white separator lines. The left and right inner containers have 12 dp
+  rounded outer corners and join directly, with no gap between them. Use this same colour
+  as the fill of each left inner container and for the area below the day containers,
+  including the system-gesture inset area. Saturday and Sunday use this same colour.
 - Other day containers use:
   - `#FFFFFF` in the light theme;
   - `#000000` in the dark theme.
@@ -73,6 +71,9 @@
   `surfaceContainer` background continues underneath to the bottom edge. Read the raw
   bottom value from `WindowInsets.mandatorySystemGestures.asPaddingValues()` so the
   required gesture area is reserved even on devices whose navigation-bar inset is zero.
+- Reserve the raw right mandatory system-gesture inset after the day containers. This
+  visible right-side strip uses `surfaceContainer`, so no container overlaps the Back
+  gesture area.
 - Keep every full click target above the system inset, use Material interaction feedback,
   and expose each day container as one accessible semantic element.
 
