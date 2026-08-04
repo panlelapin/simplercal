@@ -103,7 +103,8 @@ private const val EXPANDED_CONTENT_LINE_COUNT = 9
 private const val COMPACT_CONTENT_LINE_COUNT = 1
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 private val DAY_SEPARATOR_THICKNESS = 1.5.dp
-private val DAY_SUBCONTAINER_CORNER_RADIUS = 12.dp
+private val DAY_SUBCONTAINER_CORNER_RADIUS = 24.dp
+private val MINIMUM_RIGHT_GESTURE_GUTTER = 24.dp
 private val DAY_LABEL_CONTAINER_SHAPE =
     RoundedCornerShape(
         topStart = DAY_SUBCONTAINER_CORNER_RADIUS,
@@ -254,7 +255,11 @@ private fun WeekView() {
     val dayLabelColumnWidth = dayLabelColumnWidth()
     val mandatoryGesturePadding = WindowInsets.mandatorySystemGestures.asPaddingValues()
     val bottomGestureInset = mandatoryGesturePadding.calculateBottomPadding()
-    val rightGestureInset = mandatoryGesturePadding.calculateRightPadding(LocalLayoutDirection.current)
+    val rightGestureInset =
+        maxOf(
+            MINIMUM_RIGHT_GESTURE_GUTTER,
+            mandatoryGesturePadding.calculateRightPadding(LocalLayoutDirection.current),
+        )
     LaunchedEffect(animationRequest) {
         if (isDragging) return@LaunchedEffect
         val startWeights = animatedDayWeights
@@ -446,12 +451,7 @@ private fun ColumnScope.DayRow(
         },
         shape = RectangleShape,
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
-        color =
-            if (day.isWeekend) {
-                MaterialTheme.colorScheme.surfaceContainer
-            } else {
-                colorResource(R.color.screen_background)
-            },
+        color = colorResource(R.color.screen_background),
     ) {
         Row(
             modifier =
