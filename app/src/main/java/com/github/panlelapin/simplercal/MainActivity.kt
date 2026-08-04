@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.mandatorySystemGestures
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -164,8 +165,9 @@ private fun HelloScreen(onSettings: () -> Unit) {
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun WeekView() {
     val days = remember { currentWeek() }
-    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
-    Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomInset)) {
+    val bottomGestureInset =
+        WindowInsets.mandatorySystemGestures.asPaddingValues().calculateBottomPadding()
+    Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomGestureInset)) {
         days.forEach { day -> DayRow(day) }
     }
 }

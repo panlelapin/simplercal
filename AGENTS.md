@@ -35,11 +35,11 @@
 - Other day containers and the area below the week use:
   - `#FFFFFF` in the light theme;
   - `#000000` in the dark theme.
-- The Sunday container must stop immediately above the bottom safe-drawing inset. Its
-  bottom separator marks the boundary with the system-inset area, while the neutral
-  screen background continues underneath to the bottom edge. Read the raw bottom value
-  from `WindowInsets.safeDrawing.asPaddingValues()` so Compose inset consumption cannot
-  collapse this reserved area.
+- The Sunday container must stop immediately above the bottom mandatory system-gesture
+  inset. Its bottom separator marks the boundary with the system-inset area, while the
+  neutral screen background continues underneath to the bottom edge. Read the raw bottom
+  value from `WindowInsets.mandatorySystemGestures.asPaddingValues()` so the required
+  gesture area is reserved even on devices whose navigation-bar inset is zero.
 - The day containers are not clickable yet. They will eventually be clickable across
   their complete visible surface. When that behavior is added, keep the full click target
   above the system inset, use Material interaction feedback, and expose each row as one
