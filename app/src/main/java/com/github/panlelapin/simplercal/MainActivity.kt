@@ -12,10 +12,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -59,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.RectangleShape
@@ -96,6 +93,7 @@ private const val TOTAL_DAY_WEIGHT = 100f
 private const val EXPANDED_DAY_WEIGHT =
     (TOTAL_DAY_WEIGHT - COMPACT_DAY_WEIGHT * COMPACT_DAY_COUNT) / EXPANDED_DAY_COUNT
 private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 2_000
+private const val NANOS_PER_MILLISECOND = 1_000_000L
 private const val DAY_CONTENT_TEXT = "dolor sit amet bla bla truc bigoudi plan plan proutcul"
 private const val EXPANDED_CONTENT_LINE_COUNT = 9
 private const val COMPACT_CONTENT_LINE_COUNT = 2
@@ -200,49 +198,77 @@ private fun HelloScreen(onSettings: () -> Unit) {
 private fun WeekView() {
     val days = remember { currentWeek() }
     var expandedStartIndex by remember { mutableStateOf(0) }
-    val heightTransition =
-        updateTransition(
-            targetState = expandedStartIndex,
-            label = "day-heights",
-        )
-    val currentExpandedStartIndex = heightTransition.currentState
+    var animatedDayWeights by remember { mutableStateOf(dayWeightsFor(expandedStartIndex)) }
+    var contentExpandedDays by remember { mutableStateOf(expandedDayIndices(expandedStartIndex)) }
     val dayLabelColumnWidth = dayLabelColumnWidth()
     val bottomGestureInset =
         WindowInsets.mandatorySystemGestures.asPaddingValues().calculateBottomPadding()
+    LaunchedEffect(expandedStartIndex) {
+        val startWeights = animatedDayWeights
+        val targetWeights = dayWeightsFor(expandedStartIndex)
+        if (startWeights != targetWeights) {
+            val durationNanos = DAY_STATE_ANIMATION_DURATION_MILLIS * NANOS_PER_MILLISECOND
+            val startNanos = withFrameNanos { frameTimeNanos -> frameTimeNanos }
+            var fraction = 0f
+            while (fraction < 1f) {
+                val frameNanos = withFrameNanos { frameTimeNanos -> frameTimeNanos }
+                fraction =
+                    ((frameNanos - startNanos).toDouble() / durationNanos)
+                        .toFloat()
+                        .coerceIn(0f, 1f)
+                animatedDayWeights =
+                    List(days.size) { dayIndex ->
+                        interpolateWeight(
+                            start = startWeights[dayIndex],
+                            end = targetWeights[dayIndex],
+                            fraction = fraction,
+                        )
+                    }
+            }
+            animatedDayWeights = targetWeights
+        }
+        contentExpandedDays = expandedDayIndices(expandedStartIndex)
+    }
     Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomGestureInset)) {
         days.forEachIndexed { index, day ->
             val isExpanded = index in expandedStartIndex until expandedStartIndex + EXPANDED_DAY_COUNT
-            val wasExpanded =
-                index in currentExpandedStartIndex until currentExpandedStartIndex + EXPANDED_DAY_COUNT
-            val isContentExpanded = isExpanded || wasExpanded
-            val animatedWeight by heightTransition.animateFloat(
-                transitionSpec = {
-                    tween(
-                        durationMillis = DAY_STATE_ANIMATION_DURATION_MILLIS,
-                        easing = FastOutSlowInEasing,
-                    )
-                },
-                label = "day-$index-height",
-            ) { targetStartIndex ->
-                if (index in targetStartIndex until targetStartIndex + EXPANDED_DAY_COUNT) {
-                    EXPANDED_DAY_WEIGHT
-                } else {
-                    COMPACT_DAY_WEIGHT
-                }
-            }
+            val isContentExpanded = index in contentExpandedDays
             DayRow(
                 day = day,
                 isExpanded = isExpanded,
                 isContentExpanded = isContentExpanded,
-                weight = animatedWeight,
+                weight = animatedDayWeights[index],
                 dayLabelColumnWidth = dayLabelColumnWidth,
                 onClick = {
-                    expandedStartIndex = expandedStartIndexFor(index)
+                    val nextExpandedStartIndex = expandedStartIndexFor(index)
+                    if (nextExpandedStartIndex != expandedStartIndex) {
+                        contentExpandedDays =
+                            contentExpandedDays + expandedDayIndices(nextExpandedStartIndex)
+                        expandedStartIndex = nextExpandedStartIndex
+                    }
                 },
             )
         }
     }
 }
+
+private fun dayWeightsFor(expandedStartIndex: Int): List<Float> =
+    List(DAY_ABBREVIATIONS.size) { dayIndex ->
+        if (dayIndex in expandedStartIndex until expandedStartIndex + EXPANDED_DAY_COUNT) {
+            EXPANDED_DAY_WEIGHT
+        } else {
+            COMPACT_DAY_WEIGHT
+        }
+    }
+
+private fun expandedDayIndices(expandedStartIndex: Int): Set<Int> =
+    (expandedStartIndex until expandedStartIndex + EXPANDED_DAY_COUNT).toSet()
+
+private fun interpolateWeight(
+    start: Float,
+    end: Float,
+    fraction: Float,
+): Float = start + (end - start) * fraction
 
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")

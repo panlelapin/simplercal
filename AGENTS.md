@@ -46,9 +46,10 @@
   - clicking Saturday or Sunday expands Friday, Saturday, and Sunday.
 - After each click, every container outside the selected three-day group becomes compact
   automatically, preserving exactly three expanded and four compact containers.
-- Animate all affected container heights together over 2 seconds. The top and
-  bottom separators must move with their containers as the new three-day group expands
-  and the former group compacts.
+- Animate all affected container heights together over exactly 2 seconds of elapsed frame
+  time, using one shared linear progression that is independent of the system animator
+  duration scale. The top and bottom separators must move with their containers as the
+  new three-day group expands and the former group compacts.
 - When a compact container becomes expanded, update its right-side content before the
   height animation starts. When an expanded container becomes compact, keep its expanded
   content during the height animation and reduce it to two lines only after the animation
