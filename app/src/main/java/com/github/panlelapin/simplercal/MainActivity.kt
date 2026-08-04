@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,11 +55,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.colorResource
@@ -92,10 +95,10 @@ private const val COMPACT_DAY_COUNT = 4
 private const val TOTAL_DAY_WEIGHT = 100f
 private const val EXPANDED_DAY_WEIGHT =
     (TOTAL_DAY_WEIGHT - COMPACT_DAY_WEIGHT * COMPACT_DAY_COUNT) / EXPANDED_DAY_COUNT
-private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 2_000
+private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 1_000
 private const val NANOS_PER_MILLISECOND = 1_000_000L
 private const val DAY_CONTENT_TEXT = "dolor sit amet bla bla truc bigoudi plan plan proutcul"
-private const val EXPANDED_CONTENT_LINE_COUNT = 9
+private const val EXPANDED_CONTENT_LINE_COUNT = 8
 private const val COMPACT_CONTENT_LINE_COUNT = 2
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 
@@ -200,10 +203,44 @@ private fun WeekView() {
     var expandedStartIndex by remember { mutableStateOf(0) }
     var animatedDayWeights by remember { mutableStateOf(dayWeightsFor(expandedStartIndex)) }
     var contentExpandedDays by remember { mutableStateOf(expandedDayIndices(expandedStartIndex)) }
+    var animationRequest by remember { mutableStateOf(0) }
+    var isDragging by remember { mutableStateOf(false) }
+    val selectDay: (Int) -> Unit = { dayIndex ->
+        val nextExpandedStartIndex = expandedStartIndexFor(dayIndex)
+        if (nextExpandedStartIndex != expandedStartIndex) {
+            contentExpandedDays = contentExpandedDays + expandedDayIndices(nextExpandedStartIndex)
+            expandedStartIndex = nextExpandedStartIndex
+            animationRequest += 1
+        }
+    }
+    val startDrag: () -> Unit = {
+        if (!isDragging) {
+            isDragging = true
+            animationRequest += 1
+        }
+    }
+    val dragToFocus: (Float) -> Unit = { focusPosition ->
+        val focusedDayIndex = (focusPosition + 0.5f).toInt().coerceIn(0, days.lastIndex)
+        val nextExpandedStartIndex = expandedStartIndexFor(focusedDayIndex)
+        expandedStartIndex = nextExpandedStartIndex
+        contentExpandedDays = expandedDayIndices(nextExpandedStartIndex)
+        animatedDayWeights = dayWeightsForFocus(focusPosition)
+    }
+    val endDrag: () -> Unit = {
+        animatedDayWeights = dayWeightsFor(expandedStartIndex)
+        contentExpandedDays = expandedDayIndices(expandedStartIndex)
+        isDragging = false
+    }
+    val currentAnimatedDayWeights = rememberUpdatedState(animatedDayWeights)
+    val currentExpandedStartIndex = rememberUpdatedState(expandedStartIndex)
+    val currentStartDrag = rememberUpdatedState(startDrag)
+    val currentDragToFocus = rememberUpdatedState(dragToFocus)
+    val currentEndDrag = rememberUpdatedState(endDrag)
     val dayLabelColumnWidth = dayLabelColumnWidth()
     val bottomGestureInset =
         WindowInsets.mandatorySystemGestures.asPaddingValues().calculateBottomPadding()
-    LaunchedEffect(expandedStartIndex) {
+    LaunchedEffect(animationRequest) {
+        if (isDragging) return@LaunchedEffect
         val startWeights = animatedDayWeights
         val targetWeights = dayWeightsFor(expandedStartIndex)
         if (startWeights != targetWeights) {
@@ -229,7 +266,49 @@ private fun WeekView() {
         }
         contentExpandedDays = expandedDayIndices(expandedStartIndex)
     }
-    Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomGestureInset)) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(bottom = bottomGestureInset)
+                .pointerInput(Unit) {
+                    var isDragEnabled = false
+                    detectVerticalDragGestures(
+                        onDragStart = { position ->
+                            val dayIndex =
+                                dayIndexAtPosition(
+                                    y = position.y,
+                                    height = size.height,
+                                    weights = currentAnimatedDayWeights.value,
+                                )
+                            val expandedStart = currentExpandedStartIndex.value
+                            isDragEnabled =
+                                dayIndex in expandedStart until expandedStart + EXPANDED_DAY_COUNT
+                            if (isDragEnabled) currentStartDrag.value()
+                        },
+                        onDragCancel = {
+                            if (isDragEnabled) currentEndDrag.value()
+                            isDragEnabled = false
+                        },
+                        onDragEnd = {
+                            if (isDragEnabled) currentEndDrag.value()
+                            isDragEnabled = false
+                        },
+                        onVerticalDrag = { change, _ ->
+                            if (isDragEnabled) {
+                                change.consume()
+                                val focusPosition =
+                                    dayFocusAtPosition(
+                                        y = change.position.y,
+                                        height = size.height,
+                                        weights = currentAnimatedDayWeights.value,
+                                    )
+                                currentDragToFocus.value(focusPosition)
+                            }
+                        },
+                    )
+                },
+    ) {
         days.forEachIndexed { index, day ->
             val isExpanded = index in expandedStartIndex until expandedStartIndex + EXPANDED_DAY_COUNT
             val isContentExpanded = index in contentExpandedDays
@@ -239,14 +318,7 @@ private fun WeekView() {
                 isContentExpanded = isContentExpanded,
                 weight = animatedDayWeights[index],
                 dayLabelColumnWidth = dayLabelColumnWidth,
-                onClick = {
-                    val nextExpandedStartIndex = expandedStartIndexFor(index)
-                    if (nextExpandedStartIndex != expandedStartIndex) {
-                        contentExpandedDays =
-                            contentExpandedDays + expandedDayIndices(nextExpandedStartIndex)
-                        expandedStartIndex = nextExpandedStartIndex
-                    }
-                },
+                onClick = { selectDay(index) },
             )
         }
     }
@@ -261,6 +333,22 @@ private fun dayWeightsFor(expandedStartIndex: Int): List<Float> =
         }
     }
 
+private fun dayWeightsForFocus(focusPosition: Float): List<Float> {
+    val boundedFocus = focusPosition.coerceIn(0f, DAY_ABBREVIATIONS.lastIndex.toFloat())
+    val lowerDayIndex = boundedFocus.toInt()
+    val upperDayIndex = (lowerDayIndex + 1).coerceAtMost(DAY_ABBREVIATIONS.lastIndex)
+    val fraction = boundedFocus - lowerDayIndex
+    val lowerWeights = dayWeightsFor(expandedStartIndexFor(lowerDayIndex))
+    val upperWeights = dayWeightsFor(expandedStartIndexFor(upperDayIndex))
+    return List(DAY_ABBREVIATIONS.size) { dayIndex ->
+        interpolateWeight(
+            start = lowerWeights[dayIndex],
+            end = upperWeights[dayIndex],
+            fraction = fraction,
+        )
+    }
+}
+
 private fun expandedDayIndices(expandedStartIndex: Int): Set<Int> =
     (expandedStartIndex until expandedStartIndex + EXPANDED_DAY_COUNT).toSet()
 
@@ -269,6 +357,48 @@ private fun interpolateWeight(
     end: Float,
     fraction: Float,
 ): Float = start + (end - start) * fraction
+
+private fun dayIndexAtPosition(
+    y: Float,
+    height: Int,
+    weights: List<Float>,
+): Int {
+    if (height <= 0 || weights.isEmpty()) return 0
+    val boundedY = y.coerceIn(0f, height.toFloat())
+    val totalWeight = weights.sum()
+    var bottom = 0f
+    weights.forEachIndexed { dayIndex, weight ->
+        bottom += height * weight / totalWeight
+        if (boundedY < bottom) return dayIndex
+    }
+    return weights.lastIndex
+}
+
+private fun dayFocusAtPosition(
+    y: Float,
+    height: Int,
+    weights: List<Float>,
+): Float {
+    if (height <= 0 || weights.isEmpty()) return 0f
+    val boundedY = y.coerceIn(0f, height.toFloat())
+    val totalWeight = weights.sum()
+    var top = 0f
+    weights.forEachIndexed { dayIndex, weight ->
+        val bottom = top + height * weight / totalWeight
+        if (boundedY < bottom) {
+            val positionWithinDay =
+                if (bottom > top) {
+                    (boundedY - top) / (bottom - top)
+                } else {
+                    0.5f
+                }
+            return (dayIndex + positionWithinDay - 0.5f)
+                .coerceIn(0f, weights.lastIndex.toFloat())
+        }
+        top = bottom
+    }
+    return weights.lastIndex.toFloat()
+}
 
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")

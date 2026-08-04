@@ -29,7 +29,7 @@
   - the right inner container takes the remaining width and contains the day content.
 - Compute the current calendar week with Monday as its first day.
 - The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
-  proutcul` on nine successive lines when expanded and two successive lines when compact,
+  proutcul` on eight successive lines when expanded and two successive lines when compact,
   using a body-small text size. Each line starts with its one-based line number followed
   by one space and the phrase. The content is vertically centered and left-aligned. Each
   line is single-line only and is clipped at the right edge without wrapping or an ellipsis.
@@ -46,14 +46,22 @@
   - clicking Saturday or Sunday expands Friday, Saturday, and Sunday.
 - After each click, every container outside the selected three-day group becomes compact
   automatically, preserving exactly three expanded and four compact containers.
-- Animate all affected container heights together over exactly 2 seconds of elapsed frame
-  time, using one shared linear progression that is independent of the system animator
-  duration scale. The top and bottom separators must move with their containers as the
-  new three-day group expands and the former group compacts.
+- For a group change caused by a simple tap, animate all affected container heights
+  together over exactly 1 second of elapsed frame time, using one shared linear progression
+  that is independent of the system animator duration scale. The top and bottom separators
+  must move with their containers as the new three-day group expands and the former group
+  compacts.
 - When a compact container becomes expanded, update its right-side content before the
   height animation starts. When an expanded container becomes compact, keep its expanded
   content during the height animation and reduce it to two lines only after the animation
   completes.
+- A simple tap remains available on every compact or expanded day container. A vertical
+  drag starts only when the initial touch is on an expanded container. While dragging,
+  continuously resolve the finger position from the current displayed heights and directly
+  interpolate between the neighboring three-day layouts. Do not use a timed animation
+  during the drag: the growth and compaction speed follows the finger. Keep the day under
+  the finger in the expanded group and settle immediately on the nearest group when the
+  finger is released, producing a dock-style magnification movement without scaling content.
 - Use a visible one-dp separator around every day container. Use the themed `onSurface`
   color so separators remain dark in the light theme and visible in the dark theme.
 - Saturday and Sunday use a distinct neutral background:
