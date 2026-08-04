@@ -37,7 +37,9 @@
   - `#000000` in the dark theme.
 - The Sunday container must stop immediately above the bottom safe-drawing inset. Its
   bottom separator marks the boundary with the system-inset area, while the neutral
-  screen background continues underneath to the bottom edge.
+  screen background continues underneath to the bottom edge. Read the raw bottom value
+  from `WindowInsets.safeDrawing.asPaddingValues()` so Compose inset consumption cannot
+  collapse this reserved area.
 - The day containers are not clickable yet. They will eventually be clickable across
   their complete visible surface. When that behavior is added, keep the full click target
   above the system inset, use Material interaction feedback, and expose each row as one

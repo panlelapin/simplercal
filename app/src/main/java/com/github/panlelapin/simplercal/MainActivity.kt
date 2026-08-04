@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -127,10 +128,7 @@ private fun SimplerCalApp() {
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun HelloScreen(onSettings: () -> Unit) {
     Scaffold(
-        contentWindowInsets =
-            WindowInsets.safeDrawing.only(
-                WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom,
-            ),
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Hello") },
@@ -166,7 +164,8 @@ private fun HelloScreen(onSettings: () -> Unit) {
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun WeekView() {
     val days = remember { currentWeek() }
-    Column(modifier = Modifier.fillMaxSize()) {
+    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+    Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomInset)) {
         days.forEach { day -> DayRow(day) }
     }
 }
