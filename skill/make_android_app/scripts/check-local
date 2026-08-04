@@ -168,7 +168,8 @@ workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
 triggers = workflow.get(True, workflow.get("on", {}))
 assert list(triggers) == ["workflow_dispatch"], triggers
 text = path.read_text(encoding="utf-8")
-assert "qualityCheck" in text
+assert "functionalCheck" in text
+assert "qualityCheck" not in text
 assert "assembleRelease" in text
 assert "scripts/verify-apk" in text
 print("Workflow is YAML-valid and has the required manual release checks.")
@@ -207,7 +208,6 @@ need python3
 need rg
 need sha256sum
 need sed
-need shellcheck
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || die "run this check inside a Git worktree"
 cd "$ROOT"
@@ -222,9 +222,8 @@ source_digest=$(current_source_digest)
 printf 'CHECK_LOCAL_SOURCE_DIGEST=%s\n' "$source_digest"
 
 run_check "shell syntax" check_shell_syntax
-run_check "ShellCheck" check_shellcheck
 run_check "JDK and Android SDK discovery" resolve_toolchains
-run_check "Gradle qualityCheck" ./gradlew qualityCheck --no-daemon --stacktrace
+run_check "Gradle functionalCheck" ./gradlew functionalCheck --no-daemon --stacktrace
 run_check "Android XML parsing" check_xml
 run_check "workflow YAML and CI assertions" check_workflow
 run_check "project and script contract" check_project_contract

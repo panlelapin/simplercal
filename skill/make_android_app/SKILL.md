@@ -1,6 +1,6 @@
 ---
 name: make-android-app
-description: Bootstrap and develop simple Kotlin Android applications with one launcher MainActivity, minSdk 34 (Android 14), strict local and CI Kotlin quality gates, one manually dispatched GitHub Actions release build, and verified APK delivery. Use when Codex must initialize or modify a small Android app, establish or verify its GitHub origin, create the first activity-based app and remotely compiled APK, or continue app development without assembling APKs locally.
+description: Bootstrap and develop simple Kotlin Android applications with one launcher MainActivity, minSdk 34 (Android 14), non-cosmetic local and CI validation, one manually dispatched GitHub Actions release build, and verified APK delivery. Use when Codex must initialize or modify a small Android app, establish or verify its GitHub origin, create the first activity-based app and remotely compiled APK, or continue app development without assembling Android APKs locally.
 ---
 
 # Make Android App
@@ -39,8 +39,13 @@ Run `scripts/check-local` after changes to Kotlin, resources, manifests, or Grad
 and before `scripts/make-remote`. If source was created or changed because of `AGENTS.md`,
 ask before launching that check. Never use a baseline, lenient dependency verification,
 `ignoreFailures`, broad suppressions, or local APK assembly to turn failures into success.
-`qualityCheck` is the single local/CI gate: KtLint, `:app:detektRelease`, and
-`:app:lintRelease` with warnings treated as errors.
+`functionalCheck` is the local/CI Kotlin gate. It runs only Detekt's `potential-bugs`
+rules with type resolution; all convention-oriented Detekt rule sets are disabled.
+
+Keep KtLint, Android Lint, the optional `qualityCheck` task, and the ShellCheck helper
+available for explicit manual use, but do not invoke them from `scripts/check-local`,
+`scripts/make-remote`, or GitHub Actions. Cosmetic formatting, naming, complexity, and
+style findings must not block the normal local or remote workflow.
 
 Always invoke the tracked `scripts/check-local` and `scripts/make-remote` entry points
 directly when their responsibilities are needed. Do not manually reproduce any operation
@@ -49,10 +54,10 @@ dispatch/polling, artifact download/checksum flow, APK inspection, or ADB instal
 Use separate commands only for read-only diagnosis, and keep the scripts as the source of
 truth for the complete local and remote procedures.
 
-Keep `gradle/verification-metadata.xml`, the Gradle wrapper, strict Detekt/KtLint
-configuration, minSdk 34, targetSdk 36, release shrinking, and non-debuggable
-development signing. Local quality may compile Kotlin for type resolution; it must not
-assemble, sign, or claim an APK.
+Keep `gradle/verification-metadata.xml`, the Gradle wrapper, the functional Detekt
+configuration, minSdk 34, targetSdk 36, release shrinking, and non-debuggable development
+signing. Local validation may compile Kotlin for type resolution; it must not assemble,
+sign, or claim an APK.
 
 ## Window and Material layout defaults
 
@@ -91,7 +96,7 @@ Copy `scripts/check-github-stuff`, `scripts/check-local`, `scripts/make-remote`,
 `scripts/verify-apk` unchanged except for documented application configuration, preserve
 executable bits, and copy `references/github-actions-template.yml` to
 `.github/workflows/android-app.yml`. The workflow must use only `workflow_dispatch`, run
-`qualityCheck`, then `:app:assembleRelease`, inspect one APK with `verify-apk`, and upload
+`functionalCheck`, then `:app:assembleRelease`, inspect one APK with `verify-apk`, and upload
 the APK plus its SHA-256 checksum.
 
 Delegate every commit, push, dispatch, poll, artifact download, checksum verification,

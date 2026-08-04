@@ -46,6 +46,12 @@ tasks.register<JavaExec>("ktlintFormat") {
 
 tasks.register("qualityCheck") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    description = "Run the strict Kotlin quality gate used locally and in CI."
+    description = "Run all optional Kotlin style and Android lint checks manually."
     dependsOn(ktlintCheck, ":app:detektRelease", ":app:lintRelease")
+}
+
+tasks.register("functionalCheck") {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = "Run the non-cosmetic Kotlin checks used locally and in CI."
+    dependsOn(":app:detektRelease")
 }

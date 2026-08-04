@@ -1,4 +1,4 @@
 interface:
   display_name: "Make Android App"
-  short_description: "Simple Kotlin apps with strict local and remote CI"
-  default_prompt: "Use $make-android-app to build a simple Kotlin Android app with one MainActivity and matching strict local and GitHub Actions quality gates."
+  short_description: "Simple Kotlin apps with functional local and remote checks"
+  default_prompt: "Use $make-android-app to build a simple Kotlin Android app with one MainActivity and matching non-cosmetic local and GitHub Actions checks."

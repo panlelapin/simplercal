@@ -68,9 +68,9 @@ import java.time.temporal.TemporalAdjusters
 private const val PREFERENCES_NAME = "simplercal"
 private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
-private const val EMPHASIZED_DAY_COUNT = 2
-private const val EMPHASIZED_DAY_WEIGHT = 25f
-private const val STANDARD_DAY_WEIGHT = 10f
+private const val EMPHASIZED_DAY_COUNT = 3
+private const val EMPHASIZED_DAY_WEIGHT = 22f
+private const val STANDARD_DAY_WEIGHT = 8.5f
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -83,7 +83,6 @@ private data class WeekDay(
     val abbreviation: String,
     val dayOfMonth: Int,
     val isWeekend: Boolean,
-    val isSunday: Boolean,
     val weight: Float,
 )
 
@@ -152,7 +151,10 @@ private fun HelloScreen(onSettings: () -> Unit) {
             )
         },
     ) { innerPadding ->
-        Surface(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        Surface(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            color = colorResource(R.color.screen_background),
+        ) {
             WeekView()
         }
     }
@@ -162,7 +164,12 @@ private fun HelloScreen(onSettings: () -> Unit) {
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun WeekView() {
     val days = remember { currentWeek() }
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
+    ) {
         days.forEach { day -> DayRow(day) }
     }
 }
@@ -170,33 +177,22 @@ private fun WeekView() {
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun ColumnScope.DayRow(day: WeekDay) {
-    val contentModifier =
-        if (day.isSunday) {
-            Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                .padding(horizontal = 16.dp)
-        } else {
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-        }
     Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .weight(day.weight),
         shape = RectangleShape,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
         color =
             if (day.isWeekend) {
                 colorResource(R.color.weekend_background)
             } else {
-                MaterialTheme.colorScheme.surface
+                colorResource(R.color.screen_background)
             },
     ) {
         Column(
-            modifier = contentModifier,
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.Center,
         ) {
             Text(day.abbreviation, style = MaterialTheme.typography.titleMedium)
@@ -213,7 +209,6 @@ private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
             abbreviation = abbreviation,
             dayOfMonth = date.dayOfMonth,
             isWeekend = date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY,
-            isSunday = date.dayOfWeek == DayOfWeek.SUNDAY,
             weight =
                 if (index < EMPHASIZED_DAY_COUNT) {
                     EMPHASIZED_DAY_WEIGHT

@@ -1,16 +1,75 @@
-## Android app requirements
+## Android application requirements
 
-- This is an Android application with one launcher `MainActivity`.
+- This repository contains an Android application with one launcher `MainActivity`.
+- The application ID is `com.github.panlelapin.simplercal` and the user-facing name is
+  `SimplerCal`.
 - The interface must be entirely in English and use Material 3.
 - Follow the system light/dark theme automatically.
-- The main screen currently displays `Hello`.
-- The top bar has a monochrome settings icon on the left, represented by the classic icon of engrenage
-the title `Hello`, and a monochrome today icon aligned on the right. The today
-  icon is displayed but has no behavior yet.
-- The settings screen is shown over the main screen and currently contains:
-  - a first section selecting the Android calendar to use. if it is not available yet becasue of permission, then a button to ask for permission is displayed instead and then when done, the button to pick the calendar is displayed in place of the one that ask permission
-  
-  - a final centered horizontally, smaller section showing `SimplerCal v<release version>`
-    and the url of the project on github, displayed as a html link. if the current version is not an official github release, then <release version> is "---"
-- Keep the implementation ready for a future calendar week view, but do not
-  add that view until its visual design is specified.
+- Keep the Android status bar and navigation bar visible. The activity must not be
+  immersive or fullscreen.
+- Handle system insets explicitly. App-bar controls and clickable content must never
+  overlap system bars or gesture-navigation areas.
+
+## Main screen
+
+- Use a Material 3 `Scaffold` and `CenterAlignedTopAppBar`.
+- The top bar contains:
+  - a monochrome classic gear settings icon on the left;
+  - the title `Hello` in the center;
+  - a monochrome today icon on the right. The today icon is visible but has no behavior
+    yet.
+- Below the top bar, display the current calendar week as seven full-width horizontal
+  containers arranged vertically from Monday through Sunday.
+- Each container displays on its left side:
+  - the three-letter English day abbreviation (`Mon` through `Sun`);
+  - the day-of-month number directly below the abbreviation.
+- Compute the displayed dates from the current week, with Monday as its first day.
+- Distribute the available safe height as follows:
+  - Monday, Tuesday, and Wednesday each occupy 22 percent;
+  - Thursday, Friday, Saturday, and Sunday each occupy 8.5 percent.
+- Use a visible one-dp separator around every day container. Use the themed `onSurface`
+  color so separators remain dark in the light theme and visible in the dark theme.
+- Saturday and Sunday use a distinct neutral background:
+  - `#ECECEC` in the light theme;
+  - `#202020` in the dark theme.
+- Other day containers and the area below the week use:
+  - `#FFFFFF` in the light theme;
+  - `#000000` in the dark theme.
+- The Sunday container must stop immediately above the bottom safe-drawing inset. Its
+  bottom separator marks the boundary with the system-inset area, while the neutral
+  screen background continues underneath to the bottom edge.
+- The day containers are not clickable yet. They will eventually be clickable across
+  their complete visible surface. When that behavior is added, keep the full click target
+  above the system inset, use Material interaction feedback, and expose each row as one
+  accessible semantic element.
+
+## Settings screen
+
+- Show the settings screen over the main screen with a Material 3 top bar and back action.
+- The first section selects the Android calendar to use:
+  - without calendar permission, show a button requesting permission;
+  - after permission is granted, replace it with the calendar-selection button;
+  - persist the selected calendar.
+- The final section is smaller and horizontally centered. It displays:
+  - `SimplerCal v<release version>`;
+  - the GitHub project URL as a clickable web link.
+- If the installed build is not an official GitHub release, display `---` as the release
+  version.
+
+## Validation and remote build policy
+
+- Codex must not run `scripts/check-local` or `scripts/make-remote`. The user runs both
+  scripts manually.
+- Codex may inspect files and diffs but must leave local validation, commit, push, GitHub
+  Actions dispatch, APK retrieval, and device installation to the user-owned scripts.
+- The normal local and GitHub Actions gate is `functionalCheck`.
+- `functionalCheck` runs Detekt with type resolution and only the `potential-bugs` rule
+  set. Detekt convention-oriented rules are disabled.
+- KtLint, Android Lint, the optional `qualityCheck` task, and the ShellCheck helper remain
+  available for explicit manual use but are bypassed by `check-local`, `make-remote`, and
+  GitHub Actions.
+- Cosmetic formatting, naming, complexity, and style findings must not block the normal
+  workflow.
+- GitHub Actions remains manually dispatched with `workflow_dispatch`. It runs
+  `functionalCheck`, builds the release APK, verifies it, and publishes the APK with its
+  SHA-256 checksum.
