@@ -25,14 +25,12 @@
   - the left inner container is only wide enough for the widest three-letter uppercase
     English day abbreviation (`MON` through `SUN`); its text is right-aligned, vertically
     centered when compact, and aligned at the top when expanded;
-  - the right inner container takes the remaining width and contains the day-of-month
-    number and the logical content rows.
-- Compute the displayed dates from the current week, with Monday as its first day.
-- All seven day containers use the same structure and each contains nine logical content
-  rows. Every container has one of two display states:
-  - expanded: display all nine content rows;
-  - compact: display only the date row and hide the other eight rows.
-- The date row in the right inner container displays the day-of-month number.
+  - the right inner container takes the remaining width and contains the day content.
+- Compute the current calendar week with Monday as its first day.
+- The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
+  proutcul` on six successive lines when expanded and two successive lines when compact.
+  Each line is single-line only and is clipped at the right edge without wrapping or an
+  ellipsis.
 - Exactly three consecutive containers must be expanded and the other four must be
   compact at all times. Initially, Monday, Tuesday, and Wednesday are expanded.
 - Distribute the available safe height according to the current states:

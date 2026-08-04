@@ -68,6 +68,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -89,8 +90,10 @@ private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
 private const val EXPANDED_DAY_COUNT = 3
 private const val EXPANDED_DAY_WEIGHT = 21f
 private const val COMPACT_DAY_WEIGHT = 9.25f
-private const val DAY_CONTENT_ROW_COUNT = 9
 private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 720
+private const val DAY_CONTENT_TEXT = "dolor sit amet bla bla truc bigoudi plan plan proutcul"
+private const val EXPANDED_CONTENT_LINE_COUNT = 6
+private const val COMPACT_CONTENT_LINE_COUNT = 2
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -102,7 +105,6 @@ private data class CalendarChoice(
 
 private data class WeekDay(
     val abbreviation: String,
-    val dayOfMonth: Int,
     val isWeekend: Boolean,
 )
 
@@ -233,7 +235,7 @@ private fun ColumnScope.DayRow(
                 .weight(weight)
                 .clickable(role = Role.Button, onClick = onClick)
                 .semantics(mergeDescendants = true) {
-                    contentDescription = "${day.abbreviation} ${day.dayOfMonth}, $stateDescription"
+                    contentDescription = "${day.abbreviation}, $stateDescription"
                 },
         shape = RectangleShape,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
@@ -258,7 +260,6 @@ private fun ColumnScope.DayRow(
                         .background(MaterialTheme.colorScheme.onSurface),
             )
             DayContentContainer(
-                day = day,
                 isExpanded = isExpanded,
                 modifier = Modifier.fillMaxHeight().weight(1f),
             )
@@ -300,7 +301,6 @@ private fun DayLabelContainer(
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun DayContentContainer(
-    day: WeekDay,
     isExpanded: Boolean,
     modifier: Modifier,
 ) {
@@ -310,24 +310,16 @@ private fun DayContentContainer(
         color = androidx.compose.ui.graphics.Color.Transparent,
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            DateNumberRow(modifier = Modifier.fillMaxWidth().weight(1f), day = day)
-            if (isExpanded) {
-                repeat(DAY_CONTENT_ROW_COUNT - 1) {
-                    Spacer(modifier = Modifier.fillMaxWidth().weight(1f))
-                }
+            repeat(if (isExpanded) EXPANDED_CONTENT_LINE_COUNT else COMPACT_CONTENT_LINE_COUNT) {
+                Text(
+                    text = DAY_CONTENT_TEXT,
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                )
             }
         }
-    }
-}
-
-@Composable
-@Suppress("FunctionName", "ktlint:standard:function-naming")
-private fun DateNumberRow(modifier: Modifier, day: WeekDay) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Text(day.dayOfMonth.toString(), style = MaterialTheme.typography.titleLarge)
     }
 }
 
@@ -361,7 +353,6 @@ private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
         val date = monday.plusDays(dayIndex.toLong())
         WeekDay(
             abbreviation = abbreviation,
-            dayOfMonth = date.dayOfMonth,
             isWeekend = date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY,
         )
     }
