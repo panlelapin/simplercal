@@ -42,6 +42,13 @@ ask before launching that check. Never use a baseline, lenient dependency verifi
 `qualityCheck` is the single local/CI gate: KtLint, `:app:detektRelease`, and
 `:app:lintRelease` with warnings treated as errors.
 
+Always invoke the tracked `scripts/check-local` and `scripts/make-remote` entry points
+directly when their responsibilities are needed. Do not manually reproduce any operation
+that belongs inside them, including their Git staging/commit/push flow, GitHub Actions
+dispatch/polling, artifact download/checksum flow, APK inspection, or ADB installation.
+Use separate commands only for read-only diagnosis, and keep the scripts as the source of
+truth for the complete local and remote procedures.
+
 Keep `gradle/verification-metadata.xml`, the Gradle wrapper, strict Detekt/KtLint
 configuration, minSdk 34, targetSdk 36, release shrinking, and non-debuggable
 development signing. Local quality may compile Kotlin for type resolution; it must not
@@ -61,6 +68,15 @@ and optional ADB installation to `scripts/make-remote --bootstrap`; never reprod
 sequence ad hoc. A successful remote build proves CI compilation, APK metadata/signature,
 and artifact integrity. ADB verification proves installation of the exact artifact, not
 activity rendering or complete runtime behavior.
+
+At the beginning of `make-remote`, run the ADB preflight. Use `ADB_SERIAL` when supplied;
+otherwise inspect `adb devices` and accept only authorized entries in `device` state. Print
+the selected accessible device before continuing. If ADB is unavailable, no authorized
+device is connected, or several devices are present without a selection, say so clearly;
+continue the remote build but skip or defer device installation as appropriate. After the
+APK is downloaded, install it on the selected device and verify package, version metadata,
+and the pulled APK SHA-256 against the remote artifact. Never report device validation when
+the preflight or the post-install hash check did not succeed.
 
 ## Keep this skill synchronized
 

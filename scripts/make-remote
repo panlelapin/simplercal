@@ -230,6 +230,46 @@ install_on_adb_device() {
   printf 'ADB installed APK SHA-256 verified: %s.\n' "$installed_sha256"
 }
 
+preflight_adb() {
+  local device_state
+  local -a devices=()
+
+  if ! command -v adb >/dev/null 2>&1; then
+    printf 'ADB not found; remote build will continue without device installation.\n'
+    return 0
+  fi
+
+  if [[ -n "$ADB_SERIAL" ]]; then
+    device_state=$(adb -s "$ADB_SERIAL" get-state 2>/dev/null || true)
+    if [[ "$device_state" == device ]]; then
+      devices=("$ADB_SERIAL")
+    else
+      printf 'ADB device %s is not accessible; remote build will continue without device installation.\n' \
+        "$ADB_SERIAL"
+      return 0
+    fi
+  else
+    mapfile -t devices < <(
+      adb devices 2>/dev/null |
+        sed -n 's/^\([^[:space:]]\+\)[[:space:]]\+device$/\1/p'
+    )
+  fi
+
+  case "${#devices[@]}" in
+    0)
+      printf 'No authorized ADB device accessible; remote build will continue without device installation.\n'
+      ;;
+    1)
+      printf 'ADB device accessible: %s. Device installation will be verified after the remote build.\n' \
+        "${devices[0]}"
+      ;;
+    *)
+      printf 'Multiple ADB devices accessible (%s); set ADB_SERIAL to select one before device installation.\n' \
+        "${#devices[@]}"
+      ;;
+  esac
+}
+
 require_local_check() {
   local expected_digest
   local actual_digest
@@ -308,6 +348,7 @@ git check-ignore -q --no-index "$BUILD_DIR/" || \
 
 [[ -x ./gradlew ]] || die "Gradle wrapper is required: ./gradlew"
 
+preflight_adb
 require_local_check
 
 HEAD_SHA=''
