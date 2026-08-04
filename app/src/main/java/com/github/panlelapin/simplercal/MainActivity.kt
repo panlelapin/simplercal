@@ -91,13 +91,16 @@ import java.util.Locale
 
 private const val PREFERENCES_NAME = "simplercal"
 private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
+private const val DAY_ACCENT_COLOR_KEY = "day_accent_color"
+private const val SCROLL_MODE_KEY = "scroll_mode"
+private const val DEFAULT_DAY_ACCENT_COLOR = -12_490_271
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
-private const val TOP_BAR_TITLE = "S52 31\u2009juin"
+private const val TOP_BAR_TITLE = "S52 31\u2002juin"
 private const val WEEK_DAY_COUNT = 7
 private const val WEEKEND_START_INDEX = 5
 private const val COMPACT_DAY_WEIGHT = 6.5f
 private const val TOTAL_DAY_WEIGHT = 100f
-private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 1_000
+private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 700
 private const val NANOS_PER_MILLISECOND = 1_000_000L
 private const val DAY_CONTENT_TEXT = "dolor sit amet bla bla truc bigoudi plan plan proutcul"
 private const val EXPANDED_CONTENT_LINE_COUNT = 9
@@ -105,7 +108,9 @@ private const val COMPACT_CONTENT_LINE_COUNT = 1
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 private val DAY_SEPARATOR_THICKNESS = 1.5.dp
 private val DAY_SUBCONTAINER_CORNER_RADIUS = 24.dp
+private val DAY_ACCENT_STRIPE_HEIGHT = 12.dp
 private val MINIMUM_RIGHT_GESTURE_GUTTER = 24.dp
+private const val GESTURE_GUTTER_FRACTION = 0.6f
 private val DAY_SUBCONTAINER_SHAPE = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS)
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -114,6 +119,34 @@ private data class CalendarChoice(
     val id: Long,
     val name: String,
 )
+
+private data class DayAccentColorOption(
+    val name: String,
+    val argb: Int,
+)
+
+private enum class WeekScrollMode(
+    val preferenceValue: String,
+    val label: String,
+    val activationOffset: Float,
+) {
+    MODE_1("mode_1", "Mode 1", 0.5f),
+    MODE_2("mode_2", "Mode 2", 0f),
+    ;
+
+    companion object {
+        fun fromPreferenceValue(value: String): WeekScrollMode =
+            entries.firstOrNull { it.preferenceValue == value } ?: MODE_1
+    }
+}
+
+private val DAY_ACCENT_COLOR_OPTIONS =
+    listOf(
+        DayAccentColorOption("Royal blue", DEFAULT_DAY_ACCENT_COLOR),
+        DayAccentColorOption("Forest green", -16_774_400),
+        DayAccentColorOption("Amber", -17_936),
+        DayAccentColorOption("Crimson", -5_917_498),
+    )
 
 private data class WeekDay(
     val abbreviation: String,
@@ -140,6 +173,19 @@ class MainActivity : ComponentActivity() {
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun SimplerCalApp() {
+    val context = LocalContext.current
+    val preferences = remember(context) { context.getSharedPreferences(PREFERENCES_NAME, 0) }
+    var dayAccentColorArgb by remember {
+        mutableStateOf(preferences.getInt(DAY_ACCENT_COLOR_KEY, DEFAULT_DAY_ACCENT_COLOR))
+    }
+    var scrollMode by remember {
+        mutableStateOf(
+            WeekScrollMode.fromPreferenceValue(
+                preferences.getString(SCROLL_MODE_KEY, WeekScrollMode.MODE_1.preferenceValue)
+                    ?: WeekScrollMode.MODE_1.preferenceValue,
+            ),
+        )
+    }
     val colorScheme =
         if (isSystemInDarkTheme()) {
             dynamicDarkColorScheme(LocalContext.current)
@@ -152,9 +198,25 @@ private fun SimplerCalApp() {
             BackHandler(onBack = { isSettingsVisible = false })
         }
         Box(modifier = Modifier.fillMaxSize()) {
-            HelloScreen(onSettings = { isSettingsVisible = true })
+            HelloScreen(
+                dayAccentColor = Color(dayAccentColorArgb),
+                scrollMode = scrollMode,
+                onSettings = { isSettingsVisible = true },
+            )
             if (isSettingsVisible) {
-                SettingsScreen(onBack = { isSettingsVisible = false })
+                SettingsScreen(
+                    selectedDayAccentColor = dayAccentColorArgb,
+                    onDayAccentColorChange = { color ->
+                        preferences.edit { putInt(DAY_ACCENT_COLOR_KEY, color) }
+                        dayAccentColorArgb = color
+                    },
+                    selectedScrollMode = scrollMode,
+                    onScrollModeChange = { mode ->
+                        preferences.edit { putString(SCROLL_MODE_KEY, mode.preferenceValue) }
+                        scrollMode = mode
+                    },
+                    onBack = { isSettingsVisible = false },
+                )
             }
         }
     }
@@ -163,13 +225,18 @@ private fun SimplerCalApp() {
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("FunctionName", "ktlint:standard:function-naming")
-private fun HelloScreen(onSettings: () -> Unit) {
+private fun HelloScreen(
+    dayAccentColor: Color,
+    scrollMode: WeekScrollMode,
+    onSettings: () -> Unit,
+) {
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
             CenterAlignedTopAppBar(
+                modifier = Modifier.height(56.dp),
                 colors =
-                    TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                     ),
                 title = {
@@ -179,14 +246,28 @@ private fun HelloScreen(onSettings: () -> Unit) {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onSettings) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_settings),
-                            contentDescription = "Settings",
-                        )
+                    Row {
+                        IconButton(onClick = onSettings) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_settings),
+                                contentDescription = "Settings",
+                            )
+                        }
+                        IconButton(onClick = {}) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_arrow_back),
+                                contentDescription = "Previous week",
+                            )
+                        }
                     }
                 },
                 actions = {
+                    IconButton(onClick = {}) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_arrow_forward),
+                            contentDescription = "Next week",
+                        )
+                    }
                     IconButton(onClick = {}) {
                         Icon(
                             painter = painterResource(R.drawable.ic_today),
@@ -201,14 +282,20 @@ private fun HelloScreen(onSettings: () -> Unit) {
             modifier = Modifier.fillMaxSize().padding(innerPadding),
             color = MaterialTheme.colorScheme.surfaceContainer,
         ) {
-            WeekView()
+            WeekView(
+                dayAccentColor = dayAccentColor,
+                scrollMode = scrollMode,
+            )
         }
     }
 }
 
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
-private fun WeekView() {
+private fun WeekView(
+    dayAccentColor: Color,
+    scrollMode: WeekScrollMode,
+) {
     val days = remember { currentWeek() }
     var selectedDayIndex by remember { mutableStateOf(0) }
     var animatedDayWeights by remember { mutableStateOf(dayWeightsFor(selectedDayIndex)) }
@@ -229,7 +316,8 @@ private fun WeekView() {
         }
     }
     val dragToFocus: (Float) -> Unit = { focusPosition ->
-        val focusedDayIndex = (focusPosition + 0.5f).toInt().coerceIn(0, days.lastIndex)
+        val focusedDayIndex =
+            (focusPosition + scrollMode.activationOffset).toInt().coerceIn(0, days.lastIndex)
         selectedDayIndex = focusedDayIndex
         contentExpandedDays = expandedDayIndices(focusedDayIndex)
         animatedDayWeights = dayWeightsForFocus(focusPosition)
@@ -246,12 +334,16 @@ private fun WeekView() {
     val currentEndDrag = rememberUpdatedState(endDrag)
     val dayLabelColumnWidth = dayLabelColumnWidth()
     val mandatoryGesturePadding = WindowInsets.mandatorySystemGestures.asPaddingValues()
-    val bottomGestureInset = mandatoryGesturePadding.calculateBottomPadding()
+    val bottomGestureInset =
+        mandatoryGesturePadding.calculateBottomPadding() * GESTURE_GUTTER_FRACTION
     val rightGestureInset =
         maxOf(
-            MINIMUM_RIGHT_GESTURE_GUTTER,
-            mandatoryGesturePadding.calculateRightPadding(LocalLayoutDirection.current),
-        )
+                MINIMUM_RIGHT_GESTURE_GUTTER,
+                mandatoryGesturePadding.calculateRightPadding(LocalLayoutDirection.current),
+            ) * GESTURE_GUTTER_FRACTION
+    val density = LocalDensity.current
+    val bottomGestureInsetPx = with(density) { bottomGestureInset.toPx() }
+    val rightGestureInsetPx = with(density) { rightGestureInset.toPx() }
     LaunchedEffect(animationRequest) {
         if (isDragging) return@LaunchedEffect
         val startWeights = animatedDayWeights
@@ -279,49 +371,77 @@ private fun WeekView() {
         }
         contentExpandedDays = expandedDayIndices(selectedDayIndex)
     }
-    Row(modifier = Modifier.fillMaxSize()) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .pointerInput(scrollMode, bottomGestureInset, rightGestureInset) {
+                    var isDragEnabled = false
+                    detectVerticalDragGestures(
+                        onDragStart = { position ->
+                            val dayAreaHeight =
+                                (size.height.toFloat() - bottomGestureInsetPx).coerceAtLeast(1f)
+                            val dayY = position.y.coerceIn(0f, dayAreaHeight)
+                            val dayIndex =
+                                dayIndexAtPosition(
+                                    y = dayY,
+                                    height = dayAreaHeight.toInt(),
+                                    weights = currentAnimatedDayWeights.value,
+                                )
+                            isDragEnabled =
+                                scrollMode == WeekScrollMode.MODE_2 ||
+                                    (
+                                        position.x < size.width.toFloat() - rightGestureInsetPx &&
+                                            position.y < dayAreaHeight &&
+                                            dayIndex in
+                                            expandedDayIndices(currentSelectedDayIndex.value)
+                                    )
+                            if (isDragEnabled) {
+                                currentStartDrag.value()
+                                if (scrollMode == WeekScrollMode.MODE_2) {
+                                    currentDragToFocus.value(
+                                        dayFocusAtPosition(
+                                            y = dayY,
+                                            height = dayAreaHeight.toInt(),
+                                            weights = currentAnimatedDayWeights.value,
+                                            activationOffset = scrollMode.activationOffset,
+                                        ),
+                                    )
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            if (isDragEnabled) currentEndDrag.value()
+                            isDragEnabled = false
+                        },
+                        onDragEnd = {
+                            if (isDragEnabled) currentEndDrag.value()
+                            isDragEnabled = false
+                        },
+                        onVerticalDrag = { change, _ ->
+                            if (isDragEnabled) {
+                                change.consume()
+                                val dayAreaHeight =
+                                    (size.height.toFloat() - bottomGestureInsetPx).coerceAtLeast(1f)
+                                currentDragToFocus.value(
+                                    dayFocusAtPosition(
+                                        y = change.position.y.coerceIn(0f, dayAreaHeight),
+                                        height = dayAreaHeight.toInt(),
+                                        weights = currentAnimatedDayWeights.value,
+                                        activationOffset = scrollMode.activationOffset,
+                                    ),
+                                )
+                            }
+                        },
+                    )
+                },
+    ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxHeight()
                     .weight(1f)
                     .padding(bottom = bottomGestureInset)
-                    .pointerInput(Unit) {
-                        var isDragEnabled = false
-                        detectVerticalDragGestures(
-                            onDragStart = { position ->
-                                val dayIndex =
-                                    dayIndexAtPosition(
-                                        y = position.y,
-                                        height = size.height,
-                                        weights = currentAnimatedDayWeights.value,
-                                    )
-                                isDragEnabled =
-                                    dayIndex in expandedDayIndices(currentSelectedDayIndex.value)
-                                if (isDragEnabled) currentStartDrag.value()
-                            },
-                            onDragCancel = {
-                                if (isDragEnabled) currentEndDrag.value()
-                                isDragEnabled = false
-                            },
-                            onDragEnd = {
-                                if (isDragEnabled) currentEndDrag.value()
-                                isDragEnabled = false
-                            },
-                            onVerticalDrag = { change, _ ->
-                                if (isDragEnabled) {
-                                    change.consume()
-                                    val focusPosition =
-                                        dayFocusAtPosition(
-                                            y = change.position.y,
-                                            height = size.height,
-                                            weights = currentAnimatedDayWeights.value,
-                                        )
-                                    currentDragToFocus.value(focusPosition)
-                                }
-                            },
-                        )
-                    },
         ) {
             days.forEachIndexed { index, day ->
                 val isExpanded = index in expandedDayIndices(selectedDayIndex)
@@ -329,9 +449,10 @@ private fun WeekView() {
                 DayRow(
                     day = day,
                     isExpanded = isExpanded,
-                    isContentExpanded = isContentExpanded,
-                    weight = animatedDayWeights[index],
-                    dayLabelColumnWidth = dayLabelColumnWidth,
+                isContentExpanded = isContentExpanded,
+                weight = animatedDayWeights[index],
+                dayAccentColor = dayAccentColor,
+                dayLabelColumnWidth = dayLabelColumnWidth,
                     onClick = { selectDay(index) },
                 )
             }
@@ -403,6 +524,7 @@ private fun dayFocusAtPosition(
     y: Float,
     height: Int,
     weights: List<Float>,
+    activationOffset: Float,
 ): Float {
     if (height <= 0 || weights.isEmpty()) return 0f
     val boundedY = y.coerceIn(0f, height.toFloat())
@@ -417,7 +539,7 @@ private fun dayFocusAtPosition(
                 } else {
                     0.5f
                 }
-            return (dayIndex + positionWithinDay - 0.5f)
+            return (dayIndex + positionWithinDay - activationOffset)
                 .coerceIn(0f, weights.lastIndex.toFloat())
         }
         top = bottom
@@ -432,6 +554,7 @@ private fun ColumnScope.DayRow(
     isExpanded: Boolean,
     isContentExpanded: Boolean,
     weight: Float,
+    dayAccentColor: Color,
     dayLabelColumnWidth: Dp,
     onClick: () -> Unit,
 ) {
@@ -450,24 +573,34 @@ private fun ColumnScope.DayRow(
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
         color = colorResource(R.color.screen_background),
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(2.dp),
-        ) {
-            DayLabelContainer(
-                day = day,
-                isExpanded = isExpanded,
-                width = dayLabelColumnWidth,
-                separatorColor = separatorColor,
+        Column(modifier = Modifier.fillMaxSize()) {
+            Spacer(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(DAY_ACCENT_STRIPE_HEIGHT)
+                        .background(dayAccentColor),
             )
-            DayContentContainer(
-                isExpanded = isContentExpanded,
-                separatorColor = separatorColor,
-                modifier = Modifier.fillMaxHeight().weight(1f),
-            )
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .padding(2.dp),
+            ) {
+                DayLabelContainer(
+                    day = day,
+                    isExpanded = isExpanded,
+                    width = dayLabelColumnWidth,
+                    separatorColor = separatorColor,
+                )
+                DayContentContainer(
+                    isExpanded = isContentExpanded,
+                    separatorColor = separatorColor,
+                    modifier = Modifier.fillMaxHeight().weight(1f),
+                )
+            }
         }
     }
 }
@@ -568,7 +701,13 @@ private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("CognitiveComplexMethod", "FunctionName", "LongMethod", "ktlint:standard:function-naming")
-private fun SettingsScreen(onBack: () -> Unit) {
+private fun SettingsScreen(
+    selectedDayAccentColor: Int,
+    onDayAccentColorChange: (Int) -> Unit,
+    selectedScrollMode: WeekScrollMode,
+    onScrollModeChange: (WeekScrollMode) -> Unit,
+    onBack: () -> Unit,
+) {
     val context = LocalContext.current
     var calendars by remember { mutableStateOf(emptyList<CalendarChoice>()) }
     var selectedId by remember {
@@ -579,6 +718,8 @@ private fun SettingsScreen(onBack: () -> Unit) {
         )
     }
     var isCalendarPickerVisible by remember { mutableStateOf(false) }
+    var isDayAccentColorPickerVisible by remember { mutableStateOf(false) }
+    var isScrollModePickerVisible by remember { mutableStateOf(false) }
     var hasPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -639,6 +780,22 @@ private fun SettingsScreen(onBack: () -> Unit) {
                 }
                 if (calendars.isEmpty()) Text("No visible calendars available.")
             }
+            Spacer(Modifier.height(24.dp))
+            Text("Day accent color", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = { isDayAccentColorPickerVisible = true }) {
+                Text(
+                    DAY_ACCENT_COLOR_OPTIONS
+                        .firstOrNull { it.argb == selectedDayAccentColor }
+                        ?.name ?: "Royal blue",
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+            Text("Scroll mode", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = { isScrollModePickerVisible = true }) {
+                Text(selectedScrollMode.label)
+            }
             Spacer(Modifier.height(32.dp))
             Text(
                 text = "SimplerCal v${BuildConfig.OFFICIAL_RELEASE_VERSION}",
@@ -678,6 +835,48 @@ private fun SettingsScreen(onBack: () -> Unit) {
                             isCalendarPickerVisible = false
                         }) {
                             Text(calendar.name)
+                        }
+                    }
+                }
+            },
+        )
+    }
+    if (isDayAccentColorPickerVisible) {
+        AlertDialog(
+            onDismissRequest = { isDayAccentColorPickerVisible = false },
+            confirmButton = {
+                TextButton(onClick = { isDayAccentColorPickerVisible = false }) { Text("Cancel") }
+            },
+            title = { Text("Day accent color") },
+            text = {
+                Column {
+                    DAY_ACCENT_COLOR_OPTIONS.forEach { option ->
+                        TextButton(onClick = {
+                            onDayAccentColorChange(option.argb)
+                            isDayAccentColorPickerVisible = false
+                        }) {
+                            Text(option.name)
+                        }
+                    }
+                }
+            },
+        )
+    }
+    if (isScrollModePickerVisible) {
+        AlertDialog(
+            onDismissRequest = { isScrollModePickerVisible = false },
+            confirmButton = {
+                TextButton(onClick = { isScrollModePickerVisible = false }) { Text("Cancel") }
+            },
+            title = { Text("Scroll mode") },
+            text = {
+                Column {
+                    WeekScrollMode.entries.forEach { mode ->
+                        TextButton(onClick = {
+                            onScrollModeChange(mode)
+                            isScrollModePickerVisible = false
+                        }) {
+                            Text(mode.label)
                         }
                     }
                 }

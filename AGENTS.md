@@ -15,10 +15,14 @@
 - Use a Material 3 `Scaffold` and `CenterAlignedTopAppBar`.
 - The top bar contains:
   - a monochrome classic gear settings icon on the left;
-  - the title `S52 31 juin` in the center, with a thin half-space between `31` and
-    `juin`;
+  - a monochrome left-arrow icon between the settings icon and title, with no behavior yet;
+  - the title `S52 31 juin` in the center, with a half-em space (`U+2002`) between `31`
+    and `juin`;
+  - a monochrome right-arrow icon between the title and today icon, with no behavior yet;
   - a monochrome today icon on the right. The today icon is visible but has no behavior
     yet.
+- The main top bar is 56 dp high. This preserves 12 dp between the title’s lower edge and
+  the day-container area, 60 percent of the default 20 dp visual spacing.
 - Below the top bar, display the current calendar week as seven full-width horizontal
   containers arranged vertically from Monday through Sunday.
 - Each day container contains two full-height inner containers arranged horizontally. Their
@@ -27,6 +31,9 @@
     English day abbreviation (`MON` through `SUN`); its text is right-aligned, vertically
     centered when compact, and aligned at the top when expanded;
   - the right inner container takes the remaining width and contains the day content.
+- Each day container begins with a full-width accent stripe above its two inner containers.
+  Its height is 12 dp, half of the 24 dp inner-container corner radius. The stripe colour
+  is the persisted `Day accent color` setting; its default is Royal blue (`#4169E1`).
 - Compute the current calendar week with Monday as its first day.
 - The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
   proutcul` on nine successive lines when expanded and one line when compact, using a
@@ -42,7 +49,7 @@
 - The complete visible surface of every day container is clickable. Clicking a day selects
   it and applies the matching expanded-container rule above.
 - For a group change caused by a simple tap, animate all affected container heights
-  together over exactly 1 second of elapsed frame time, using one shared linear progression
+  together over exactly 0.7 seconds of elapsed frame time, using one shared linear progression
   that is independent of the system animator duration scale. The top and bottom separators
   must move with their containers as the new two-day group expands and the former group
   compacts.
@@ -50,13 +57,20 @@
   height animation starts. When an expanded container becomes compact, keep its expanded
   content during the height animation and reduce it to one line only after the animation
   completes.
-- A simple tap remains available on every compact or expanded day container. A vertical
-  drag starts only when the initial touch is on an expanded container. While dragging,
-  continuously resolve the finger position from the current displayed heights and directly
-  interpolate between the neighboring expanded layouts. Do not use a timed animation
-  during the drag: the growth and compaction speed follows the finger. Keep the day under
-  the finger in the expanded group and settle immediately on the nearest group when the
-  finger is released, producing a dock-style magnification movement without scaling content.
+- A simple tap remains available on every compact or expanded day container. Persist a
+  `Scroll mode` setting with Mode 1 as its default:
+  - Mode 1 starts a vertical drag only when the initial touch is on an expanded container.
+    A new day becomes active only after the finger crosses the current container's halfway
+    point.
+  - Mode 2 starts a vertical drag anywhere in the week area, including compact containers,
+    the right-side strip, and the bottom strip. A new day becomes active as soon as the
+    finger enters its container, with no halfway threshold.
+  While dragging, continuously resolve the finger position from the current displayed
+  heights and directly interpolate between neighboring expanded layouts. Do not use a timed
+  animation during the drag: the growth and compaction speed follows the finger. Keep the
+  day under the finger in the expanded group and settle immediately on the nearest group
+  when the finger is released, producing a dock-style magnification movement without
+  scaling content.
 - Use `MaterialTheme.colorScheme.surfaceContainer`, the exact colour of the top app bar,
   for the 1.5 dp separators around every day container and its two inner containers. Do
   not use black or white separator lines. Each left and right inner container has all four
@@ -67,15 +81,13 @@
 - All day containers, including Saturday and Sunday, use:
   - `#FFFFFF` in the light theme;
   - `#000000` in the dark theme.
-- The Sunday container must stop immediately above the bottom mandatory system-gesture
-  inset. Its bottom separator marks the boundary with the system-inset area, while the
-  `surfaceContainer` background continues underneath to the bottom edge. Read the raw
-  bottom value from `WindowInsets.mandatorySystemGestures.asPaddingValues()` so the
-  required gesture area is reserved even on devices whose navigation-bar inset is zero.
-- Reserve a right-side strip after the day containers whose width is the greater of the
-  raw mandatory system-gesture inset and 24 dp. This visible strip uses
-  `surfaceContainer`, so no container overlaps the Back gesture area even when Android
-  reports a zero inset.
+- The Sunday container must stop immediately above a bottom band equal to 60 percent of
+  the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
+  system-inset area, while the `surfaceContainer` background continues underneath to the
+  bottom edge.
+- Reserve a right-side strip after the day containers whose width is 60 percent of the
+  greater of the raw mandatory system-gesture inset and 24 dp. This visible strip uses
+  `surfaceContainer`.
 - Keep every full click target above the system inset, use Material interaction feedback,
   and expose each day container as one accessible semantic element.
 
@@ -86,6 +98,9 @@
   - without calendar permission, show a button requesting permission;
   - after permission is granted, replace it with the calendar-selection button;
   - persist the selected calendar.
+- The next section selects `Day accent color`. Persist the selected preset; Royal blue is
+  the default.
+- The next section selects the persisted `Scroll mode`; Mode 1 is the default.
 - The final section is smaller and horizontally centered. It displays:
   - `SimplerCal v<release version>`;
   - the GitHub project URL as a clickable web link.
