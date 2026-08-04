@@ -15,7 +15,8 @@
 - Use a Material 3 `Scaffold` and `CenterAlignedTopAppBar`.
 - The top bar contains:
   - a monochrome classic gear settings icon on the left;
-  - the title `Hello` in the center;
+  - the title `S52 31 juin` in the center, with a thin half-space between `31` and
+    `juin`;
   - a monochrome today icon on the right. The today icon is visible but has no behavior
     yet.
 - Below the top bar, display the current calendar week as seven full-width horizontal
@@ -28,14 +29,14 @@
   - the right inner container takes the remaining width and contains the day content.
 - Compute the current calendar week with Monday as its first day.
 - The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
-  proutcul` on six successive lines when expanded and two successive lines when compact.
-  Each line is single-line only and is clipped at the right edge without wrapping or an
-  ellipsis.
+  proutcul` on seven successive lines when expanded and two successive lines when compact,
+  using a body-small text size. Each line is single-line only and is clipped at the right
+  edge without wrapping or an ellipsis.
 - Exactly three consecutive containers must be expanded and the other four must be
   compact at all times. Initially, Monday, Tuesday, and Wednesday are expanded.
 - Distribute the available safe height according to the current states:
-  - each of the three expanded containers occupies 21 percent;
-  - the four compact containers each occupy 9.25 percent.
+  - the four compact containers each occupy 7.5 percent;
+  - the three expanded containers share the remaining 70 percent equally.
 - The complete visible surface of every day container is clickable. Clicking any
   container moves the expanded three-day group as follows:
   - clicking Monday or Tuesday expands Monday, Tuesday, and Wednesday;
@@ -44,7 +45,7 @@
   - clicking Saturday or Sunday expands Friday, Saturday, and Sunday.
 - After each click, every container outside the selected three-day group becomes compact
   automatically, preserving exactly three expanded and four compact containers.
-- Animate all affected container heights together over 720 milliseconds. The top and
+- Animate all affected container heights together over 2 seconds. The top and
   bottom separators must move with their containers as the new three-day group expands
   and the former group compacts.
 - Use a visible one-dp separator around every day container. Use the themed `onSurface`

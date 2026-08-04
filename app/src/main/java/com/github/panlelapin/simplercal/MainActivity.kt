@@ -87,12 +87,13 @@ import java.util.Locale
 private const val PREFERENCES_NAME = "simplercal"
 private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
+private const val TOP_BAR_TITLE = "S52 31\u2009juin"
 private const val EXPANDED_DAY_COUNT = 3
-private const val EXPANDED_DAY_WEIGHT = 21f
-private const val COMPACT_DAY_WEIGHT = 9.25f
-private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 720
+private const val COMPACT_DAY_WEIGHT = 7.5f
+private const val EXPANDED_DAY_WEIGHT = 23.333334f
+private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 2_000
 private const val DAY_CONTENT_TEXT = "dolor sit amet bla bla truc bigoudi plan plan proutcul"
-private const val EXPANDED_CONTENT_LINE_COUNT = 6
+private const val EXPANDED_CONTENT_LINE_COUNT = 7
 private const val COMPACT_CONTENT_LINE_COUNT = 2
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 
@@ -156,7 +157,12 @@ private fun HelloScreen(onSettings: () -> Unit) {
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Hello") },
+                title = {
+                    Text(
+                        text = TOP_BAR_TITLE,
+                        maxLines = 1,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onSettings) {
                         Icon(
@@ -317,6 +323,7 @@ private fun DayContentContainer(
                     maxLines = 1,
                     softWrap = false,
                     overflow = TextOverflow.Clip,
+                    style = MaterialTheme.typography.bodySmall,
                 )
             }
         }
