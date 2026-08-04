@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -43,10 +44,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -55,14 +56,29 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 
 private const val PREFERENCES_NAME = "simplercal"
 private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
+private const val EMPHASIZED_DAY_COUNT = 2
+private const val EMPHASIZED_DAY_WEIGHT = 25f
+private const val STANDARD_DAY_WEIGHT = 10f
+
+private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 private data class CalendarChoice(
     val id: Long,
     val name: String,
+)
+
+private data class WeekDay(
+    val abbreviation: String,
+    val dayOfMonth: Int,
+    val isWeekend: Boolean,
+    val weight: Float,
 )
 
 /** Hosts the single launcher screen for SimplerCal. */
@@ -138,37 +154,54 @@ private fun HelloScreen(onSettings: () -> Unit) {
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun WeekView() {
+    val days = remember { currentWeek() }
     Column(modifier = Modifier.fillMaxSize()) {
-        DayRow(name = "Monday", weight = 20f)
-        DayRow(name = "Tuesday", weight = 20f)
-        DayRow(name = "Wednesday", weight = 12f)
-        DayRow(name = "Thursday", weight = 12f)
-        DayRow(name = "Friday", weight = 12f)
-        DayRow(name = "Saturday", weight = 12f)
-        DayRow(name = "Sunday", weight = 12f)
+        days.forEach { day -> DayRow(day) }
     }
 }
 
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
-private fun ColumnScope.DayRow(
-    name: String,
-    weight: Float,
-) {
+private fun ColumnScope.DayRow(day: WeekDay) {
     Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .weight(weight),
+                .weight(day.weight),
         shape = RectangleShape,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color =
+            if (day.isWeekend) {
+                colorResource(R.color.weekend_background)
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
     ) {
-        Box(
+        Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            contentAlignment = Alignment.CenterStart,
+            verticalArrangement = Arrangement.Center,
         ) {
-            Text(name, style = MaterialTheme.typography.titleMedium)
+            Text(day.abbreviation, style = MaterialTheme.typography.titleMedium)
+            Text(day.dayOfMonth.toString(), style = MaterialTheme.typography.titleLarge)
         }
+    }
+}
+
+private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
+    val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    return DAY_ABBREVIATIONS.mapIndexed { index, abbreviation ->
+        val date = monday.plusDays(index.toLong())
+        WeekDay(
+            abbreviation = abbreviation,
+            dayOfMonth = date.dayOfMonth,
+            isWeekend = date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY,
+            weight =
+                if (index < EMPHASIZED_DAY_COUNT) {
+                    EMPHASIZED_DAY_WEIGHT
+                } else {
+                    STANDARD_DAY_WEIGHT
+                },
+        )
     }
 }
 
