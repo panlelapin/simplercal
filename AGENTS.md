@@ -29,7 +29,7 @@
   - the right inner container takes the remaining width and contains the day content.
 - Compute the current calendar week with Monday as its first day.
 - The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
-  proutcul` on eight successive lines when expanded and one line when compact, using a
+  proutcul` on nine successive lines when expanded and one line when compact, using a
   body-medium text size. Each line starts with its one-based line number followed
   by one space and the phrase. The content is vertically centered and left-aligned. Each
   line is single-line only and is clipped at the right edge without wrapping or an ellipsis.
@@ -44,32 +44,35 @@
 - For a group change caused by a simple tap, animate all affected container heights
   together over exactly 1 second of elapsed frame time, using one shared linear progression
   that is independent of the system animator duration scale. The top and bottom separators
-  must move with their containers as the new three-day group expands and the former group
+  must move with their containers as the new two-day group expands and the former group
   compacts.
 - When a compact container becomes expanded, update its right-side content before the
   height animation starts. When an expanded container becomes compact, keep its expanded
-  content during the height animation and reduce it to two lines only after the animation
+  content during the height animation and reduce it to one line only after the animation
   completes.
 - A simple tap remains available on every compact or expanded day container. A vertical
   drag starts only when the initial touch is on an expanded container. While dragging,
   continuously resolve the finger position from the current displayed heights and directly
-  interpolate between the neighboring three-day layouts. Do not use a timed animation
+  interpolate between the neighboring expanded layouts. Do not use a timed animation
   during the drag: the growth and compaction speed follows the finger. Keep the day under
   the finger in the expanded group and settle immediately on the nearest group when the
   finger is released, producing a dock-style magnification movement without scaling content.
-- Use a visible one-dp separator around every day container. Use the themed `onSurface`
-  color so separators remain dark in the light theme and visible in the dark theme.
+- Use `MaterialTheme.colorScheme.surfaceContainer`, the exact colour of the top app bar,
+  for the 1.5 dp separators around every day container and its two inner containers. Do
+  not use black or white separator lines. The left and right inner containers have subtly
+  rounded 6 dp corners. Use this same colour as the fill of each left inner container and
+  for the area below the day containers, including the system-gesture inset area.
 - Saturday and Sunday use a distinct neutral background:
   - `#E4E4E4` in the light theme;
   - `#202020` in the dark theme.
-- Other day containers and the area below the week use:
+- Other day containers use:
   - `#FFFFFF` in the light theme;
   - `#000000` in the dark theme.
 - The Sunday container must stop immediately above the bottom mandatory system-gesture
   inset. Its bottom separator marks the boundary with the system-inset area, while the
-  neutral screen background continues underneath to the bottom edge. Read the raw bottom
-  value from `WindowInsets.mandatorySystemGestures.asPaddingValues()` so the required
-  gesture area is reserved even on devices whose navigation-bar inset is zero.
+  `surfaceContainer` background continues underneath to the bottom edge. Read the raw
+  bottom value from `WindowInsets.mandatorySystemGestures.asPaddingValues()` so the
+  required gesture area is reserved even on devices whose navigation-bar inset is zero.
 - Keep every full click target above the system inset, use Material interaction feedback,
   and expose each day container as one accessible semantic element.
 

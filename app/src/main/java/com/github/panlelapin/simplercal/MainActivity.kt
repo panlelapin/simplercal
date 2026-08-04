@@ -13,7 +13,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -35,6 +34,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
@@ -48,6 +48,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -60,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -96,9 +98,12 @@ private const val TOTAL_DAY_WEIGHT = 100f
 private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 1_000
 private const val NANOS_PER_MILLISECOND = 1_000_000L
 private const val DAY_CONTENT_TEXT = "dolor sit amet bla bla truc bigoudi plan plan proutcul"
-private const val EXPANDED_CONTENT_LINE_COUNT = 8
+private const val EXPANDED_CONTENT_LINE_COUNT = 9
 private const val COMPACT_CONTENT_LINE_COUNT = 1
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
+private val DAY_SEPARATOR_THICKNESS = 1.5.dp
+private val DAY_SUBCONTAINER_CORNER_RADIUS = 6.dp
+private val DAY_SUBCONTAINER_GAP = 2.dp
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -160,6 +165,10 @@ private fun HelloScreen(onSettings: () -> Unit) {
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
             CenterAlignedTopAppBar(
+                colors =
+                    TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
                 title = {
                     Text(
                         text = TOP_BAR_TITLE,
@@ -187,7 +196,7 @@ private fun HelloScreen(onSettings: () -> Unit) {
     ) { innerPadding ->
         Surface(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
-            color = colorResource(R.color.screen_background),
+            color = MaterialTheme.colorScheme.surfaceContainer,
         ) {
             WeekView()
         }
@@ -414,6 +423,7 @@ private fun ColumnScope.DayRow(
     onClick: () -> Unit,
 ) {
     val stateDescription = if (isExpanded) "expanded" else "compact"
+    val separatorColor = MaterialTheme.colorScheme.surfaceContainer
     Surface(
         modifier =
             Modifier
@@ -422,9 +432,9 @@ private fun ColumnScope.DayRow(
                 .clickable(role = Role.Button, onClick = onClick)
                 .semantics(mergeDescendants = true) {
                     contentDescription = "${day.abbreviation}, $stateDescription"
-                },
+        },
         shape = RectangleShape,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
+        border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
         color =
             if (day.isWeekend) {
                 colorResource(R.color.weekend_background)
@@ -432,21 +442,22 @@ private fun ColumnScope.DayRow(
                 colorResource(R.color.screen_background)
             },
     ) {
-        Row(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(2.dp),
+        ) {
             DayLabelContainer(
                 day = day,
                 isExpanded = isExpanded,
                 width = dayLabelColumnWidth,
+                separatorColor = separatorColor,
             )
-            Spacer(
-                modifier =
-                    Modifier
-                        .fillMaxHeight()
-                        .width(1.dp)
-                        .background(MaterialTheme.colorScheme.onSurface),
-            )
+            Spacer(modifier = Modifier.width(DAY_SUBCONTAINER_GAP))
             DayContentContainer(
                 isExpanded = isContentExpanded,
+                separatorColor = separatorColor,
                 modifier = Modifier.fillMaxHeight().weight(1f),
             )
         }
@@ -459,12 +470,14 @@ private fun DayLabelContainer(
     day: WeekDay,
     isExpanded: Boolean,
     width: Dp,
+    separatorColor: Color,
 ) {
     val verticalAlignment = if (isExpanded) Alignment.TopEnd else Alignment.CenterEnd
     Surface(
         modifier = Modifier.width(width).fillMaxHeight(),
-        shape = RectangleShape,
-        color = androidx.compose.ui.graphics.Color.Transparent,
+        shape = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS),
+        border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -488,12 +501,14 @@ private fun DayLabelContainer(
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun DayContentContainer(
     isExpanded: Boolean,
+    separatorColor: Color,
     modifier: Modifier,
 ) {
     Surface(
         modifier = modifier,
-        shape = RectangleShape,
-        color = androidx.compose.ui.graphics.Color.Transparent,
+        shape = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS),
+        border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
+        color = Color.Transparent,
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
