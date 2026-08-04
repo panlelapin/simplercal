@@ -13,8 +13,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -89,11 +90,14 @@ private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
 private const val TOP_BAR_TITLE = "S52 31\u2009juin"
 private const val EXPANDED_DAY_COUNT = 3
-private const val COMPACT_DAY_WEIGHT = 7.5f
-private const val EXPANDED_DAY_WEIGHT = 23.333334f
+private const val COMPACT_DAY_WEIGHT = 6.5f
+private const val COMPACT_DAY_COUNT = 4
+private const val TOTAL_DAY_WEIGHT = 100f
+private const val EXPANDED_DAY_WEIGHT =
+    (TOTAL_DAY_WEIGHT - COMPACT_DAY_WEIGHT * COMPACT_DAY_COUNT) / EXPANDED_DAY_COUNT
 private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 2_000
 private const val DAY_CONTENT_TEXT = "dolor sit amet bla bla truc bigoudi plan plan proutcul"
-private const val EXPANDED_CONTENT_LINE_COUNT = 7
+private const val EXPANDED_CONTENT_LINE_COUNT = 9
 private const val COMPACT_CONTENT_LINE_COUNT = 2
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 
@@ -196,24 +200,40 @@ private fun HelloScreen(onSettings: () -> Unit) {
 private fun WeekView() {
     val days = remember { currentWeek() }
     var expandedStartIndex by remember { mutableStateOf(0) }
+    val heightTransition =
+        updateTransition(
+            targetState = expandedStartIndex,
+            label = "day-heights",
+        )
+    val currentExpandedStartIndex = heightTransition.currentState
     val dayLabelColumnWidth = dayLabelColumnWidth()
     val bottomGestureInset =
         WindowInsets.mandatorySystemGestures.asPaddingValues().calculateBottomPadding()
     Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomGestureInset)) {
         days.forEachIndexed { index, day ->
             val isExpanded = index in expandedStartIndex until expandedStartIndex + EXPANDED_DAY_COUNT
-            val animatedWeight by animateFloatAsState(
-                targetValue = if (isExpanded) EXPANDED_DAY_WEIGHT else COMPACT_DAY_WEIGHT,
-                animationSpec =
+            val wasExpanded =
+                index in currentExpandedStartIndex until currentExpandedStartIndex + EXPANDED_DAY_COUNT
+            val isContentExpanded = isExpanded || wasExpanded
+            val animatedWeight by heightTransition.animateFloat(
+                transitionSpec = {
                     tween(
                         durationMillis = DAY_STATE_ANIMATION_DURATION_MILLIS,
                         easing = FastOutSlowInEasing,
-                    ),
+                    )
+                },
                 label = "day-$index-height",
-            )
+            ) { targetStartIndex ->
+                if (index in targetStartIndex until targetStartIndex + EXPANDED_DAY_COUNT) {
+                    EXPANDED_DAY_WEIGHT
+                } else {
+                    COMPACT_DAY_WEIGHT
+                }
+            }
             DayRow(
                 day = day,
                 isExpanded = isExpanded,
+                isContentExpanded = isContentExpanded,
                 weight = animatedWeight,
                 dayLabelColumnWidth = dayLabelColumnWidth,
                 onClick = {
@@ -229,6 +249,7 @@ private fun WeekView() {
 private fun ColumnScope.DayRow(
     day: WeekDay,
     isExpanded: Boolean,
+    isContentExpanded: Boolean,
     weight: Float,
     dayLabelColumnWidth: Dp,
     onClick: () -> Unit,
@@ -266,7 +287,7 @@ private fun ColumnScope.DayRow(
                         .background(MaterialTheme.colorScheme.onSurface),
             )
             DayContentContainer(
-                isExpanded = isExpanded,
+                isExpanded = isContentExpanded,
                 modifier = Modifier.fillMaxHeight().weight(1f),
             )
         }
@@ -315,15 +336,20 @@ private fun DayContentContainer(
         shape = RectangleShape,
         color = androidx.compose.ui.graphics.Color.Transparent,
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
             repeat(if (isExpanded) EXPANDED_CONTENT_LINE_COUNT else COMPACT_CONTENT_LINE_COUNT) {
+                lineIndex ->
                 Text(
-                    text = DAY_CONTENT_TEXT,
+                    text = "${lineIndex + 1} $DAY_CONTENT_TEXT",
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 1,
                     softWrap = false,
                     overflow = TextOverflow.Clip,
                     style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Start,
                 )
             }
         }

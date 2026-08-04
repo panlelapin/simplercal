@@ -29,14 +29,15 @@
   - the right inner container takes the remaining width and contains the day content.
 - Compute the current calendar week with Monday as its first day.
 - The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
-  proutcul` on seven successive lines when expanded and two successive lines when compact,
-  using a body-small text size. Each line is single-line only and is clipped at the right
-  edge without wrapping or an ellipsis.
+  proutcul` on nine successive lines when expanded and two successive lines when compact,
+  using a body-small text size. Each line starts with its one-based line number followed
+  by one space and the phrase. The content is vertically centered and left-aligned. Each
+  line is single-line only and is clipped at the right edge without wrapping or an ellipsis.
 - Exactly three consecutive containers must be expanded and the other four must be
   compact at all times. Initially, Monday, Tuesday, and Wednesday are expanded.
 - Distribute the available safe height according to the current states:
-  - the four compact containers each occupy 7.5 percent;
-  - the three expanded containers share the remaining 70 percent equally.
+  - the four compact containers each occupy 6.5 percent;
+  - the three expanded containers share the remaining 74 percent equally.
 - The complete visible surface of every day container is clickable. Clicking any
   container moves the expanded three-day group as follows:
   - clicking Monday or Tuesday expands Monday, Tuesday, and Wednesday;
@@ -48,6 +49,10 @@
 - Animate all affected container heights together over 2 seconds. The top and
   bottom separators must move with their containers as the new three-day group expands
   and the former group compacts.
+- When a compact container becomes expanded, update its right-side content before the
+  height animation starts. When an expanded container becomes compact, keep its expanded
+  content during the height animation and reduce it to two lines only after the animation
+  completes.
 - Use a visible one-dp separator around every day container. Use the themed `onSurface`
   color so separators remain dark in the light theme and visible in the dark theme.
 - Saturday and Sunday use a distinct neutral background:
