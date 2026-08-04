@@ -89,17 +89,15 @@ private const val PREFERENCES_NAME = "simplercal"
 private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
 private const val TOP_BAR_TITLE = "S52 31\u2009juin"
-private const val EXPANDED_DAY_COUNT = 3
+private const val WEEK_DAY_COUNT = 7
+private const val WEEKEND_START_INDEX = 5
 private const val COMPACT_DAY_WEIGHT = 6.5f
-private const val COMPACT_DAY_COUNT = 4
 private const val TOTAL_DAY_WEIGHT = 100f
-private const val EXPANDED_DAY_WEIGHT =
-    (TOTAL_DAY_WEIGHT - COMPACT_DAY_WEIGHT * COMPACT_DAY_COUNT) / EXPANDED_DAY_COUNT
 private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 1_000
 private const val NANOS_PER_MILLISECOND = 1_000_000L
 private const val DAY_CONTENT_TEXT = "dolor sit amet bla bla truc bigoudi plan plan proutcul"
 private const val EXPANDED_CONTENT_LINE_COUNT = 8
-private const val COMPACT_CONTENT_LINE_COUNT = 2
+private const val COMPACT_CONTENT_LINE_COUNT = 1
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -200,16 +198,15 @@ private fun HelloScreen(onSettings: () -> Unit) {
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun WeekView() {
     val days = remember { currentWeek() }
-    var expandedStartIndex by remember { mutableStateOf(0) }
-    var animatedDayWeights by remember { mutableStateOf(dayWeightsFor(expandedStartIndex)) }
-    var contentExpandedDays by remember { mutableStateOf(expandedDayIndices(expandedStartIndex)) }
+    var selectedDayIndex by remember { mutableStateOf(0) }
+    var animatedDayWeights by remember { mutableStateOf(dayWeightsFor(selectedDayIndex)) }
+    var contentExpandedDays by remember { mutableStateOf(expandedDayIndices(selectedDayIndex)) }
     var animationRequest by remember { mutableStateOf(0) }
     var isDragging by remember { mutableStateOf(false) }
     val selectDay: (Int) -> Unit = { dayIndex ->
-        val nextExpandedStartIndex = expandedStartIndexFor(dayIndex)
-        if (nextExpandedStartIndex != expandedStartIndex) {
-            contentExpandedDays = contentExpandedDays + expandedDayIndices(nextExpandedStartIndex)
-            expandedStartIndex = nextExpandedStartIndex
+        if (dayIndex != selectedDayIndex) {
+            contentExpandedDays = contentExpandedDays + expandedDayIndices(dayIndex)
+            selectedDayIndex = dayIndex
             animationRequest += 1
         }
     }
@@ -221,18 +218,17 @@ private fun WeekView() {
     }
     val dragToFocus: (Float) -> Unit = { focusPosition ->
         val focusedDayIndex = (focusPosition + 0.5f).toInt().coerceIn(0, days.lastIndex)
-        val nextExpandedStartIndex = expandedStartIndexFor(focusedDayIndex)
-        expandedStartIndex = nextExpandedStartIndex
-        contentExpandedDays = expandedDayIndices(nextExpandedStartIndex)
+        selectedDayIndex = focusedDayIndex
+        contentExpandedDays = expandedDayIndices(focusedDayIndex)
         animatedDayWeights = dayWeightsForFocus(focusPosition)
     }
     val endDrag: () -> Unit = {
-        animatedDayWeights = dayWeightsFor(expandedStartIndex)
-        contentExpandedDays = expandedDayIndices(expandedStartIndex)
+        animatedDayWeights = dayWeightsFor(selectedDayIndex)
+        contentExpandedDays = expandedDayIndices(selectedDayIndex)
         isDragging = false
     }
     val currentAnimatedDayWeights = rememberUpdatedState(animatedDayWeights)
-    val currentExpandedStartIndex = rememberUpdatedState(expandedStartIndex)
+    val currentSelectedDayIndex = rememberUpdatedState(selectedDayIndex)
     val currentStartDrag = rememberUpdatedState(startDrag)
     val currentDragToFocus = rememberUpdatedState(dragToFocus)
     val currentEndDrag = rememberUpdatedState(endDrag)
@@ -242,7 +238,7 @@ private fun WeekView() {
     LaunchedEffect(animationRequest) {
         if (isDragging) return@LaunchedEffect
         val startWeights = animatedDayWeights
-        val targetWeights = dayWeightsFor(expandedStartIndex)
+        val targetWeights = dayWeightsFor(selectedDayIndex)
         if (startWeights != targetWeights) {
             val durationNanos = DAY_STATE_ANIMATION_DURATION_MILLIS * NANOS_PER_MILLISECOND
             val startNanos = withFrameNanos { frameTimeNanos -> frameTimeNanos }
@@ -264,7 +260,7 @@ private fun WeekView() {
             }
             animatedDayWeights = targetWeights
         }
-        contentExpandedDays = expandedDayIndices(expandedStartIndex)
+        contentExpandedDays = expandedDayIndices(selectedDayIndex)
     }
     Column(
         modifier =
@@ -281,9 +277,7 @@ private fun WeekView() {
                                     height = size.height,
                                     weights = currentAnimatedDayWeights.value,
                                 )
-                            val expandedStart = currentExpandedStartIndex.value
-                            isDragEnabled =
-                                dayIndex in expandedStart until expandedStart + EXPANDED_DAY_COUNT
+                            isDragEnabled = dayIndex in expandedDayIndices(currentSelectedDayIndex.value)
                             if (isDragEnabled) currentStartDrag.value()
                         },
                         onDragCancel = {
@@ -310,7 +304,7 @@ private fun WeekView() {
                 },
     ) {
         days.forEachIndexed { index, day ->
-            val isExpanded = index in expandedStartIndex until expandedStartIndex + EXPANDED_DAY_COUNT
+            val isExpanded = index in expandedDayIndices(selectedDayIndex)
             val isContentExpanded = index in contentExpandedDays
             DayRow(
                 day = day,
@@ -324,22 +318,27 @@ private fun WeekView() {
     }
 }
 
-private fun dayWeightsFor(expandedStartIndex: Int): List<Float> =
-    List(DAY_ABBREVIATIONS.size) { dayIndex ->
-        if (dayIndex in expandedStartIndex until expandedStartIndex + EXPANDED_DAY_COUNT) {
-            EXPANDED_DAY_WEIGHT
+private fun dayWeightsFor(selectedDayIndex: Int): List<Float> {
+    val expandedDays = expandedDayIndices(selectedDayIndex)
+    val compactDayCount = WEEK_DAY_COUNT - expandedDays.size
+    val expandedDayWeight =
+        (TOTAL_DAY_WEIGHT - COMPACT_DAY_WEIGHT * compactDayCount) / expandedDays.size
+    return List(DAY_ABBREVIATIONS.size) { dayIndex ->
+        if (dayIndex in expandedDays) {
+            expandedDayWeight
         } else {
             COMPACT_DAY_WEIGHT
         }
     }
+}
 
 private fun dayWeightsForFocus(focusPosition: Float): List<Float> {
     val boundedFocus = focusPosition.coerceIn(0f, DAY_ABBREVIATIONS.lastIndex.toFloat())
     val lowerDayIndex = boundedFocus.toInt()
     val upperDayIndex = (lowerDayIndex + 1).coerceAtMost(DAY_ABBREVIATIONS.lastIndex)
     val fraction = boundedFocus - lowerDayIndex
-    val lowerWeights = dayWeightsFor(expandedStartIndexFor(lowerDayIndex))
-    val upperWeights = dayWeightsFor(expandedStartIndexFor(upperDayIndex))
+    val lowerWeights = dayWeightsFor(lowerDayIndex)
+    val upperWeights = dayWeightsFor(upperDayIndex)
     return List(DAY_ABBREVIATIONS.size) { dayIndex ->
         interpolateWeight(
             start = lowerWeights[dayIndex],
@@ -349,8 +348,12 @@ private fun dayWeightsForFocus(focusPosition: Float): List<Float> {
     }
 }
 
-private fun expandedDayIndices(expandedStartIndex: Int): Set<Int> =
-    (expandedStartIndex until expandedStartIndex + EXPANDED_DAY_COUNT).toSet()
+private fun expandedDayIndices(selectedDayIndex: Int): Set<Int> =
+    if (selectedDayIndex < WEEKEND_START_INDEX) {
+        setOf(selectedDayIndex, selectedDayIndex + 1)
+    } else {
+        setOf(WEEKEND_START_INDEX, WEEKEND_START_INDEX + 1)
+    }
 
 private fun interpolateWeight(
     start: Float,
@@ -504,7 +507,7 @@ private fun DayContentContainer(
                     maxLines = 1,
                     softWrap = false,
                     overflow = TextOverflow.Clip,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Start,
                 )
             }
@@ -527,14 +530,6 @@ private fun dayLabelColumnWidth(): Dp {
         }
     return with(density) { widestLabelWidth.toDp() } + DAY_LABEL_HORIZONTAL_PADDING * 2
 }
-
-private fun expandedStartIndexFor(dayIndex: Int): Int =
-    when (dayIndex) {
-        0, 1 -> 0
-        2, 3, 4 -> dayIndex - 1
-        5, 6 -> 4
-        else -> error("Day index must be between 0 and 6")
-    }
 
 private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
     val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))

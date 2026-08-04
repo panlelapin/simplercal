@@ -29,23 +29,18 @@
   - the right inner container takes the remaining width and contains the day content.
 - Compute the current calendar week with Monday as its first day.
 - The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
-  proutcul` on eight successive lines when expanded and two successive lines when compact,
-  using a body-small text size. Each line starts with its one-based line number followed
+  proutcul` on eight successive lines when expanded and one line when compact, using a
+  body-medium text size. Each line starts with its one-based line number followed
   by one space and the phrase. The content is vertically centered and left-aligned. Each
   line is single-line only and is clipped at the right edge without wrapping or an ellipsis.
-- Exactly three consecutive containers must be expanded and the other four must be
-  compact at all times. Initially, Monday, Tuesday, and Wednesday are expanded.
+- Initially, Monday and Tuesday are expanded. When Monday through Friday is selected, the
+  selected day and the following day are expanded and all other containers are compact.
+  When Saturday or Sunday is selected, Saturday and Sunday are both expanded.
 - Distribute the available safe height according to the current states:
-  - the four compact containers each occupy 6.5 percent;
-  - the three expanded containers share the remaining 74 percent equally.
-- The complete visible surface of every day container is clickable. Clicking any
-  container moves the expanded three-day group as follows:
-  - clicking Monday or Tuesday expands Monday, Tuesday, and Wednesday;
-  - clicking Wednesday, Thursday, or Friday expands the clicked day, the previous day,
-    and the following day;
-  - clicking Saturday or Sunday expands Friday, Saturday, and Sunday.
-- After each click, every container outside the selected three-day group becomes compact
-  automatically, preserving exactly three expanded and four compact containers.
+  - every compact container occupies 6.5 percent;
+  - the two expanded containers share the remaining height equally.
+- The complete visible surface of every day container is clickable. Clicking a day selects
+  it and applies the matching expanded-container rule above.
 - For a group change caused by a simple tap, animate all affected container heights
   together over exactly 1 second of elapsed frame time, using one shared linear progression
   that is independent of the system animator duration scale. The top and bottom separators
