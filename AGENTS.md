@@ -44,6 +44,9 @@
 - After each state change, every container outside the selected three-day group becomes
   compact automatically, preserving exactly three expanded and four compact containers.
   Clicking a container that is already expanded does not change the state.
+- Animate all affected container heights together with a short transition. The top and
+  bottom separators must move with their containers as the new three-day group expands
+  and the former group compacts.
 - Use a visible one-dp separator around every day container. Use the themed `onSurface`
   color so separators remain dark in the light theme and visible in the dark theme.
 - Saturday and Sunday use a distinct neutral background:

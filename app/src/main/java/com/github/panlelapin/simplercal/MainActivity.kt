@@ -12,6 +12,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -77,6 +80,7 @@ private const val EXPANDED_DAY_COUNT = 3
 private const val EXPANDED_DAY_WEIGHT = 21f
 private const val COMPACT_DAY_WEIGHT = 9.25f
 private const val DAY_CONTENT_ROW_COUNT = 9
+private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 180
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -178,9 +182,19 @@ private fun WeekView() {
     Column(modifier = Modifier.fillMaxSize().padding(bottom = bottomGestureInset)) {
         days.forEachIndexed { index, day ->
             val isExpanded = index in expandedStartIndex until expandedStartIndex + EXPANDED_DAY_COUNT
+            val animatedWeight by animateFloatAsState(
+                targetValue = if (isExpanded) EXPANDED_DAY_WEIGHT else COMPACT_DAY_WEIGHT,
+                animationSpec =
+                    tween(
+                        durationMillis = DAY_STATE_ANIMATION_DURATION_MILLIS,
+                        easing = FastOutSlowInEasing,
+                    ),
+                label = "day-$index-height",
+            )
             DayRow(
                 day = day,
                 isExpanded = isExpanded,
+                weight = animatedWeight,
                 onClick = {
                     if (!isExpanded) expandedStartIndex = expandedStartIndexFor(index)
                 },
@@ -194,6 +208,7 @@ private fun WeekView() {
 private fun ColumnScope.DayRow(
     day: WeekDay,
     isExpanded: Boolean,
+    weight: Float,
     onClick: () -> Unit,
 ) {
     val stateDescription = if (isExpanded) "expanded" else "compact"
@@ -201,7 +216,7 @@ private fun ColumnScope.DayRow(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .weight(if (isExpanded) EXPANDED_DAY_WEIGHT else COMPACT_DAY_WEIGHT)
+                .weight(weight)
                 .clickable(role = Role.Button, onClick = onClick)
                 .semantics(mergeDescendants = true) {
                     contentDescription = "${day.abbreviation} ${day.dayOfMonth}, $stateDescription"
