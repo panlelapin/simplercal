@@ -19,10 +19,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -78,6 +83,7 @@ private data class WeekDay(
     val abbreviation: String,
     val dayOfMonth: Int,
     val isWeekend: Boolean,
+    val isSunday: Boolean,
     val weight: Float,
 )
 
@@ -123,6 +129,7 @@ private fun SimplerCalApp() {
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun HelloScreen(onSettings: () -> Unit) {
     Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Hello") },
@@ -163,6 +170,17 @@ private fun WeekView() {
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun ColumnScope.DayRow(day: WeekDay) {
+    val contentModifier =
+        if (day.isSunday) {
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                .padding(horizontal = 16.dp)
+        } else {
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+        }
     Surface(
         modifier =
             Modifier
@@ -178,7 +196,7 @@ private fun ColumnScope.DayRow(day: WeekDay) {
             },
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            modifier = contentModifier,
             verticalArrangement = Arrangement.Center,
         ) {
             Text(day.abbreviation, style = MaterialTheme.typography.titleMedium)
@@ -195,6 +213,7 @@ private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
             abbreviation = abbreviation,
             dayOfMonth = date.dayOfMonth,
             isWeekend = date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY,
+            isSunday = date.dayOfWeek == DayOfWeek.SUNDAY,
             weight =
                 if (index < EMPHASIZED_DAY_COUNT) {
                     EMPHASIZED_DAY_WEIGHT
