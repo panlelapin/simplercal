@@ -286,18 +286,25 @@ require_local_check() {
 }
 
 current_source_digest() {
-  {
-    if git rev-parse --verify HEAD >/dev/null 2>&1; then
-      git rev-parse HEAD
-      git diff --binary HEAD --
-    else
-      printf 'NO_HEAD\\0'
-    fi
+  git ls-files --cached --others --exclude-standard -z |
+    sort -z |
     while IFS= read -r -d '' path; do
-      printf 'untracked:%s\0' "$path"
-      git hash-object -- "$path"
-    done < <(git ls-files --others --exclude-standard -z)
-  } | sha256sum | sed 's/[[:space:]].*$//'
+      printf 'path:%s\0' "$path"
+      if [[ -L "$path" ]]; then
+        printf 'mode:120000\0target:%s\0' "$(readlink -- "$path")"
+      elif [[ -f "$path" ]]; then
+        if [[ -x "$path" ]]; then
+          printf 'mode:100755\0'
+        else
+          printf 'mode:100644\0'
+        fi
+        git hash-object -- "$path"
+      else
+        printf 'missing\0'
+      fi
+    done |
+    sha256sum |
+    sed 's/[[:space:]].*$//'
 }
 
 need git
@@ -308,10 +315,12 @@ need mv
 need rm
 need mkdir
 need rmdir
+need readlink
 need sleep
 need sha256sum
 need mktemp
 need sed
+need sort
 need tail
 
 validate_relative_path WORKFLOW_FILE "$WORKFLOW_FILE"

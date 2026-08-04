@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -69,8 +68,8 @@ private const val PREFERENCES_NAME = "simplercal"
 private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
 private const val EMPHASIZED_DAY_COUNT = 3
-private const val EMPHASIZED_DAY_WEIGHT = 22f
-private const val STANDARD_DAY_WEIGHT = 8.5f
+private const val EMPHASIZED_DAY_WEIGHT = 21f
+private const val STANDARD_DAY_WEIGHT = 9.25f
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -128,7 +127,10 @@ private fun SimplerCalApp() {
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun HelloScreen(onSettings: () -> Unit) {
     Scaffold(
-        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
+        contentWindowInsets =
+            WindowInsets.safeDrawing.only(
+                WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom,
+            ),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Hello") },
@@ -164,12 +166,7 @@ private fun HelloScreen(onSettings: () -> Unit) {
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun WeekView() {
     val days = remember { currentWeek() }
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
         days.forEach { day -> DayRow(day) }
     }
 }

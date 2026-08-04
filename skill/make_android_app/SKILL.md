@@ -54,6 +54,11 @@ dispatch/polling, artifact download/checksum flow, APK inspection, or ADB instal
 Use separate commands only for read-only diagnosis, and keep the scripts as the source of
 truth for the complete local and remote procedures.
 
+Make the `check-local` worktree attestation depend only on current file paths, contents,
+executable modes, and symbolic-link targets. Never include `HEAD`, index state, or commit
+identity in that digest: `make-remote` must accept the same validated content after it has
+staged or committed it, including when resuming after a partial remote-build failure.
+
 Keep `gradle/verification-metadata.xml`, the Gradle wrapper, the functional Detekt
 configuration, minSdk 34, targetSdk 36, release shrinking, and non-debuggable development
 signing. Local validation may compile Kotlin for type resolution; it must not assemble,

@@ -25,12 +25,12 @@
   - the day-of-month number directly below the abbreviation.
 - Compute the displayed dates from the current week, with Monday as its first day.
 - Distribute the available safe height as follows:
-  - Monday, Tuesday, and Wednesday each occupy 22 percent;
-  - Thursday, Friday, Saturday, and Sunday each occupy 8.5 percent.
+  - Monday, Tuesday, and Wednesday each occupy 21 percent;
+  - Thursday, Friday, Saturday, and Sunday each occupy 9.25 percent.
 - Use a visible one-dp separator around every day container. Use the themed `onSurface`
   color so separators remain dark in the light theme and visible in the dark theme.
 - Saturday and Sunday use a distinct neutral background:
-  - `#ECECEC` in the light theme;
+  - `#E4E4E4` in the light theme;
   - `#202020` in the dark theme.
 - Other day containers and the area below the week use:
   - `#FFFFFF` in the light theme;
@@ -62,6 +62,9 @@
   scripts manually.
 - Codex may inspect files and diffs but must leave local validation, commit, push, GitHub
   Actions dispatch, APK retrieval, and device installation to the user-owned scripts.
+- The local-check freshness digest must represent current file paths, contents, executable
+  modes, and symbolic-link targets. It must remain unchanged when identical content is
+  staged or committed so `make-remote` can safely resume after a partial failure.
 - The normal local and GitHub Actions gate is `functionalCheck`.
 - `functionalCheck` runs Detekt with type resolution and only the `potential-bugs` rule
   set. Detekt convention-oriented rules are disabled.
