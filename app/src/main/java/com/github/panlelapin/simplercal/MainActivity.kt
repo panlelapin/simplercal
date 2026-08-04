@@ -11,10 +11,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -127,9 +130,44 @@ private fun HelloScreen(onSettings: () -> Unit) {
         },
     ) { innerPadding ->
         Surface(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Hello", style = MaterialTheme.typography.headlineMedium)
-            }
+            WeekView()
+        }
+    }
+}
+
+@Composable
+@Suppress("FunctionName", "ktlint:standard:function-naming")
+private fun WeekView() {
+    Column(modifier = Modifier.fillMaxSize()) {
+        DayRow(name = "Monday", weight = 20f)
+        DayRow(name = "Tuesday", weight = 20f)
+        DayRow(name = "Wednesday", weight = 12f)
+        DayRow(name = "Thursday", weight = 12f)
+        DayRow(name = "Friday", weight = 12f)
+        DayRow(name = "Saturday", weight = 12f)
+        DayRow(name = "Sunday", weight = 12f)
+    }
+}
+
+@Composable
+@Suppress("FunctionName", "ktlint:standard:function-naming")
+private fun ColumnScope.DayRow(
+    name: String,
+    weight: Float,
+) {
+    Surface(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .weight(weight),
+        shape = RectangleShape,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text(name, style = MaterialTheme.typography.titleMedium)
         }
     }
 }

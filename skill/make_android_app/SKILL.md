@@ -126,5 +126,7 @@ prefer AndroidX/Compose dependencies already pinned by the base project.
 ## Final evidence
 
 Before reporting completion, run `scripts/check-local`, validate XML and workflow
-contracts, run the skill `quick_validate.py`, review the final file list, and report
-remote compilation or device validation only when those exact checks succeeded.
+contracts, and run the generic `skill-creator/scripts/quick_validate.py` validator with
+this skill directory as its argument. The validator belongs to `skill-creator`, not to
+this skill's `scripts/` directory. Review the final file list, and report remote
+compilation or device validation only when those exact checks succeeded.
