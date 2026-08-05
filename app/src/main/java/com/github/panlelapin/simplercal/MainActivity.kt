@@ -104,13 +104,14 @@ private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
 private const val DAY_ACCENT_COLOR_KEY = "day_accent_color"
 private const val THEME_MODE_KEY = "theme_mode"
 private const val SCROLL_MODE_KEY = "scroll_mode"
+private const val DEBUG1_OUTLINE_COLOR_KEY = "debug1_outline_color"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
 private const val TOP_BAR_TITLE = "S52 31\u2002juin"
 private const val WEEK_DAY_COUNT = 7
 private const val WEEKEND_START_INDEX = 5
 private const val COMPACT_DAY_WEIGHT = 6.5f
 private const val TOTAL_DAY_WEIGHT = 100f
-private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 700
+private const val DAY_STATE_ANIMATION_DURATION_MILLIS = 500
 private const val NANOS_PER_MILLISECOND = 1_000_000L
 private const val DAY_CONTENT_TEXT = "dolor sit amet bla bla truc bigoudi plan plan proutcul"
 private const val EXPANDED_CONTENT_LINE_COUNT = 9
@@ -225,13 +226,33 @@ private enum class WeekScrollMode(
     val label: String,
     val activationOffset: Float,
 ) {
-    SMOOTH("mode_1", "Smooth", 0.5f),
-    PER_DAY("mode_2", "Per day", 0f),
+    SMOOTH("mode_1", "Discrete", 0.5f),
+    PER_DAY("mode_2", "Linear", 0f),
     ;
 
     companion object {
         fun fromPreferenceValue(value: String): WeekScrollMode =
             entries.firstOrNull { it.preferenceValue == value } ?: SMOOTH
+    }
+}
+
+private enum class Debug1OutlineColor(
+    val preferenceValue: String,
+    val label: String,
+) {
+    OUTLINE_VARIANT("outline_variant", "outlineVariant"),
+    SURFACE_CONTAINER("surface_container", "surfaceContainer"),
+    ;
+
+    fun resolve(colorScheme: ColorScheme): Color =
+        when (this) {
+            OUTLINE_VARIANT -> colorScheme.outlineVariant
+            SURFACE_CONTAINER -> colorScheme.surfaceContainer
+        }
+
+    companion object {
+        fun fromPreferenceValue(value: String): Debug1OutlineColor =
+            entries.firstOrNull { it.preferenceValue == value } ?: OUTLINE_VARIANT
     }
 }
 
@@ -288,6 +309,16 @@ private fun SimplerCalApp() {
             ),
         )
     }
+    var debug1OutlineColor by remember {
+        mutableStateOf(
+            Debug1OutlineColor.fromPreferenceValue(
+                preferences.getString(
+                    DEBUG1_OUTLINE_COLOR_KEY,
+                    Debug1OutlineColor.OUTLINE_VARIANT.preferenceValue,
+                ) ?: Debug1OutlineColor.OUTLINE_VARIANT.preferenceValue,
+            ),
+        )
+    }
     val useDarkTheme =
         when (themeMode) {
             ThemeMode.LIGHT -> false
@@ -318,6 +349,7 @@ private fun SimplerCalApp() {
         Box(modifier = Modifier.fillMaxSize()) {
             HelloScreen(
                 scrollMode = scrollMode,
+                debug1OutlineColor = debug1OutlineColor,
                 onSettings = { isSettingsVisible = true },
             )
             if (isSettingsVisible) {
@@ -337,6 +369,13 @@ private fun SimplerCalApp() {
                         preferences.edit { putString(SCROLL_MODE_KEY, mode.preferenceValue) }
                         scrollMode = mode
                     },
+                    selectedDebug1OutlineColor = debug1OutlineColor,
+                    onDebug1OutlineColorChange = { color ->
+                        preferences.edit {
+                            putString(DEBUG1_OUTLINE_COLOR_KEY, color.preferenceValue)
+                        }
+                        debug1OutlineColor = color
+                    },
                     onBack = { isSettingsVisible = false },
                 )
             }
@@ -349,6 +388,7 @@ private fun SimplerCalApp() {
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun HelloScreen(
     scrollMode: WeekScrollMode,
+    debug1OutlineColor: Debug1OutlineColor,
     onSettings: () -> Unit,
 ) {
     Scaffold(
@@ -400,6 +440,7 @@ private fun HelloScreen(
         ) {
             WeekView(
                 scrollMode = scrollMode,
+                debug1OutlineColor = debug1OutlineColor,
             )
         }
     }
@@ -409,6 +450,7 @@ private fun HelloScreen(
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun WeekView(
     scrollMode: WeekScrollMode,
+    debug1OutlineColor: Debug1OutlineColor,
 ) {
     val days = remember { currentWeek() }
     var selectedDayIndex by remember { mutableStateOf(0) }
@@ -454,6 +496,7 @@ private fun WeekView(
     val currentDragToFocus = rememberUpdatedState(dragToFocus)
     val currentEndDrag = rememberUpdatedState(endDrag)
     val dayLabelColumnWidth = dayLabelColumnWidth()
+    val separatorColor = debug1OutlineColor.resolve(MaterialTheme.colorScheme)
     val mandatoryGesturePadding = WindowInsets.mandatorySystemGestures.asPaddingValues()
     val bottomGestureInset =
         mandatoryGesturePadding.calculateBottomPadding() * GESTURE_GUTTER_FRACTION
@@ -609,6 +652,7 @@ private fun WeekView(
                     isContentExpanded = isContentExpanded,
                     weight = animatedDayWeights[index],
                     dayLabelColumnWidth = dayLabelColumnWidth,
+                    separatorColor = separatorColor,
                     onClick = { selectDay(index) },
                 )
             }
@@ -716,10 +760,10 @@ private fun ColumnScope.DayRow(
     isContentExpanded: Boolean,
     weight: Float,
     dayLabelColumnWidth: Dp,
+    separatorColor: Color,
     onClick: () -> Unit,
 ) {
     val stateDescription = if (isExpanded) "expanded" else "compact"
-    val separatorColor = MaterialTheme.colorScheme.outlineVariant
     Surface(
         modifier =
             Modifier
@@ -870,6 +914,8 @@ private fun SettingsScreen(
     onThemeModeChange: (ThemeMode) -> Unit,
     selectedScrollMode: WeekScrollMode,
     onScrollModeChange: (WeekScrollMode) -> Unit,
+    selectedDebug1OutlineColor: Debug1OutlineColor,
+    onDebug1OutlineColorChange: (Debug1OutlineColor) -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -982,6 +1028,24 @@ private fun SettingsScreen(
                             ),
                     ) {
                         Text(mode.label)
+                    }
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+            Text("Debug1", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                Debug1OutlineColor.entries.forEachIndexed { index, color ->
+                    SegmentedButton(
+                        selected = selectedDebug1OutlineColor == color,
+                        onClick = { onDebug1OutlineColorChange(color) },
+                        shape =
+                            SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = Debug1OutlineColor.entries.size,
+                            ),
+                    ) {
+                        Text(color.label)
                     }
                 }
             }

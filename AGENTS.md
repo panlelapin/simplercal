@@ -57,7 +57,7 @@
 - The complete visible surface of every day container is clickable. Clicking a day selects
   it and applies the matching expanded-container rule above.
 - For a group change caused by a simple tap, animate all affected container heights
-  together over exactly 0.7 seconds of elapsed frame time, using one shared linear progression
+  together over exactly 0.5 seconds of elapsed frame time, using one shared linear progression
   that is independent of the system animator duration scale. The top and bottom separators
   must move with their containers as the new two-day group expands and the former group
   compacts.
@@ -66,11 +66,11 @@
   content during the height animation and reduce it to one line only after the animation
   completes.
 - A simple tap remains available on every compact or expanded day container regardless of the
-  selected scroll mode. Persist a `Scroll mode` setting with `Smooth` as its default:
-  - `Smooth` starts a vertical drag only when the initial touch is on an expanded container.
+  selected scroll mode. Persist a `Scroll mode` setting with `Discrete` as its default:
+  - `Discrete` starts a vertical drag only when the initial touch is on an expanded container.
     A new day becomes active only after the finger crosses the current container's halfway
     point.
-  - `Per day` starts a vertical drag anywhere in the week area, including compact containers,
+  - `Linear` starts a vertical drag anywhere in the week area, including compact containers,
     the right-side strip, and the bottom strip. It starts from the currently expanded group,
     not from the touch-down container. Do not apply touch slop or wait for the pointer to
     reach any position: the very first non-zero vertical pointer delta starts the change.
@@ -118,8 +118,12 @@
   (`#B4472D`), `Emerald green` (`#2E7D32`), a second `Teal` (`#006B5F`), and `Olive green`
   (`#627000`). The selector therefore contains twelve rows: `System` plus the eleven supplied
   colour entries. Its list must scroll so every row remains reachable on compact screens.
-- The next section selects the persisted `Scroll mode`. Display the `Smooth` and `Per day`
+- The next section selects the persisted `Scroll mode`. Display the `Discrete` and `Linear`
   choices side by side as a single-choice Material segmented control, not in a menu.
+- The next section is `Debug1`. Persist its two side-by-side Material segmented choices:
+  `outlineVariant` is the default and uses `ColorScheme.outlineVariant` for every day-parent
+  and inner-container border/separator; `surfaceContainer` uses
+  `ColorScheme.surfaceContainer` for those same borders/separators. Apply a change immediately.
 - The final section is smaller and horizontally centered. It displays:
   - `SimplerCal v<release version>`;
   - the GitHub project URL as a clickable web link.
