@@ -4,7 +4,12 @@
 - The application ID is `com.github.panlelapin.simplercal` and the user-facing name is
   `SimplerCal`.
 - The interface must be entirely in English and use Material 3.
-- Follow the system light/dark theme automatically.
+- Use a persisted `Theme` preference with `Light`, `Dark`, and `System` options; `System` is
+  the default and follows the Android light/dark setting.
+- Build the default theme with `dynamicLightColorScheme` / `dynamicDarkColorScheme`. Every UI
+  element must consume Material `ColorScheme` roles and their matching `on*` pairs, never a
+  raw palette value. The only allowed raw values are the explicit user-selected accent palette
+  in the theme factory, which must derive the Material roles used everywhere else.
 - Keep the Android status bar and navigation bar visible. The activity must not be
   immersive or fullscreen.
 - Handle system insets explicitly. App-bar controls and clickable content must never
@@ -31,11 +36,14 @@
     English day abbreviation (`MON` through `SUN`); its text is right-aligned, vertically
     centered when compact, and aligned at the top when expanded;
   - the right inner container takes the remaining width and contains the day content.
-- Each left and right inner container begins with its own accent stripe as its first
-  internal row. The stripe is not part of the parent day container and is not above the
-  inner containers. Each stripe is 12 dp high, half of the 24 dp inner-container corner
-  radius. Its colour is the persisted `Day accent color` Material role setting; `primary`
-  is the default.
+- Each left and right inner container contains its own accent stripe immediately before its
+  label or first content line. The right stripe belongs to the vertically centered content
+  block: it must appear directly above line 1, inside the right inner container, never on the
+  day-container boundary or between two parent day containers. The stripe is not part of the
+  parent day container and is not above either inner container. Each stripe is 12 dp high,
+  half of the 24 dp inner-container corner radius, and is clipped by the same rounded
+  inner-container shape. Its colour is `MaterialTheme.colorScheme.secondary`, the pastel
+  accent role.
 - Compute the current calendar week with Monday as its first day.
 - The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
   proutcul` on nine successive lines when expanded and one line when compact, using a
@@ -65,14 +73,18 @@
     A new day becomes active only after the finger crosses the current container's halfway
     point.
   - Mode 2 starts a vertical drag anywhere in the week area, including compact containers,
-    the right-side strip, and the bottom strip. A new day becomes active as soon as the
-    finger enters its container, with no halfway threshold.
-  While dragging, continuously resolve the finger position from the current displayed
-  heights and directly interpolate between neighboring expanded layouts. Do not use a timed
-  animation during the drag: the growth and compaction speed follows the finger. Keep the
-  day under the finger in the expanded group and settle immediately on the nearest group
-  when the finger is released, producing a dock-style magnification movement without
-  scaling content.
+    the right-side strip, and the bottom strip. It starts from the currently expanded group,
+    not from the touch-down container. Do not apply touch slop or wait for the pointer to
+    reach any position: the very first non-zero vertical pointer delta starts the change.
+    Transfer that exact pixel delta from the expanded container at the leading edge of the
+    drag to the compact container entering at the opposite edge. The shared expanded
+    container keeps its height, so its boundaries move by exactly the same number of pixels
+    as the finger. Cross consecutive groups one after another as drag distance accumulates;
+    one complete group transition equals the expanded-height minus compact-height difference.
+  While dragging, interpolate neighboring expanded layouts directly from the accumulated
+  pixel distance. Do not use a timed animation: the growth and compaction speed follows the
+  finger. Settle immediately on the nearest group when the finger is released, producing a
+  dock-style magnification movement without scaling content.
 - Use the semantic `outlineVariant` role for the 1.5 dp separators around every day
   container and its two inner containers. Each left and right inner container has all four
   corners rounded by 24 dp. Their shared background is `surfaceContainer`, so no gap is
@@ -97,8 +109,16 @@
   - without calendar permission, show a button requesting permission;
   - after permission is granted, replace it with the calendar-selection button;
   - persist the selected calendar.
-- The next section selects `Day accent color`. Persist the selected Material role; `primary`
-  is the default and the available presets are Material roles only.
+- The next section is `Theme`, with persisted `Light`, `Dark`, and `System` options; `System`
+  is the default.
+- The next section is `Accent color`. Persist the selection and use it to derive the complete
+  Material `ColorScheme`, so it is reflected throughout the app. Its first option is `System`,
+  which leaves the dynamic Android scheme intact. The remaining options are `Royal blue`
+  (`#005AC1`), `Indigo` (`#3F51B5`), `Ocean blue` (`#00639B`), `Teal` (`#006B5F`),
+  `Material violet` (`#6750A4`), `Plum` (`#7D3C98`), `Raspberry` (`#A7355C`), `Coral`
+  (`#B4472D`), `Emerald green` (`#2E7D32`), a second `Teal` (`#006B5F`), and `Olive green`
+  (`#627000`). The selector therefore contains twelve rows: `System` plus the eleven supplied
+  colour entries. Its list must scroll so every row remains reachable on compact screens.
 - The next section selects the persisted `Scroll mode`; Mode 1 is the default.
 - The final section is smaller and horizontally centered. It displays:
   - `SimplerCal v<release version>`;

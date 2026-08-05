@@ -97,6 +97,13 @@ resources, or vector drawables. Do not use `colorResource` for interface colors.
 choices to `ColorScheme` roles instead, including persisted accent choices; a default accent
 must be a role such as `primary`, not an RGB value.
 
+When the product explicitly supplies a persisted custom accent palette, keep those raw palette
+values in one theme factory only. Use `System` as the default choice and preserve the dynamic
+Android scheme for it. For every other choice, derive a complete semantic `ColorScheme` from
+the selected palette entry, including readable `on*` counterparts and container/surface roles;
+then make every UI component consume those roles. Never pass a raw accent value directly to a
+component. Use `secondary` when the product calls for the pastel variant of that accent.
+
 ## Design references
 
 For every design question, read `references/design-sources.md` first. Treat it as the

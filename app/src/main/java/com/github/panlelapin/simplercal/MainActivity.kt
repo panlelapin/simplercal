@@ -1,6 +1,7 @@
 package com.github.panlelapin.simplercal
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -15,6 +16,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.mandatorySystemGestures
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -54,6 +58,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,8 +67,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -87,10 +94,12 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
+import kotlin.math.roundToInt
 
 private const val PREFERENCES_NAME = "simplercal"
 private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
 private const val DAY_ACCENT_COLOR_KEY = "day_accent_color"
+private const val THEME_MODE_KEY = "theme_mode"
 private const val SCROLL_MODE_KEY = "scroll_mode"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
 private const val TOP_BAR_TITLE = "S52 31\u2002juin"
@@ -118,27 +127,94 @@ private data class CalendarChoice(
     val name: String,
 )
 
-private enum class DayAccentColorRole(
+private enum class ThemeMode(
     val preferenceValue: String,
     val label: String,
 ) {
-    PRIMARY("primary", "Primary"),
-    SECONDARY("secondary", "Secondary"),
-    TERTIARY("tertiary", "Tertiary"),
+    LIGHT("light", "Light"),
+    DARK("dark", "Dark"),
+    SYSTEM("system", "System"),
     ;
 
-    fun color(colorScheme: ColorScheme) =
-        when (this) {
-            PRIMARY -> colorScheme.primary
-            SECONDARY -> colorScheme.secondary
-            TERTIARY -> colorScheme.tertiary
-        }
-
     companion object {
-        fun fromPreferenceValue(value: String): DayAccentColorRole =
-            entries.firstOrNull { it.preferenceValue == value } ?: PRIMARY
+        fun fromPreferenceValue(value: String): ThemeMode =
+            entries.firstOrNull { it.preferenceValue == value } ?: SYSTEM
     }
 }
+
+private enum class AccentTheme(
+    val preferenceValue: String,
+    val label: String,
+    private val argb: Long?,
+) {
+    SYSTEM("system", "System", null),
+    ROYAL_BLUE("royal_blue", "Royal blue", 0xFF005AC1),
+    INDIGO("indigo", "Indigo", 0xFF3F51B5),
+    OCEAN_BLUE("ocean_blue", "Ocean blue", 0xFF00639B),
+    TEAL("teal", "Teal", 0xFF006B5F),
+    MATERIAL_VIOLET("material_violet", "Material violet", 0xFF6750A4),
+    PLUM("plum", "Plum", 0xFF7D3C98),
+    RASPBERRY("raspberry", "Raspberry", 0xFFA7355C),
+    CORAL("coral", "Coral", 0xFFB4472D),
+    EMERALD_GREEN("emerald_green", "Emerald green", 0xFF2E7D32),
+    TEAL_SECOND("teal_second", "Teal", 0xFF006B5F),
+    OLIVE_GREEN("olive_green", "Olive green", 0xFF627000),
+    ;
+
+    fun applyTo(base: ColorScheme, isDark: Boolean): ColorScheme {
+        val accent = argb?.let(::Color) ?: return base
+        val surfaceFraction = if (isDark) 0.10f else 0.06f
+        val secondaryFraction = if (isDark) 0.60f else 0.35f
+        val primaryContainer = accent.blendedOver(base.surfaceContainer, 0.30f)
+        val secondary = accent.blendedOver(base.surface, secondaryFraction)
+        val secondaryContainer = accent.blendedOver(base.surfaceContainer, 0.22f)
+        val tertiary = accent.blendedOver(base.surface, if (isDark) 0.72f else 0.62f)
+        val surface = accent.blendedOver(base.surface, surfaceFraction)
+        val surfaceContainer = accent.blendedOver(base.surfaceContainer, surfaceFraction)
+        return base.copy(
+            primary = accent,
+            onPrimary = readableContentColor(accent, base),
+            primaryContainer = primaryContainer,
+            onPrimaryContainer = readableContentColor(primaryContainer, base),
+            secondary = secondary,
+            onSecondary = readableContentColor(secondary, base),
+            secondaryContainer = secondaryContainer,
+            onSecondaryContainer = readableContentColor(secondaryContainer, base),
+            tertiary = tertiary,
+            onTertiary = readableContentColor(tertiary, base),
+            surface = surface,
+            surfaceContainer = surfaceContainer,
+            surfaceTint = accent,
+            outline = accent.blendedOver(base.outline, 0.35f),
+            inversePrimary = accent,
+        )
+    }
+
+    companion object {
+        fun fromPreferenceValue(value: String): AccentTheme =
+            entries.firstOrNull { it.preferenceValue == value } ?: SYSTEM
+    }
+}
+
+private fun Color.blendedOver(background: Color, foregroundFraction: Float): Color {
+    val fraction = foregroundFraction.coerceIn(0f, 1f)
+    return Color(
+        red = red * fraction + background.red * (1f - fraction),
+        green = green * fraction + background.green * (1f - fraction),
+        blue = blue * fraction + background.blue * (1f - fraction),
+        alpha = 1f,
+    )
+}
+
+private fun readableContentColor(background: Color, colorScheme: ColorScheme): Color {
+    val surfaceContrast = contrastRatio(background, colorScheme.surface)
+    val onSurfaceContrast = contrastRatio(background, colorScheme.onSurface)
+    return if (surfaceContrast > onSurfaceContrast) colorScheme.surface else colorScheme.onSurface
+}
+
+private fun contrastRatio(first: Color, second: Color): Float =
+    (maxOf(first.luminance(), second.luminance()) + 0.05f) /
+        (minOf(first.luminance(), second.luminance()) + 0.05f)
 
 private enum class WeekScrollMode(
     val preferenceValue: String,
@@ -182,13 +258,21 @@ class MainActivity : ComponentActivity() {
 private fun SimplerCalApp() {
     val context = LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences(PREFERENCES_NAME, 0) }
-    var dayAccentColorRole by remember {
+    var accentTheme by remember {
         mutableStateOf(
-            DayAccentColorRole.fromPreferenceValue(
+            AccentTheme.fromPreferenceValue(
                 preferences.getString(
                     DAY_ACCENT_COLOR_KEY,
-                    DayAccentColorRole.PRIMARY.preferenceValue,
-                ) ?: DayAccentColorRole.PRIMARY.preferenceValue,
+                    AccentTheme.SYSTEM.preferenceValue,
+                ) ?: AccentTheme.SYSTEM.preferenceValue,
+            ),
+        )
+    }
+    var themeMode by remember {
+        mutableStateOf(
+            ThemeMode.fromPreferenceValue(
+                preferences.getString(THEME_MODE_KEY, ThemeMode.SYSTEM.preferenceValue)
+                    ?: ThemeMode.SYSTEM.preferenceValue,
             ),
         )
     }
@@ -200,12 +284,28 @@ private fun SimplerCalApp() {
             ),
         )
     }
-    val colorScheme =
-        if (isSystemInDarkTheme()) {
+    val useDarkTheme =
+        when (themeMode) {
+            ThemeMode.LIGHT -> false
+            ThemeMode.DARK -> true
+            ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        }
+    val dynamicColorScheme =
+        if (useDarkTheme) {
             dynamicDarkColorScheme(LocalContext.current)
         } else {
             dynamicLightColorScheme(LocalContext.current)
         }
+    val colorScheme = accentTheme.applyTo(dynamicColorScheme, useDarkTheme)
+    val activity = context as? Activity
+    SideEffect {
+        activity?.let {
+            WindowCompat.getInsetsController(it.window, it.window.decorView).apply {
+                isAppearanceLightStatusBars = !useDarkTheme
+                isAppearanceLightNavigationBars = !useDarkTheme
+            }
+        }
+    }
     MaterialTheme(colorScheme = colorScheme) {
         var isSettingsVisible by remember { mutableStateOf(false) }
         if (isSettingsVisible) {
@@ -213,16 +313,20 @@ private fun SimplerCalApp() {
         }
         Box(modifier = Modifier.fillMaxSize()) {
             HelloScreen(
-                dayAccentColorRole = dayAccentColorRole,
                 scrollMode = scrollMode,
                 onSettings = { isSettingsVisible = true },
             )
             if (isSettingsVisible) {
                 SettingsScreen(
-                    selectedDayAccentColorRole = dayAccentColorRole,
-                    onDayAccentColorChange = { role ->
-                        preferences.edit { putString(DAY_ACCENT_COLOR_KEY, role.preferenceValue) }
-                        dayAccentColorRole = role
+                    selectedAccentTheme = accentTheme,
+                    onAccentThemeChange = { theme ->
+                        preferences.edit { putString(DAY_ACCENT_COLOR_KEY, theme.preferenceValue) }
+                        accentTheme = theme
+                    },
+                    selectedThemeMode = themeMode,
+                    onThemeModeChange = { mode ->
+                        preferences.edit { putString(THEME_MODE_KEY, mode.preferenceValue) }
+                        themeMode = mode
                     },
                     selectedScrollMode = scrollMode,
                     onScrollModeChange = { mode ->
@@ -240,7 +344,6 @@ private fun SimplerCalApp() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun HelloScreen(
-    dayAccentColorRole: DayAccentColorRole,
     scrollMode: WeekScrollMode,
     onSettings: () -> Unit,
 ) {
@@ -293,7 +396,6 @@ private fun HelloScreen(
             color = MaterialTheme.colorScheme.surfaceContainer,
         ) {
             WeekView(
-                dayAccentColorRole = dayAccentColorRole,
                 scrollMode = scrollMode,
             )
         }
@@ -303,7 +405,6 @@ private fun HelloScreen(
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun WeekView(
-    dayAccentColorRole: DayAccentColorRole,
     scrollMode: WeekScrollMode,
 ) {
     val days = remember { currentWeek() }
@@ -312,6 +413,7 @@ private fun WeekView(
     var contentExpandedDays by remember { mutableStateOf(expandedDayIndices(selectedDayIndex)) }
     var animationRequest by remember { mutableStateOf(0) }
     var isDragging by remember { mutableStateOf(false) }
+    var dragFocusPosition by remember { mutableStateOf(selectedDayIndex.toFloat()) }
     val selectDay: (Int) -> Unit = { dayIndex ->
         if (dayIndex != selectedDayIndex) {
             contentExpandedDays = contentExpandedDays + expandedDayIndices(dayIndex)
@@ -319,20 +421,25 @@ private fun WeekView(
             animationRequest += 1
         }
     }
-    val startDrag: () -> Unit = {
+    val startDrag: (Int) -> Unit = { dayIndex ->
         if (!isDragging) {
             isDragging = true
+            dragFocusPosition = dayIndex.toFloat()
             animationRequest += 1
         }
     }
     val dragToFocus: (Float) -> Unit = { focusPosition ->
-        val focusedDayIndex =
-            (focusPosition + scrollMode.activationOffset).toInt().coerceIn(0, days.lastIndex)
+        val boundedFocusPosition = focusPosition.coerceIn(0f, WEEKEND_START_INDEX.toFloat())
+        val lowerDayIndex = boundedFocusPosition.toInt()
+        val upperDayIndex = (lowerDayIndex + 1).coerceAtMost(WEEKEND_START_INDEX)
+        val focusedDayIndex = boundedFocusPosition.roundToInt().coerceIn(0, WEEKEND_START_INDEX)
+        dragFocusPosition = boundedFocusPosition
         selectedDayIndex = focusedDayIndex
-        contentExpandedDays = expandedDayIndices(focusedDayIndex)
-        animatedDayWeights = dayWeightsForFocus(focusPosition)
+        contentExpandedDays = expandedDayIndices(lowerDayIndex) + expandedDayIndices(upperDayIndex)
+        animatedDayWeights = dayWeightsForFocus(boundedFocusPosition)
     }
     val endDrag: () -> Unit = {
+        selectedDayIndex = dragFocusPosition.roundToInt().coerceIn(0, WEEKEND_START_INDEX)
         animatedDayWeights = dayWeightsFor(selectedDayIndex)
         contentExpandedDays = expandedDayIndices(selectedDayIndex)
         isDragging = false
@@ -386,64 +493,87 @@ private fun WeekView(
             Modifier
                 .fillMaxSize()
                 .pointerInput(scrollMode, bottomGestureInset, rightGestureInset) {
-                    var isDragEnabled = false
-                    detectVerticalDragGestures(
-                        onDragStart = { position ->
+                    if (scrollMode == WeekScrollMode.MODE_2) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
                             val dayAreaHeight =
                                 (size.height.toFloat() - bottomGestureInsetPx).coerceAtLeast(1f)
-                            val dayY = position.y.coerceIn(0f, dayAreaHeight)
-                            val dayIndex =
-                                dayIndexAtPosition(
-                                    y = dayY,
-                                    height = dayAreaHeight.toInt(),
-                                    weights = currentAnimatedDayWeights.value,
-                                )
-                            isDragEnabled =
-                                scrollMode == WeekScrollMode.MODE_2 ||
-                                    (
-                                        position.x < size.width.toFloat() - rightGestureInsetPx &&
-                                            position.y < dayAreaHeight &&
-                                            dayIndex in
-                                            expandedDayIndices(currentSelectedDayIndex.value)
+                            val anchorFocus =
+                                currentSelectedDayIndex.value
+                                    .coerceAtMost(WEEKEND_START_INDEX)
+                                    .toFloat()
+                            val transitionDistance =
+                                dayGroupTransitionDistance(dayAreaHeight).coerceAtLeast(1f)
+                            var accumulatedDrag = 0f
+                            var previousY = down.position.y
+                            var hasMoved = false
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) break
+                                val dragAmount = change.position.y - previousY
+                                previousY = change.position.y
+                                if (dragAmount != 0f) {
+                                    if (!hasMoved) {
+                                        currentStartDrag.value(anchorFocus.toInt())
+                                        hasMoved = true
+                                    }
+                                    accumulatedDrag += dragAmount
+                                    currentDragToFocus.value(
+                                        anchorFocus - accumulatedDrag / transitionDistance,
                                     )
-                            if (isDragEnabled) {
-                                currentStartDrag.value()
-                                if (scrollMode == WeekScrollMode.MODE_2) {
+                                    change.consume()
+                                }
+                            }
+                            if (hasMoved) currentEndDrag.value()
+                        }
+                    } else {
+                        var isDragEnabled = false
+                        detectVerticalDragGestures(
+                            onDragStart = { position ->
+                                val dayAreaHeight =
+                                    (size.height.toFloat() - bottomGestureInsetPx).coerceAtLeast(1f)
+                                val dayY = position.y.coerceIn(0f, dayAreaHeight)
+                                val dayIndex =
+                                    dayIndexAtPosition(
+                                        y = dayY,
+                                        height = dayAreaHeight.toInt(),
+                                        weights = currentAnimatedDayWeights.value,
+                                    )
+                                isDragEnabled =
+                                    position.x < size.width.toFloat() - rightGestureInsetPx &&
+                                        position.y < dayAreaHeight &&
+                                        dayIndex in expandedDayIndices(currentSelectedDayIndex.value)
+                                if (isDragEnabled) {
+                                    currentStartDrag.value(currentSelectedDayIndex.value)
+                                }
+                            },
+                            onDragCancel = {
+                                if (isDragEnabled) currentEndDrag.value()
+                                isDragEnabled = false
+                            },
+                            onDragEnd = {
+                                if (isDragEnabled) currentEndDrag.value()
+                                isDragEnabled = false
+                            },
+                            onVerticalDrag = { change, _ ->
+                                if (isDragEnabled) {
+                                    change.consume()
+                                    val dayAreaHeight =
+                                        (size.height.toFloat() - bottomGestureInsetPx)
+                                            .coerceAtLeast(1f)
                                     currentDragToFocus.value(
                                         dayFocusAtPosition(
-                                            y = dayY,
+                                            y = change.position.y.coerceIn(0f, dayAreaHeight),
                                             height = dayAreaHeight.toInt(),
                                             weights = currentAnimatedDayWeights.value,
                                             activationOffset = scrollMode.activationOffset,
                                         ),
                                     )
                                 }
-                            }
-                        },
-                        onDragCancel = {
-                            if (isDragEnabled) currentEndDrag.value()
-                            isDragEnabled = false
-                        },
-                        onDragEnd = {
-                            if (isDragEnabled) currentEndDrag.value()
-                            isDragEnabled = false
-                        },
-                        onVerticalDrag = { change, _ ->
-                            if (isDragEnabled) {
-                                change.consume()
-                                val dayAreaHeight =
-                                    (size.height.toFloat() - bottomGestureInsetPx).coerceAtLeast(1f)
-                                currentDragToFocus.value(
-                                    dayFocusAtPosition(
-                                        y = change.position.y.coerceIn(0f, dayAreaHeight),
-                                        height = dayAreaHeight.toInt(),
-                                        weights = currentAnimatedDayWeights.value,
-                                        activationOffset = scrollMode.activationOffset,
-                                    ),
-                                )
-                            }
-                        },
-                    )
+                            },
+                        )
+                    }
                 },
     ) {
         Column(
@@ -459,10 +589,9 @@ private fun WeekView(
                 DayRow(
                     day = day,
                     isExpanded = isExpanded,
-                isContentExpanded = isContentExpanded,
-                weight = animatedDayWeights[index],
-                dayAccentColorRole = dayAccentColorRole,
-                dayLabelColumnWidth = dayLabelColumnWidth,
+                    isContentExpanded = isContentExpanded,
+                    weight = animatedDayWeights[index],
+                    dayLabelColumnWidth = dayLabelColumnWidth,
                     onClick = { selectDay(index) },
                 )
             }
@@ -486,9 +615,9 @@ private fun dayWeightsFor(selectedDayIndex: Int): List<Float> {
 }
 
 private fun dayWeightsForFocus(focusPosition: Float): List<Float> {
-    val boundedFocus = focusPosition.coerceIn(0f, DAY_ABBREVIATIONS.lastIndex.toFloat())
+    val boundedFocus = focusPosition.coerceIn(0f, WEEKEND_START_INDEX.toFloat())
     val lowerDayIndex = boundedFocus.toInt()
-    val upperDayIndex = (lowerDayIndex + 1).coerceAtMost(DAY_ABBREVIATIONS.lastIndex)
+    val upperDayIndex = (lowerDayIndex + 1).coerceAtMost(WEEKEND_START_INDEX)
     val fraction = boundedFocus - lowerDayIndex
     val lowerWeights = dayWeightsFor(lowerDayIndex)
     val upperWeights = dayWeightsFor(upperDayIndex)
@@ -557,6 +686,11 @@ private fun dayFocusAtPosition(
     return weights.lastIndex.toFloat()
 }
 
+private fun dayGroupTransitionDistance(height: Float): Float {
+    val expandedWeight = dayWeightsFor(0).first()
+    return height * (expandedWeight - COMPACT_DAY_WEIGHT) / TOTAL_DAY_WEIGHT
+}
+
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun ColumnScope.DayRow(
@@ -564,7 +698,6 @@ private fun ColumnScope.DayRow(
     isExpanded: Boolean,
     isContentExpanded: Boolean,
     weight: Float,
-    dayAccentColorRole: DayAccentColorRole,
     dayLabelColumnWidth: Dp,
     onClick: () -> Unit,
 ) {
@@ -593,13 +726,11 @@ private fun ColumnScope.DayRow(
             DayLabelContainer(
                 day = day,
                 isExpanded = isExpanded,
-                dayAccentColorRole = dayAccentColorRole,
                 width = dayLabelColumnWidth,
                 separatorColor = separatorColor,
             )
             DayContentContainer(
                 isExpanded = isContentExpanded,
-                dayAccentColorRole = dayAccentColorRole,
                 separatorColor = separatorColor,
                 modifier = Modifier.fillMaxHeight().weight(1f),
             )
@@ -612,7 +743,6 @@ private fun ColumnScope.DayRow(
 private fun DayLabelContainer(
     day: WeekDay,
     isExpanded: Boolean,
-    dayAccentColorRole: DayAccentColorRole,
     width: Dp,
     separatorColor: Color,
 ) {
@@ -623,13 +753,13 @@ private fun DayLabelContainer(
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().clip(DAY_SUBCONTAINER_SHAPE)) {
             Spacer(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .height(DAY_ACCENT_STRIPE_HEIGHT)
-                        .background(dayAccentColorRole.color(MaterialTheme.colorScheme)),
+                        .background(MaterialTheme.colorScheme.secondary),
             )
             Box(
                 modifier = Modifier.fillMaxSize().weight(1f),
@@ -654,7 +784,6 @@ private fun DayLabelContainer(
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun DayContentContainer(
     isExpanded: Boolean,
-    dayAccentColorRole: DayAccentColorRole,
     separatorColor: Color,
     modifier: Modifier,
 ) {
@@ -664,30 +793,32 @@ private fun DayContentContainer(
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
         color = MaterialTheme.colorScheme.surface,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .clip(DAY_SUBCONTAINER_SHAPE)
+                    .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
             Spacer(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .height(DAY_ACCENT_STRIPE_HEIGHT)
-                        .background(dayAccentColorRole.color(MaterialTheme.colorScheme)),
+                        .background(MaterialTheme.colorScheme.secondary),
             )
-            Column(
-                modifier = Modifier.fillMaxSize().weight(1f).padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.Center,
-            ) {
-                repeat(if (isExpanded) EXPANDED_CONTENT_LINE_COUNT else COMPACT_CONTENT_LINE_COUNT) {
-                    lineIndex ->
-                    Text(
-                        text = "${lineIndex + 1} $DAY_CONTENT_TEXT",
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Clip,
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Start,
-                    )
-                }
+            repeat(if (isExpanded) EXPANDED_CONTENT_LINE_COUNT else COMPACT_CONTENT_LINE_COUNT) {
+                lineIndex ->
+                Text(
+                    text = "${lineIndex + 1} $DAY_CONTENT_TEXT",
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Start,
+                )
             }
         }
     }
@@ -724,8 +855,10 @@ private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("CognitiveComplexMethod", "FunctionName", "LongMethod", "ktlint:standard:function-naming")
 private fun SettingsScreen(
-    selectedDayAccentColorRole: DayAccentColorRole,
-    onDayAccentColorChange: (DayAccentColorRole) -> Unit,
+    selectedAccentTheme: AccentTheme,
+    onAccentThemeChange: (AccentTheme) -> Unit,
+    selectedThemeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
     selectedScrollMode: WeekScrollMode,
     onScrollModeChange: (WeekScrollMode) -> Unit,
     onBack: () -> Unit,
@@ -740,7 +873,8 @@ private fun SettingsScreen(
         )
     }
     var isCalendarPickerVisible by remember { mutableStateOf(false) }
-    var isDayAccentColorPickerVisible by remember { mutableStateOf(false) }
+    var isAccentThemePickerVisible by remember { mutableStateOf(false) }
+    var isThemeModePickerVisible by remember { mutableStateOf(false) }
     var isScrollModePickerVisible by remember { mutableStateOf(false) }
     var hasPermission by remember {
         mutableStateOf(
@@ -803,12 +937,16 @@ private fun SettingsScreen(
                 if (calendars.isEmpty()) Text("No visible calendars available.")
             }
             Spacer(Modifier.height(24.dp))
-            Text("Day accent color", style = MaterialTheme.typography.titleMedium)
+            Text("Theme", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
-            Button(onClick = { isDayAccentColorPickerVisible = true }) {
-                Text(
-                    selectedDayAccentColorRole.label,
-                )
+            Button(onClick = { isThemeModePickerVisible = true }) {
+                Text(selectedThemeMode.label)
+            }
+            Spacer(Modifier.height(24.dp))
+            Text("Accent color", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = { isAccentThemePickerVisible = true }) {
+                Text(selectedAccentTheme.label)
             }
             Spacer(Modifier.height(24.dp))
             Text("Scroll mode", style = MaterialTheme.typography.titleMedium)
@@ -861,19 +999,45 @@ private fun SettingsScreen(
             },
         )
     }
-    if (isDayAccentColorPickerVisible) {
+    if (isThemeModePickerVisible) {
         AlertDialog(
-            onDismissRequest = { isDayAccentColorPickerVisible = false },
+            onDismissRequest = { isThemeModePickerVisible = false },
             confirmButton = {
-                TextButton(onClick = { isDayAccentColorPickerVisible = false }) { Text("Cancel") }
+                TextButton(onClick = { isThemeModePickerVisible = false }) { Text("Cancel") }
             },
-            title = { Text("Day accent color") },
+            title = { Text("Theme") },
             text = {
                 Column {
-                    DayAccentColorRole.entries.forEach { option ->
+                    ThemeMode.entries.forEach { option ->
                         TextButton(onClick = {
-                            onDayAccentColorChange(option)
-                            isDayAccentColorPickerVisible = false
+                            onThemeModeChange(option)
+                            isThemeModePickerVisible = false
+                        }) {
+                            Text(option.label)
+                        }
+                    }
+                }
+            },
+        )
+    }
+    if (isAccentThemePickerVisible) {
+        AlertDialog(
+            onDismissRequest = { isAccentThemePickerVisible = false },
+            confirmButton = {
+                TextButton(onClick = { isAccentThemePickerVisible = false }) { Text("Cancel") }
+            },
+            title = { Text("Accent color") },
+            text = {
+                Column(
+                    modifier =
+                        Modifier
+                            .heightIn(max = 400.dp)
+                            .verticalScroll(rememberScrollState()),
+                ) {
+                    AccentTheme.entries.forEach { option ->
+                        TextButton(onClick = {
+                            onAccentThemeChange(option)
+                            isAccentThemePickerVisible = false
                         }) {
                             Text(option.label)
                         }
