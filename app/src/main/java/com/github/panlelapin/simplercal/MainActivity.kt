@@ -1,7 +1,6 @@
 package com.github.panlelapin.simplercal
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -61,6 +60,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -94,9 +94,13 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
+import java.time.temporal.WeekFields
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -108,7 +112,8 @@ private const val SCROLL_MODE_KEY = "scroll_mode"
 private const val DEBUG1_OUTLINE_COLOR_KEY = "debug1_outline_color"
 private const val DEBUG2_RIGHT_BACKGROUND_KEY = "debug2_right_background"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
-private const val TOP_BAR_TITLE = "S52 31\u2002juin"
+private const val WEEK_TITLE_WIDE_SPACE = "\u2004"
+private const val WEEK_TITLE_HALF_SPACE = "\u2002"
 private const val WEEK_DAY_COUNT = 7
 private const val WEEKEND_START_INDEX = 5
 private const val COMPACT_DAY_WEIGHT = 6.5f
@@ -128,6 +133,19 @@ private const val GESTURE_GUTTER_FRACTION = 0.6f
 private val DAY_SUBCONTAINER_SHAPE = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS)
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+private fun currentWeekMonday(today: LocalDate = LocalDate.now()): LocalDate =
+    today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+private fun weekTitle(monday: LocalDate): String {
+    val weekNumber = monday.get(WeekFields.ISO.weekOfWeekBasedYear())
+    val month =
+        monday.month
+            .getDisplayName(TextStyle.FULL, Locale.ENGLISH)
+            .take(4)
+            .lowercase(Locale.ROOT)
+    return "s$weekNumber$WEEK_TITLE_WIDE_SPACE${monday.dayOfMonth}$WEEK_TITLE_HALF_SPACE$month"
+}
 
 private data class CalendarChoice(
     val id: Long,
@@ -157,15 +175,13 @@ private enum class AccentTheme(
     SYSTEM("system", "System", null),
     ROYAL_BLUE("royal_blue", "Royal blue", 0xFF005AC1),
     INDIGO("indigo", "Indigo", 0xFF3F51B5),
-    OCEAN_BLUE("ocean_blue", "Ocean blue", 0xFF00639B),
     TEAL("teal", "Teal", 0xFF006B5F),
     MATERIAL_VIOLET("material_violet", "Material violet", 0xFF6750A4),
     PLUM("plum", "Plum", 0xFF7D3C98),
     RASPBERRY("raspberry", "Raspberry", 0xFFA7355C),
-    CORAL("coral", "Coral", 0xFFB4472D),
+    MANDARIN("mandarin", "Mandarin", 0xFFF57C00),
     EMERALD_GREEN("emerald_green", "Emerald green", 0xFF2E7D32),
     TEAL_SECOND("teal_second", "Teal", 0xFF006B5F),
-    OLIVE_GREEN("olive_green", "Olive green", 0xFF627000),
     ;
 
     fun applyTo(base: ColorScheme, isDark: Boolean): ColorScheme {
@@ -304,7 +320,11 @@ class MainActivity : ComponentActivity() {
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun SimplerCalApp() {
     val context = LocalContext.current
+    val componentActivity = context as? ComponentActivity
     val preferences = remember(context) { context.getSharedPreferences(PREFERENCES_NAME, 0) }
+    var displayedMonday by remember { mutableStateOf(currentWeekMonday()) }
+    var topBarTitle by remember { mutableStateOf(weekTitle(displayedMonday)) }
+    var todaySelectionRequest by remember { mutableStateOf(0) }
     var accentTheme by remember {
         mutableStateOf(
             AccentTheme.fromPreferenceValue(
@@ -364,9 +384,27 @@ private fun SimplerCalApp() {
             dynamicLightColorScheme(LocalContext.current)
         }
     val colorScheme = accentTheme.applyTo(dynamicColorScheme, useDarkTheme)
-    val activity = context as? Activity
+    val update: () -> Unit = {
+        topBarTitle = weekTitle(displayedMonday)
+    }
+    val currentUpdate = rememberUpdatedState(update)
+    LaunchedEffect(displayedMonday) {
+        currentUpdate.value()
+    }
+    DisposableEffect(componentActivity) {
+        val lifecycle = componentActivity?.lifecycle
+        if (lifecycle == null) {
+            onDispose {}
+        } else {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) currentUpdate.value()
+            }
+            lifecycle.addObserver(observer)
+            onDispose { lifecycle.removeObserver(observer) }
+        }
+    }
     SideEffect {
-        activity?.let {
+        componentActivity?.let {
             WindowCompat.getInsetsController(it.window, it.window.decorView).apply {
                 isAppearanceLightStatusBars = !useDarkTheme
                 isAppearanceLightNavigationBars = !useDarkTheme
@@ -380,10 +418,19 @@ private fun SimplerCalApp() {
         }
         Box(modifier = Modifier.fillMaxSize()) {
             HelloScreen(
+                title = topBarTitle,
+                displayedMonday = displayedMonday,
                 scrollMode = scrollMode,
                 debug1OutlineColor = debug1OutlineColor,
                 debug2RightBackground = debug2RightBackground,
+                todaySelectionRequest = todaySelectionRequest,
                 onSettings = { isSettingsVisible = true },
+                onPreviousWeek = { displayedMonday = displayedMonday.minusWeeks(1) },
+                onNextWeek = { displayedMonday = displayedMonday.plusWeeks(1) },
+                onToday = {
+                    displayedMonday = currentWeekMonday()
+                    todaySelectionRequest += 1
+                },
             )
             if (isSettingsVisible) {
                 SettingsScreen(
@@ -427,10 +474,16 @@ private fun SimplerCalApp() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun HelloScreen(
+    title: String,
+    displayedMonday: LocalDate,
     scrollMode: WeekScrollMode,
     debug1OutlineColor: Debug1OutlineColor,
     debug2RightBackground: Debug2RightBackground,
+    todaySelectionRequest: Int,
     onSettings: () -> Unit,
+    onPreviousWeek: () -> Unit,
+    onNextWeek: () -> Unit,
+    onToday: () -> Unit,
 ) {
     val appBarBackground = MaterialTheme.colorScheme.surfaceContainer
     Scaffold(
@@ -440,7 +493,7 @@ private fun HelloScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = appBarBackground),
                 title = {
                     Text(
-                        text = TOP_BAR_TITLE,
+                        text = title,
                         maxLines = 1,
                     )
                 },
@@ -452,7 +505,7 @@ private fun HelloScreen(
                                 contentDescription = "Settings",
                             )
                         }
-                        IconButton(onClick = {}) {
+                        IconButton(onClick = onPreviousWeek) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_arrow_back),
                                 contentDescription = "Previous week",
@@ -461,13 +514,13 @@ private fun HelloScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = onNextWeek) {
                         Icon(
                             painter = painterResource(R.drawable.ic_arrow_forward),
                             contentDescription = "Next week",
                         )
                     }
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = onToday) {
                         Icon(
                             painter = painterResource(R.drawable.ic_today),
                             contentDescription = "Today",
@@ -482,10 +535,12 @@ private fun HelloScreen(
             color = appBarBackground,
         ) {
             WeekView(
+                weekMonday = displayedMonday,
                 scrollMode = scrollMode,
                 debug1OutlineColor = debug1OutlineColor,
                 debug2RightBackground = debug2RightBackground,
                 appBarBackground = appBarBackground,
+                todaySelectionRequest = todaySelectionRequest,
             )
         }
     }
@@ -494,12 +549,14 @@ private fun HelloScreen(
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun WeekView(
+    weekMonday: LocalDate,
     scrollMode: WeekScrollMode,
     debug1OutlineColor: Debug1OutlineColor,
     debug2RightBackground: Debug2RightBackground,
     appBarBackground: Color,
+    todaySelectionRequest: Int,
 ) {
-    val days = remember { currentWeek() }
+    val days = remember(weekMonday) { currentWeek(weekMonday) }
     var selectedDayIndex by remember { mutableStateOf(0) }
     var animatedDayWeights by remember { mutableStateOf(dayWeightsFor(selectedDayIndex)) }
     var contentExpandedDays by remember { mutableStateOf(expandedDayIndices(selectedDayIndex)) }
@@ -511,6 +568,11 @@ private fun WeekView(
             contentExpandedDays = contentExpandedDays + expandedDayIndices(dayIndex)
             selectedDayIndex = dayIndex
             animationRequest += 1
+        }
+    }
+    LaunchedEffect(todaySelectionRequest) {
+        if (todaySelectionRequest > 0) {
+            selectDay(LocalDate.now().dayOfWeek.value - 1)
         }
     }
     val startDrag: (Int) -> Unit = { dayIndex ->
@@ -951,7 +1013,7 @@ private fun dayLabelColumnWidth(): Dp {
 }
 
 private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
-    val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val monday = currentWeekMonday(today)
     return DAY_ABBREVIATIONS.mapIndexed { dayIndex, abbreviation ->
         val date = monday.plusDays(dayIndex.toLong())
         WeekDay(

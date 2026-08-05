@@ -18,14 +18,21 @@
 ## Main screen
 
 - Use a Material 3 `Scaffold` and `CenterAlignedTopAppBar`.
+- Define an `update` action group. Run it when the app first becomes visible, whenever the
+  activity resumes after returning to the foreground, and whenever the displayed week changes.
+  The first update action recomputes the app-bar title from the Monday of the displayed week:
+  `s<ISO week number><U+2004><Monday day of month><U+2002><first four lowercase letters of
+  the English month name>`. `U+2004` is the one-and-a-half-space separator and `U+2002` is the
+  half-space separator. For example, a Monday in June is rendered as `s23\u200431\u2002june`.
 - The top bar contains:
   - a monochrome classic gear settings icon on the left;
-  - a monochrome left-arrow icon between the settings icon and title, with no behavior yet;
-  - the title `S52 31 juin` in the center, with a half-em space (`U+2002`) between `31`
-    and `juin`;
-  - a monochrome right-arrow icon between the title and today icon, with no behavior yet;
-  - a monochrome today icon on the right. The today icon is visible but has no behavior
-    yet.
+  - a monochrome left-arrow icon between the settings icon and title, which changes the
+    displayed week to the preceding week;
+  - the dynamically calculated `update` title in the center;
+  - a monochrome right-arrow icon between the title and today icon, which changes the displayed
+    week to the following week;
+  - a monochrome today icon on the right. It returns to the current calendar week and selects
+    the current day, applying the normal two-expanded-day rule.
 - Do not force the app-bar height. Use the standard Material top-app-bar measurement and its
   status-bar inset so the week surface always starts below the complete visible top bar, with
   no overlap or clipped lower edge.
@@ -110,11 +117,11 @@
 - The next section is `Accent color`. Persist the selection and use it to derive the complete
   Material `ColorScheme`, so it is reflected throughout the app. Its first option is `System`,
   which leaves the dynamic Android scheme intact. The remaining options are `Royal blue`
-  (`#005AC1`), `Indigo` (`#3F51B5`), `Ocean blue` (`#00639B`), `Teal` (`#006B5F`),
-  `Material violet` (`#6750A4`), `Plum` (`#7D3C98`), `Raspberry` (`#A7355C`), `Coral`
-  (`#B4472D`), `Emerald green` (`#2E7D32`), a second `Teal` (`#006B5F`), and `Olive green`
-  (`#627000`). The selector therefore contains twelve rows: `System` plus the eleven supplied
-  colour entries. Its list must scroll so every row remains reachable on compact screens.
+  (`#005AC1`), `Indigo` (`#3F51B5`), `Teal` (`#006B5F`), `Material violet` (`#6750A4`),
+  `Plum` (`#7D3C98`), `Raspberry` (`#A7355C`), `Mandarin` (`#F57C00`), `Emerald green`
+  (`#2E7D32`), and a second `Teal` (`#006B5F`). The selector therefore contains ten rows:
+  `System` plus the nine remaining colour entries. Its list must scroll so every row remains
+  reachable on compact screens.
 - The next section selects the persisted `Scroll mode`. Display the `Discrete` and `Linear`
   choices side by side as a single-choice Material segmented control, not in a menu.
 - The next section is `Debug1`. Persist its two side-by-side Material segmented choices:
