@@ -26,8 +26,9 @@
   - a monochrome right-arrow icon between the title and today icon, with no behavior yet;
   - a monochrome today icon on the right. The today icon is visible but has no behavior
     yet.
-- The main top bar is 56 dp high. This preserves 12 dp between the title’s lower edge and
-  the day-container area, 60 percent of the default 20 dp visual spacing.
+- Do not force the app-bar height. Use the standard Material top-app-bar measurement and its
+  status-bar inset so the week surface always starts below the complete visible top bar, with
+  no overlap or clipped lower edge.
 - Below the top bar, display the current calendar week as seven full-width horizontal
   containers arranged vertically from Monday through Sunday.
 - Each day container contains two full-height inner containers arranged horizontally. Their
@@ -36,14 +37,11 @@
     English day abbreviation (`MON` through `SUN`); its text is right-aligned, vertically
     centered when compact, and aligned at the top when expanded;
   - the right inner container takes the remaining width and contains the day content.
-- Each left and right inner container contains its own accent stripe immediately before its
-  label or first content line. The right stripe belongs to the vertically centered content
-  block: it must appear directly above line 1, inside the right inner container, never on the
-  day-container boundary or between two parent day containers. The stripe is not part of the
-  parent day container and is not above either inner container. Each stripe is 12 dp high,
-  half of the 24 dp inner-container corner radius, and is clipped by the same rounded
-  inner-container shape. Its colour is `MaterialTheme.colorScheme.secondary`, the pastel
-  accent role.
+- Only the right inner container has an accent stripe. It belongs to the vertically centered
+  content block and appears directly above line 1, inside that right inner container, never on
+  the day-container boundary or between two parent day containers. The stripe is not part of
+  the parent day container, is 12 dp high, uses `MaterialTheme.colorScheme.secondary`, and has
+  fully rounded pill ends so it visually follows the rounded inner-container language.
 - Compute the current calendar week with Monday as its first day.
 - The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
   proutcul` on nine successive lines when expanded and one line when compact, using a
@@ -67,12 +65,12 @@
   height animation starts. When an expanded container becomes compact, keep its expanded
   content during the height animation and reduce it to one line only after the animation
   completes.
-- A simple tap remains available on every compact or expanded day container. Persist a
-  `Scroll mode` setting with Mode 1 as its default:
-  - Mode 1 starts a vertical drag only when the initial touch is on an expanded container.
+- A simple tap remains available on every compact or expanded day container regardless of the
+  selected scroll mode. Persist a `Scroll mode` setting with `Smooth` as its default:
+  - `Smooth` starts a vertical drag only when the initial touch is on an expanded container.
     A new day becomes active only after the finger crosses the current container's halfway
     point.
-  - Mode 2 starts a vertical drag anywhere in the week area, including compact containers,
+  - `Per day` starts a vertical drag anywhere in the week area, including compact containers,
     the right-side strip, and the bottom strip. It starts from the currently expanded group,
     not from the touch-down container. Do not apply touch slop or wait for the pointer to
     reach any position: the very first non-zero vertical pointer delta starts the change.
@@ -110,7 +108,8 @@
   - after permission is granted, replace it with the calendar-selection button;
   - persist the selected calendar.
 - The next section is `Theme`, with persisted `Light`, `Dark`, and `System` options; `System`
-  is the default.
+  is the default. Display all three choices side by side as a single-choice Material segmented
+  control, not in a menu.
 - The next section is `Accent color`. Persist the selection and use it to derive the complete
   Material `ColorScheme`, so it is reflected throughout the app. Its first option is `System`,
   which leaves the dynamic Android scheme intact. The remaining options are `Royal blue`
@@ -119,7 +118,8 @@
   (`#B4472D`), `Emerald green` (`#2E7D32`), a second `Teal` (`#006B5F`), and `Olive green`
   (`#627000`). The selector therefore contains twelve rows: `System` plus the eleven supplied
   colour entries. Its list must scroll so every row remains reachable on compact screens.
-- The next section selects the persisted `Scroll mode`; Mode 1 is the default.
+- The next section selects the persisted `Scroll mode`. Display the `Smooth` and `Per day`
+  choices side by side as a single-choice Material segmented control, not in a menu.
 - The final section is smaller and horizontally centered. It displays:
   - `SimplerCal v<release version>`;
   - the GitHub project URL as a clickable web link.

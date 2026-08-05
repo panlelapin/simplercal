@@ -51,6 +51,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -116,6 +119,7 @@ private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 private val DAY_SEPARATOR_THICKNESS = 1.5.dp
 private val DAY_SUBCONTAINER_CORNER_RADIUS = 24.dp
 private val DAY_ACCENT_STRIPE_HEIGHT = 12.dp
+private val DAY_ACCENT_STRIPE_SHAPE = RoundedCornerShape(percent = 50)
 private val MINIMUM_RIGHT_GESTURE_GUTTER = 24.dp
 private const val GESTURE_GUTTER_FRACTION = 0.6f
 private val DAY_SUBCONTAINER_SHAPE = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS)
@@ -221,13 +225,13 @@ private enum class WeekScrollMode(
     val label: String,
     val activationOffset: Float,
 ) {
-    MODE_1("mode_1", "Mode 1", 0.5f),
-    MODE_2("mode_2", "Mode 2", 0f),
+    SMOOTH("mode_1", "Smooth", 0.5f),
+    PER_DAY("mode_2", "Per day", 0f),
     ;
 
     companion object {
         fun fromPreferenceValue(value: String): WeekScrollMode =
-            entries.firstOrNull { it.preferenceValue == value } ?: MODE_1
+            entries.firstOrNull { it.preferenceValue == value } ?: SMOOTH
     }
 }
 
@@ -279,8 +283,8 @@ private fun SimplerCalApp() {
     var scrollMode by remember {
         mutableStateOf(
             WeekScrollMode.fromPreferenceValue(
-                preferences.getString(SCROLL_MODE_KEY, WeekScrollMode.MODE_1.preferenceValue)
-                    ?: WeekScrollMode.MODE_1.preferenceValue,
+                preferences.getString(SCROLL_MODE_KEY, WeekScrollMode.SMOOTH.preferenceValue)
+                    ?: WeekScrollMode.SMOOTH.preferenceValue,
             ),
         )
     }
@@ -351,7 +355,6 @@ private fun HelloScreen(
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
             CenterAlignedTopAppBar(
-                modifier = Modifier.height(56.dp),
                 title = {
                     Text(
                         text = TOP_BAR_TITLE,
@@ -446,6 +449,7 @@ private fun WeekView(
     }
     val currentAnimatedDayWeights = rememberUpdatedState(animatedDayWeights)
     val currentSelectedDayIndex = rememberUpdatedState(selectedDayIndex)
+    val currentSelectDay = rememberUpdatedState(selectDay)
     val currentStartDrag = rememberUpdatedState(startDrag)
     val currentDragToFocus = rememberUpdatedState(dragToFocus)
     val currentEndDrag = rememberUpdatedState(endDrag)
@@ -493,7 +497,7 @@ private fun WeekView(
             Modifier
                 .fillMaxSize()
                 .pointerInput(scrollMode, bottomGestureInset, rightGestureInset) {
-                    if (scrollMode == WeekScrollMode.MODE_2) {
+                    if (scrollMode == WeekScrollMode.PER_DAY) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             val dayAreaHeight =
@@ -525,7 +529,20 @@ private fun WeekView(
                                     change.consume()
                                 }
                             }
-                            if (hasMoved) currentEndDrag.value()
+                            if (hasMoved) {
+                                currentEndDrag.value()
+                            } else if (
+                                down.position.x < size.width.toFloat() - rightGestureInsetPx &&
+                                    down.position.y < dayAreaHeight
+                            ) {
+                                currentSelectDay.value(
+                                    dayIndexAtPosition(
+                                        y = down.position.y,
+                                        height = dayAreaHeight.toInt(),
+                                        weights = currentAnimatedDayWeights.value,
+                                    ),
+                                )
+                            }
                         }
                     } else {
                         var isDragEnabled = false
@@ -753,29 +770,20 @@ private fun DayLabelContainer(
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        Column(modifier = Modifier.fillMaxSize().clip(DAY_SUBCONTAINER_SHAPE)) {
-            Spacer(
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = verticalAlignment,
+        ) {
+            Text(
+                text = day.abbreviation.uppercase(Locale.ROOT),
                 modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(DAY_ACCENT_STRIPE_HEIGHT)
-                        .background(MaterialTheme.colorScheme.secondary),
+                    if (isExpanded) {
+                        Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING, top = 8.dp)
+                    } else {
+                        Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING)
+                    },
+                style = MaterialTheme.typography.titleMedium,
             )
-            Box(
-                modifier = Modifier.fillMaxSize().weight(1f),
-                contentAlignment = verticalAlignment,
-            ) {
-                Text(
-                    text = day.abbreviation.uppercase(Locale.ROOT),
-                    modifier =
-                        if (isExpanded) {
-                            Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING, top = 8.dp)
-                        } else {
-                            Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING)
-                        },
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
         }
     }
 }
@@ -806,6 +814,7 @@ private fun DayContentContainer(
                     Modifier
                         .fillMaxWidth()
                         .height(DAY_ACCENT_STRIPE_HEIGHT)
+                        .clip(DAY_ACCENT_STRIPE_SHAPE)
                         .background(MaterialTheme.colorScheme.secondary),
             )
             repeat(if (isExpanded) EXPANDED_CONTENT_LINE_COUNT else COMPACT_CONTENT_LINE_COUNT) {
@@ -874,8 +883,6 @@ private fun SettingsScreen(
     }
     var isCalendarPickerVisible by remember { mutableStateOf(false) }
     var isAccentThemePickerVisible by remember { mutableStateOf(false) }
-    var isThemeModePickerVisible by remember { mutableStateOf(false) }
-    var isScrollModePickerVisible by remember { mutableStateOf(false) }
     var hasPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -939,8 +946,20 @@ private fun SettingsScreen(
             Spacer(Modifier.height(24.dp))
             Text("Theme", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
-            Button(onClick = { isThemeModePickerVisible = true }) {
-                Text(selectedThemeMode.label)
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                ThemeMode.entries.forEachIndexed { index, mode ->
+                    SegmentedButton(
+                        selected = selectedThemeMode == mode,
+                        onClick = { onThemeModeChange(mode) },
+                        shape =
+                            SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = ThemeMode.entries.size,
+                            ),
+                    ) {
+                        Text(mode.label)
+                    }
+                }
             }
             Spacer(Modifier.height(24.dp))
             Text("Accent color", style = MaterialTheme.typography.titleMedium)
@@ -951,8 +970,20 @@ private fun SettingsScreen(
             Spacer(Modifier.height(24.dp))
             Text("Scroll mode", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
-            Button(onClick = { isScrollModePickerVisible = true }) {
-                Text(selectedScrollMode.label)
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                WeekScrollMode.entries.forEachIndexed { index, mode ->
+                    SegmentedButton(
+                        selected = selectedScrollMode == mode,
+                        onClick = { onScrollModeChange(mode) },
+                        shape =
+                            SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = WeekScrollMode.entries.size,
+                            ),
+                    ) {
+                        Text(mode.label)
+                    }
+                }
             }
             Spacer(Modifier.height(32.dp))
             Text(
@@ -999,27 +1030,6 @@ private fun SettingsScreen(
             },
         )
     }
-    if (isThemeModePickerVisible) {
-        AlertDialog(
-            onDismissRequest = { isThemeModePickerVisible = false },
-            confirmButton = {
-                TextButton(onClick = { isThemeModePickerVisible = false }) { Text("Cancel") }
-            },
-            title = { Text("Theme") },
-            text = {
-                Column {
-                    ThemeMode.entries.forEach { option ->
-                        TextButton(onClick = {
-                            onThemeModeChange(option)
-                            isThemeModePickerVisible = false
-                        }) {
-                            Text(option.label)
-                        }
-                    }
-                }
-            },
-        )
-    }
     if (isAccentThemePickerVisible) {
         AlertDialog(
             onDismissRequest = { isAccentThemePickerVisible = false },
@@ -1040,27 +1050,6 @@ private fun SettingsScreen(
                             isAccentThemePickerVisible = false
                         }) {
                             Text(option.label)
-                        }
-                    }
-                }
-            },
-        )
-    }
-    if (isScrollModePickerVisible) {
-        AlertDialog(
-            onDismissRequest = { isScrollModePickerVisible = false },
-            confirmButton = {
-                TextButton(onClick = { isScrollModePickerVisible = false }) { Text("Cancel") }
-            },
-            title = { Text("Scroll mode") },
-            text = {
-                Column {
-                    WeekScrollMode.entries.forEach { mode ->
-                        TextButton(onClick = {
-                            onScrollModeChange(mode)
-                            isScrollModePickerVisible = false
-                        }) {
-                            Text(mode.label)
                         }
                     }
                 }
