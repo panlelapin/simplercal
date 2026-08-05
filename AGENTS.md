@@ -31,9 +31,11 @@
     English day abbreviation (`MON` through `SUN`); its text is right-aligned, vertically
     centered when compact, and aligned at the top when expanded;
   - the right inner container takes the remaining width and contains the day content.
-- Each day container begins with a full-width accent stripe above its two inner containers.
-  Its height is 12 dp, half of the 24 dp inner-container corner radius. The stripe colour
-  is the persisted `Day accent color` setting; its default is Royal blue (`#4169E1`).
+- Each left and right inner container begins with its own accent stripe as its first
+  internal row. The stripe is not part of the parent day container and is not above the
+  inner containers. Each stripe is 12 dp high, half of the 24 dp inner-container corner
+  radius. Its colour is the persisted `Day accent color` Material role setting; `primary`
+  is the default.
 - Compute the current calendar week with Monday as its first day.
 - The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
   proutcul` on nine successive lines when expanded and one line when compact, using a
@@ -71,16 +73,13 @@
   day under the finger in the expanded group and settle immediately on the nearest group
   when the finger is released, producing a dock-style magnification movement without
   scaling content.
-- Use `MaterialTheme.colorScheme.surfaceContainer`, the exact colour of the top app bar,
-  for the 1.5 dp separators around every day container and its two inner containers. Do
-  not use black or white separator lines. Each left and right inner container has all four
-  corners rounded by 24 dp. Their shared background is `surfaceContainer`, so no white
-  gap is visible between them or under their rounded corners. Use this same colour as the
+- Use the semantic `outlineVariant` role for the 1.5 dp separators around every day
+  container and its two inner containers. Each left and right inner container has all four
+  corners rounded by 24 dp. Their shared background is `surfaceContainer`, so no gap is
+  visible between them or under their rounded corners. Use `surfaceContainer` for the
   fill of each left inner container and for the area below the day containers, including
-  the system-gesture inset area.
-- All day containers, including Saturday and Sunday, use:
-  - `#FFFFFF` in the light theme;
-  - `#000000` in the dark theme.
+  the system-gesture inset area. Use `surface` for the day parents and right inner
+  containers.
 - The Sunday container must stop immediately above a bottom band equal to 60 percent of
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
   system-inset area, while the `surfaceContainer` background continues underneath to the
@@ -98,8 +97,8 @@
   - without calendar permission, show a button requesting permission;
   - after permission is granted, replace it with the calendar-selection button;
   - persist the selected calendar.
-- The next section selects `Day accent color`. Persist the selected preset; Royal blue is
-  the default.
+- The next section selects `Day accent color`. Persist the selected Material role; `primary`
+  is the default and the available presets are Material roles only.
 - The next section selects the persisted `Scroll mode`; Mode 1 is the default.
 - The final section is smaller and horizontally centered. It displays:
   - `SimplerCal v<release version>`;

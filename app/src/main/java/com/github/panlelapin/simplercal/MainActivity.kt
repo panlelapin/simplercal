@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,7 +50,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -68,7 +68,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -93,7 +92,6 @@ private const val PREFERENCES_NAME = "simplercal"
 private const val SELECTED_CALENDAR_KEY = "selected_calendar_id"
 private const val DAY_ACCENT_COLOR_KEY = "day_accent_color"
 private const val SCROLL_MODE_KEY = "scroll_mode"
-private const val DEFAULT_DAY_ACCENT_COLOR = -12_490_271
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
 private const val TOP_BAR_TITLE = "S52 31\u2002juin"
 private const val WEEK_DAY_COUNT = 7
@@ -120,10 +118,27 @@ private data class CalendarChoice(
     val name: String,
 )
 
-private data class DayAccentColorOption(
-    val name: String,
-    val argb: Int,
-)
+private enum class DayAccentColorRole(
+    val preferenceValue: String,
+    val label: String,
+) {
+    PRIMARY("primary", "Primary"),
+    SECONDARY("secondary", "Secondary"),
+    TERTIARY("tertiary", "Tertiary"),
+    ;
+
+    fun color(colorScheme: ColorScheme) =
+        when (this) {
+            PRIMARY -> colorScheme.primary
+            SECONDARY -> colorScheme.secondary
+            TERTIARY -> colorScheme.tertiary
+        }
+
+    companion object {
+        fun fromPreferenceValue(value: String): DayAccentColorRole =
+            entries.firstOrNull { it.preferenceValue == value } ?: PRIMARY
+    }
+}
 
 private enum class WeekScrollMode(
     val preferenceValue: String,
@@ -139,14 +154,6 @@ private enum class WeekScrollMode(
             entries.firstOrNull { it.preferenceValue == value } ?: MODE_1
     }
 }
-
-private val DAY_ACCENT_COLOR_OPTIONS =
-    listOf(
-        DayAccentColorOption("Royal blue", DEFAULT_DAY_ACCENT_COLOR),
-        DayAccentColorOption("Forest green", -16_774_400),
-        DayAccentColorOption("Amber", -17_936),
-        DayAccentColorOption("Crimson", -5_917_498),
-    )
 
 private data class WeekDay(
     val abbreviation: String,
@@ -175,8 +182,15 @@ class MainActivity : ComponentActivity() {
 private fun SimplerCalApp() {
     val context = LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences(PREFERENCES_NAME, 0) }
-    var dayAccentColorArgb by remember {
-        mutableStateOf(preferences.getInt(DAY_ACCENT_COLOR_KEY, DEFAULT_DAY_ACCENT_COLOR))
+    var dayAccentColorRole by remember {
+        mutableStateOf(
+            DayAccentColorRole.fromPreferenceValue(
+                preferences.getString(
+                    DAY_ACCENT_COLOR_KEY,
+                    DayAccentColorRole.PRIMARY.preferenceValue,
+                ) ?: DayAccentColorRole.PRIMARY.preferenceValue,
+            ),
+        )
     }
     var scrollMode by remember {
         mutableStateOf(
@@ -199,16 +213,16 @@ private fun SimplerCalApp() {
         }
         Box(modifier = Modifier.fillMaxSize()) {
             HelloScreen(
-                dayAccentColor = Color(dayAccentColorArgb),
+                dayAccentColorRole = dayAccentColorRole,
                 scrollMode = scrollMode,
                 onSettings = { isSettingsVisible = true },
             )
             if (isSettingsVisible) {
                 SettingsScreen(
-                    selectedDayAccentColor = dayAccentColorArgb,
-                    onDayAccentColorChange = { color ->
-                        preferences.edit { putInt(DAY_ACCENT_COLOR_KEY, color) }
-                        dayAccentColorArgb = color
+                    selectedDayAccentColorRole = dayAccentColorRole,
+                    onDayAccentColorChange = { role ->
+                        preferences.edit { putString(DAY_ACCENT_COLOR_KEY, role.preferenceValue) }
+                        dayAccentColorRole = role
                     },
                     selectedScrollMode = scrollMode,
                     onScrollModeChange = { mode ->
@@ -226,7 +240,7 @@ private fun SimplerCalApp() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun HelloScreen(
-    dayAccentColor: Color,
+    dayAccentColorRole: DayAccentColorRole,
     scrollMode: WeekScrollMode,
     onSettings: () -> Unit,
 ) {
@@ -235,10 +249,6 @@ private fun HelloScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 modifier = Modifier.height(56.dp),
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    ),
                 title = {
                     Text(
                         text = TOP_BAR_TITLE,
@@ -283,7 +293,7 @@ private fun HelloScreen(
             color = MaterialTheme.colorScheme.surfaceContainer,
         ) {
             WeekView(
-                dayAccentColor = dayAccentColor,
+                dayAccentColorRole = dayAccentColorRole,
                 scrollMode = scrollMode,
             )
         }
@@ -293,7 +303,7 @@ private fun HelloScreen(
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun WeekView(
-    dayAccentColor: Color,
+    dayAccentColorRole: DayAccentColorRole,
     scrollMode: WeekScrollMode,
 ) {
     val days = remember { currentWeek() }
@@ -451,7 +461,7 @@ private fun WeekView(
                     isExpanded = isExpanded,
                 isContentExpanded = isContentExpanded,
                 weight = animatedDayWeights[index],
-                dayAccentColor = dayAccentColor,
+                dayAccentColorRole = dayAccentColorRole,
                 dayLabelColumnWidth = dayLabelColumnWidth,
                     onClick = { selectDay(index) },
                 )
@@ -554,12 +564,12 @@ private fun ColumnScope.DayRow(
     isExpanded: Boolean,
     isContentExpanded: Boolean,
     weight: Float,
-    dayAccentColor: Color,
+    dayAccentColorRole: DayAccentColorRole,
     dayLabelColumnWidth: Dp,
     onClick: () -> Unit,
 ) {
     val stateDescription = if (isExpanded) "expanded" else "compact"
-    val separatorColor = MaterialTheme.colorScheme.surfaceContainer
+    val separatorColor = MaterialTheme.colorScheme.outlineVariant
     Surface(
         modifier =
             Modifier
@@ -571,36 +581,28 @@ private fun ColumnScope.DayRow(
         },
         shape = RectangleShape,
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
-        color = colorResource(R.color.screen_background),
+        color = MaterialTheme.colorScheme.surface,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Spacer(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(DAY_ACCENT_STRIPE_HEIGHT)
-                        .background(dayAccentColor),
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .padding(2.dp),
+        ) {
+            DayLabelContainer(
+                day = day,
+                isExpanded = isExpanded,
+                dayAccentColorRole = dayAccentColorRole,
+                width = dayLabelColumnWidth,
+                separatorColor = separatorColor,
             )
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(2.dp),
-            ) {
-                DayLabelContainer(
-                    day = day,
-                    isExpanded = isExpanded,
-                    width = dayLabelColumnWidth,
-                    separatorColor = separatorColor,
-                )
-                DayContentContainer(
-                    isExpanded = isContentExpanded,
-                    separatorColor = separatorColor,
-                    modifier = Modifier.fillMaxHeight().weight(1f),
-                )
-            }
+            DayContentContainer(
+                isExpanded = isContentExpanded,
+                dayAccentColorRole = dayAccentColorRole,
+                separatorColor = separatorColor,
+                modifier = Modifier.fillMaxHeight().weight(1f),
+            )
         }
     }
 }
@@ -610,6 +612,7 @@ private fun ColumnScope.DayRow(
 private fun DayLabelContainer(
     day: WeekDay,
     isExpanded: Boolean,
+    dayAccentColorRole: DayAccentColorRole,
     width: Dp,
     separatorColor: Color,
 ) {
@@ -620,20 +623,29 @@ private fun DayLabelContainer(
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = verticalAlignment,
-        ) {
-            Text(
-                text = day.abbreviation.uppercase(Locale.ROOT),
+        Column(modifier = Modifier.fillMaxSize()) {
+            Spacer(
                 modifier =
-                    if (isExpanded) {
-                        Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING, top = 8.dp)
-                    } else {
-                        Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING)
-                    },
-                style = MaterialTheme.typography.titleMedium,
+                    Modifier
+                        .fillMaxWidth()
+                        .height(DAY_ACCENT_STRIPE_HEIGHT)
+                        .background(dayAccentColorRole.color(MaterialTheme.colorScheme)),
             )
+            Box(
+                modifier = Modifier.fillMaxSize().weight(1f),
+                contentAlignment = verticalAlignment,
+            ) {
+                Text(
+                    text = day.abbreviation.uppercase(Locale.ROOT),
+                    modifier =
+                        if (isExpanded) {
+                            Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING, top = 8.dp)
+                        } else {
+                            Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING)
+                        },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
         }
     }
 }
@@ -642,6 +654,7 @@ private fun DayLabelContainer(
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun DayContentContainer(
     isExpanded: Boolean,
+    dayAccentColorRole: DayAccentColorRole,
     separatorColor: Color,
     modifier: Modifier,
 ) {
@@ -649,23 +662,32 @@ private fun DayContentContainer(
         modifier = modifier,
         shape = DAY_SUBCONTAINER_SHAPE,
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
-        color = colorResource(R.color.screen_background),
+        color = MaterialTheme.colorScheme.surface,
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            repeat(if (isExpanded) EXPANDED_CONTENT_LINE_COUNT else COMPACT_CONTENT_LINE_COUNT) {
-                lineIndex ->
-                Text(
-                    text = "${lineIndex + 1} $DAY_CONTENT_TEXT",
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Clip,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Start,
-                )
+        Column(modifier = Modifier.fillMaxSize()) {
+            Spacer(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(DAY_ACCENT_STRIPE_HEIGHT)
+                        .background(dayAccentColorRole.color(MaterialTheme.colorScheme)),
+            )
+            Column(
+                modifier = Modifier.fillMaxSize().weight(1f).padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                repeat(if (isExpanded) EXPANDED_CONTENT_LINE_COUNT else COMPACT_CONTENT_LINE_COUNT) {
+                    lineIndex ->
+                    Text(
+                        text = "${lineIndex + 1} $DAY_CONTENT_TEXT",
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Start,
+                    )
+                }
             }
         }
     }
@@ -702,8 +724,8 @@ private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("CognitiveComplexMethod", "FunctionName", "LongMethod", "ktlint:standard:function-naming")
 private fun SettingsScreen(
-    selectedDayAccentColor: Int,
-    onDayAccentColorChange: (Int) -> Unit,
+    selectedDayAccentColorRole: DayAccentColorRole,
+    onDayAccentColorChange: (DayAccentColorRole) -> Unit,
     selectedScrollMode: WeekScrollMode,
     onScrollModeChange: (WeekScrollMode) -> Unit,
     onBack: () -> Unit,
@@ -785,9 +807,7 @@ private fun SettingsScreen(
             Spacer(Modifier.height(8.dp))
             Button(onClick = { isDayAccentColorPickerVisible = true }) {
                 Text(
-                    DAY_ACCENT_COLOR_OPTIONS
-                        .firstOrNull { it.argb == selectedDayAccentColor }
-                        ?.name ?: "Royal blue",
+                    selectedDayAccentColorRole.label,
                 )
             }
             Spacer(Modifier.height(24.dp))
@@ -850,12 +870,12 @@ private fun SettingsScreen(
             title = { Text("Day accent color") },
             text = {
                 Column {
-                    DAY_ACCENT_COLOR_OPTIONS.forEach { option ->
+                    DayAccentColorRole.entries.forEach { option ->
                         TextButton(onClick = {
-                            onDayAccentColorChange(option.argb)
+                            onDayAccentColorChange(option)
                             isDayAccentColorPickerVisible = false
                         }) {
-                            Text(option.name)
+                            Text(option.label)
                         }
                     }
                 }

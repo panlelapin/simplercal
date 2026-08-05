@@ -79,6 +79,24 @@ between the navigation icon and right-side actions, preserve standard touch targ
 use monochrome icons with meaningful content descriptions. Do not add custom top padding
 that duplicates the app bar's system-bar insets.
 
+## Material You color rules
+
+Always use Material You / Material 3. Build the theme with
+`dynamicLightColorScheme` and `dynamicDarkColorScheme`, and consume only semantic roles
+from `MaterialTheme.colorScheme`. Respect each `ColorScheme` foreground/background pair:
+use `primary` with `onPrimary`, `secondary` with `onSecondary`, and the corresponding
+`surface`/`onSurface` roles. Do not hard-code component colors or bypass the scheme with
+arbitrary light/dark colors. Prefer Material components with their default colors and
+states. Use `primary` for primary interactive or accent elements and `secondary` for
+secondary elements; do not interchange these roles. Any custom product color must be an
+explicit, persisted product setting rather than an undocumented replacement for a
+Material role.
+
+For application UI, never add fixed hex, ARGB, light-theme, or dark-theme colors in Kotlin,
+resources, or vector drawables. Do not use `colorResource` for interface colors. Map visual
+choices to `ColorScheme` roles instead, including persisted accent choices; a default accent
+must be a role such as `primary`, not an RGB value.
+
 ## Design references
 
 For every design question, read `references/design-sources.md` first. Treat it as the
