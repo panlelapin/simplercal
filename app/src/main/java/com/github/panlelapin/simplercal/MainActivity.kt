@@ -57,6 +57,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -105,6 +106,7 @@ private const val DAY_ACCENT_COLOR_KEY = "day_accent_color"
 private const val THEME_MODE_KEY = "theme_mode"
 private const val SCROLL_MODE_KEY = "scroll_mode"
 private const val DEBUG1_OUTLINE_COLOR_KEY = "debug1_outline_color"
+private const val DEBUG2_RIGHT_BACKGROUND_KEY = "debug2_right_background"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
 private const val TOP_BAR_TITLE = "S52 31\u2002juin"
 private const val WEEK_DAY_COUNT = 7
@@ -240,19 +242,39 @@ private enum class Debug1OutlineColor(
     val preferenceValue: String,
     val label: String,
 ) {
-    OUTLINE_VARIANT("outline_variant", "outlineVariant"),
-    SURFACE_CONTAINER("surface_container", "surfaceContainer"),
+    WHITE("white", "White"),
+    APP_BAR_BACKGROUND("app_bar_background", "App bar background"),
     ;
 
-    fun resolve(colorScheme: ColorScheme): Color =
+    fun resolve(colorScheme: ColorScheme, appBarBackground: Color): Color =
         when (this) {
-            OUTLINE_VARIANT -> colorScheme.outlineVariant
-            SURFACE_CONTAINER -> colorScheme.surfaceContainer
+            WHITE -> colorScheme.surface
+            APP_BAR_BACKGROUND -> appBarBackground
         }
 
     companion object {
         fun fromPreferenceValue(value: String): Debug1OutlineColor =
-            entries.firstOrNull { it.preferenceValue == value } ?: OUTLINE_VARIANT
+            entries.firstOrNull { it.preferenceValue == value } ?: WHITE
+    }
+}
+
+private enum class Debug2RightBackground(
+    val preferenceValue: String,
+    val label: String,
+) {
+    SURFACE("surface", "Surface"),
+    APP_BAR_BACKGROUND("app_bar_background", "App bar background"),
+    ;
+
+    fun resolve(colorScheme: ColorScheme, appBarBackground: Color): Color =
+        when (this) {
+            SURFACE -> colorScheme.surface
+            APP_BAR_BACKGROUND -> appBarBackground
+        }
+
+    companion object {
+        fun fromPreferenceValue(value: String): Debug2RightBackground =
+            entries.firstOrNull { it.preferenceValue == value } ?: SURFACE
     }
 }
 
@@ -314,8 +336,18 @@ private fun SimplerCalApp() {
             Debug1OutlineColor.fromPreferenceValue(
                 preferences.getString(
                     DEBUG1_OUTLINE_COLOR_KEY,
-                    Debug1OutlineColor.OUTLINE_VARIANT.preferenceValue,
-                ) ?: Debug1OutlineColor.OUTLINE_VARIANT.preferenceValue,
+                    Debug1OutlineColor.WHITE.preferenceValue,
+                ) ?: Debug1OutlineColor.WHITE.preferenceValue,
+            ),
+        )
+    }
+    var debug2RightBackground by remember {
+        mutableStateOf(
+            Debug2RightBackground.fromPreferenceValue(
+                preferences.getString(
+                    DEBUG2_RIGHT_BACKGROUND_KEY,
+                    Debug2RightBackground.SURFACE.preferenceValue,
+                ) ?: Debug2RightBackground.SURFACE.preferenceValue,
             ),
         )
     }
@@ -350,6 +382,7 @@ private fun SimplerCalApp() {
             HelloScreen(
                 scrollMode = scrollMode,
                 debug1OutlineColor = debug1OutlineColor,
+                debug2RightBackground = debug2RightBackground,
                 onSettings = { isSettingsVisible = true },
             )
             if (isSettingsVisible) {
@@ -376,6 +409,13 @@ private fun SimplerCalApp() {
                         }
                         debug1OutlineColor = color
                     },
+                    selectedDebug2RightBackground = debug2RightBackground,
+                    onDebug2RightBackgroundChange = { background ->
+                        preferences.edit {
+                            putString(DEBUG2_RIGHT_BACKGROUND_KEY, background.preferenceValue)
+                        }
+                        debug2RightBackground = background
+                    },
                     onBack = { isSettingsVisible = false },
                 )
             }
@@ -389,12 +429,15 @@ private fun SimplerCalApp() {
 private fun HelloScreen(
     scrollMode: WeekScrollMode,
     debug1OutlineColor: Debug1OutlineColor,
+    debug2RightBackground: Debug2RightBackground,
     onSettings: () -> Unit,
 ) {
+    val appBarBackground = MaterialTheme.colorScheme.surfaceContainer
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar = {
             CenterAlignedTopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = appBarBackground),
                 title = {
                     Text(
                         text = TOP_BAR_TITLE,
@@ -436,11 +479,13 @@ private fun HelloScreen(
     ) { innerPadding ->
         Surface(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
-            color = MaterialTheme.colorScheme.surfaceContainer,
+            color = appBarBackground,
         ) {
             WeekView(
                 scrollMode = scrollMode,
                 debug1OutlineColor = debug1OutlineColor,
+                debug2RightBackground = debug2RightBackground,
+                appBarBackground = appBarBackground,
             )
         }
     }
@@ -451,6 +496,8 @@ private fun HelloScreen(
 private fun WeekView(
     scrollMode: WeekScrollMode,
     debug1OutlineColor: Debug1OutlineColor,
+    debug2RightBackground: Debug2RightBackground,
+    appBarBackground: Color,
 ) {
     val days = remember { currentWeek() }
     var selectedDayIndex by remember { mutableStateOf(0) }
@@ -496,7 +543,9 @@ private fun WeekView(
     val currentDragToFocus = rememberUpdatedState(dragToFocus)
     val currentEndDrag = rememberUpdatedState(endDrag)
     val dayLabelColumnWidth = dayLabelColumnWidth()
-    val separatorColor = debug1OutlineColor.resolve(MaterialTheme.colorScheme)
+    val separatorColor = debug1OutlineColor.resolve(MaterialTheme.colorScheme, appBarBackground)
+    val rightContainerBackground =
+        debug2RightBackground.resolve(MaterialTheme.colorScheme, appBarBackground)
     val mandatoryGesturePadding = WindowInsets.mandatorySystemGestures.asPaddingValues()
     val bottomGestureInset =
         mandatoryGesturePadding.calculateBottomPadding() * GESTURE_GUTTER_FRACTION
@@ -653,6 +702,8 @@ private fun WeekView(
                     weight = animatedDayWeights[index],
                     dayLabelColumnWidth = dayLabelColumnWidth,
                     separatorColor = separatorColor,
+                    appBarBackground = appBarBackground,
+                    rightContainerBackground = rightContainerBackground,
                     onClick = { selectDay(index) },
                 )
             }
@@ -761,6 +812,8 @@ private fun ColumnScope.DayRow(
     weight: Float,
     dayLabelColumnWidth: Dp,
     separatorColor: Color,
+    appBarBackground: Color,
+    rightContainerBackground: Color,
     onClick: () -> Unit,
 ) {
     val stateDescription = if (isExpanded) "expanded" else "compact"
@@ -775,13 +828,13 @@ private fun ColumnScope.DayRow(
         },
         shape = RectangleShape,
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
-        color = MaterialTheme.colorScheme.surface,
+        color = appBarBackground,
     ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .background(appBarBackground)
                     .padding(2.dp),
         ) {
             DayLabelContainer(
@@ -789,10 +842,12 @@ private fun ColumnScope.DayRow(
                 isExpanded = isExpanded,
                 width = dayLabelColumnWidth,
                 separatorColor = separatorColor,
+                appBarBackground = appBarBackground,
             )
             DayContentContainer(
                 isExpanded = isContentExpanded,
                 separatorColor = separatorColor,
+                background = rightContainerBackground,
                 modifier = Modifier.fillMaxHeight().weight(1f),
             )
         }
@@ -806,13 +861,14 @@ private fun DayLabelContainer(
     isExpanded: Boolean,
     width: Dp,
     separatorColor: Color,
+    appBarBackground: Color,
 ) {
     val verticalAlignment = if (isExpanded) Alignment.TopEnd else Alignment.CenterEnd
     Surface(
         modifier = Modifier.width(width).fillMaxHeight(),
         shape = DAY_SUBCONTAINER_SHAPE,
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = appBarBackground,
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -837,13 +893,14 @@ private fun DayLabelContainer(
 private fun DayContentContainer(
     isExpanded: Boolean,
     separatorColor: Color,
+    background: Color,
     modifier: Modifier,
 ) {
     Surface(
         modifier = modifier,
         shape = DAY_SUBCONTAINER_SHAPE,
         border = BorderStroke(DAY_SEPARATOR_THICKNESS, separatorColor),
-        color = MaterialTheme.colorScheme.surface,
+        color = background,
     ) {
         Column(
             modifier =
@@ -916,9 +973,12 @@ private fun SettingsScreen(
     onScrollModeChange: (WeekScrollMode) -> Unit,
     selectedDebug1OutlineColor: Debug1OutlineColor,
     onDebug1OutlineColorChange: (Debug1OutlineColor) -> Unit,
+    selectedDebug2RightBackground: Debug2RightBackground,
+    onDebug2RightBackgroundChange: (Debug2RightBackground) -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val appBarBackground = MaterialTheme.colorScheme.surfaceContainer
     var calendars by remember { mutableStateOf(emptyList<CalendarChoice>()) }
     var selectedId by remember {
         mutableStateOf(
@@ -951,6 +1011,7 @@ private fun SettingsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = appBarBackground),
                 title = { Text("Settings") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -1046,6 +1107,24 @@ private fun SettingsScreen(
                             ),
                     ) {
                         Text(color.label)
+                    }
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+            Text("Debug2", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                Debug2RightBackground.entries.forEachIndexed { index, background ->
+                    SegmentedButton(
+                        selected = selectedDebug2RightBackground == background,
+                        onClick = { onDebug2RightBackgroundChange(background) },
+                        shape =
+                            SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = Debug2RightBackground.entries.size,
+                            ),
+                    ) {
+                        Text(background.label)
                     }
                 }
             }

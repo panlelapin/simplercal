@@ -83,20 +83,17 @@
   pixel distance. Do not use a timed animation: the growth and compaction speed follows the
   finger. Settle immediately on the nearest group when the finger is released, producing a
   dock-style magnification movement without scaling content.
-- Use the semantic `outlineVariant` role for the 1.5 dp separators around every day
-  container and its two inner containers. Each left and right inner container has all four
-  corners rounded by 24 dp. Their shared background is `surfaceContainer`, so no gap is
-  visible between them or under their rounded corners. Use `surfaceContainer` for the
-  fill of each left inner container and for the area below the day containers, including
-  the system-gesture inset area. Use `surface` for the day parents and right inner
-  containers.
+- Define `app bar background` as the `surfaceContainer` role used explicitly by the top app
+  bars. Use that same color for every left inner container and all peripheral areas around the
+  day containers, including the bottom and right gesture strips. Each left and right inner
+  container has all four corners rounded by 24 dp.
 - The Sunday container must stop immediately above a bottom band equal to 60 percent of
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
-  system-inset area, while the `surfaceContainer` background continues underneath to the
+  system-inset area, while the app-bar-background color continues underneath to the
   bottom edge.
 - Reserve a right-side strip after the day containers whose width is 60 percent of the
-  greater of the raw mandatory system-gesture inset and 24 dp. This visible strip uses
-  `surfaceContainer`.
+  greater of the raw mandatory system-gesture inset and 24 dp. This visible strip uses the
+  app-bar-background color.
 - Keep every full click target above the system inset, use Material interaction feedback,
   and expose each day container as one accessible semantic element.
 
@@ -121,9 +118,13 @@
 - The next section selects the persisted `Scroll mode`. Display the `Discrete` and `Linear`
   choices side by side as a single-choice Material segmented control, not in a menu.
 - The next section is `Debug1`. Persist its two side-by-side Material segmented choices:
-  `outlineVariant` is the default and uses `ColorScheme.outlineVariant` for every day-parent
-  and inner-container border/separator; `surfaceContainer` uses
-  `ColorScheme.surfaceContainer` for those same borders/separators. Apply a change immediately.
+  `White` is the default and maps to `ColorScheme.surface`; `App bar background` maps to the
+  shared app-bar-background color. Apply the selection immediately to every day-parent and
+  inner-container border/separator.
+- The next section is `Debug2`. Persist its two side-by-side Material segmented choices:
+  `Surface` is the default and maps to `ColorScheme.surface`; `App bar background` maps to the
+  shared app-bar-background color. Apply the selection immediately to every right inner
+  container background.
 - The final section is smaller and horizontally centered. It displays:
   - `SimplerCal v<release version>`;
   - the GitHub project URL as a clickable web link.
