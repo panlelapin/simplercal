@@ -132,7 +132,7 @@ private const val COMPACT_CONTENT_LINE_COUNT = 1
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 private val DAY_SEPARATOR_THICKNESS = 1.5.dp
 private val DAY_SUBCONTAINER_CORNER_RADIUS = 10.dp
-private val DAY_ACCENT_STRIPE_WIDTH = 6.dp
+private val DAY_ACCENT_STRIPE_WIDTH = 4.dp
 private val DAY_ACCENT_STRIPE_SHAPE = RoundedCornerShape(percent = 50)
 private val MINIMUM_RIGHT_GESTURE_GUTTER = 24.dp
 private const val RIGHT_GESTURE_GUTTER_FRACTION = 0.225f
@@ -319,7 +319,7 @@ private enum class Debug1OutlineColor(
 
     companion object {
         fun fromPreferenceValue(value: String): Debug1OutlineColor =
-            entries.firstOrNull { it.preferenceValue == value } ?: BLACK
+            entries.firstOrNull { it.preferenceValue == value } ?: APP_BAR_BACKGROUND
     }
 }
 
@@ -407,8 +407,8 @@ private fun SimplerCalApp() {
             Debug1OutlineColor.fromPreferenceValue(
                 preferences.getString(
                     DEBUG1_OUTLINE_COLOR_KEY,
-                    Debug1OutlineColor.BLACK.preferenceValue,
-                ) ?: Debug1OutlineColor.BLACK.preferenceValue,
+                    Debug1OutlineColor.APP_BAR_BACKGROUND.preferenceValue,
+                ) ?: Debug1OutlineColor.APP_BAR_BACKGROUND.preferenceValue,
             ),
         )
     }
@@ -677,6 +677,7 @@ private fun WeekView(
     val density = LocalDensity.current
     val bottomGestureInsetPx = with(density) { bottomGestureInset.toPx() }
     val rightGestureInsetPx = with(density) { rightGestureInset.toPx() }
+    val leftGestureInsetPx = rightGestureInsetPx
     LaunchedEffect(animationRequest) {
         if (isDragging) return@LaunchedEffect
         val startWeights = animatedDayWeights
@@ -744,7 +745,8 @@ private fun WeekView(
                             if (hasMoved) {
                                 currentEndDrag.value()
                             } else if (
-                                down.position.x < size.width.toFloat() - rightGestureInsetPx &&
+                                down.position.x >= leftGestureInsetPx &&
+                                    down.position.x < size.width.toFloat() - rightGestureInsetPx &&
                                     down.position.y < dayAreaHeight
                             ) {
                                 currentSelectDay.value(
@@ -770,7 +772,8 @@ private fun WeekView(
                                         weights = currentAnimatedDayWeights.value,
                                     )
                                 isDragEnabled =
-                                    position.x < size.width.toFloat() - rightGestureInsetPx &&
+                                    position.x >= leftGestureInsetPx &&
+                                        position.x < size.width.toFloat() - rightGestureInsetPx &&
                                         position.y < dayAreaHeight &&
                                         dayIndex in expandedDayIndices(currentSelectedDayIndex.value)
                                 if (isDragEnabled) {
@@ -805,6 +808,7 @@ private fun WeekView(
                     }
                 },
     ) {
+        Spacer(modifier = Modifier.fillMaxHeight().width(rightGestureInset))
         Column(
             modifier =
                 Modifier
@@ -944,8 +948,17 @@ private fun ColumnScope.DayRow(
     val innerContainerBorderColor =
         if (dayIndex == highlightedDayIndex) MaterialTheme.colorScheme.primary else separatorColor
     val isHighlighted = dayIndex == highlightedDayIndex
+    val dayTextColor =
+        if (highlightedDayIndex != null && dayIndex < highlightedDayIndex) {
+            MaterialTheme.colorScheme.secondary
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        }
     val showTopBorder = dayIndex != 0 && dayIndex != WEEKEND_START_INDEX + 1
     val showBottomBorder = dayIndex != WEEKEND_START_INDEX && dayIndex != WEEK_DAY_COUNT - 1
+    val isWeekend = dayIndex >= WEEKEND_START_INDEX
+    val highlightBorderInset = if (isHighlighted) DAY_SEPARATOR_THICKNESS else 0.dp
+    val weekendPillWidth = if (isWeekend) DAY_ACCENT_STRIPE_WIDTH else 0.dp
     val leftSubcontainerShape =
         daySubcontainerShape(dayIndex, isHighlighted, isLeft = true)
     val rightSubcontainerShape =
@@ -968,6 +981,12 @@ private fun ColumnScope.DayRow(
                 modifier =
                     Modifier
                         .fillMaxSize()
+                        .padding(
+                            start = weekendPillWidth,
+                            end = weekendPillWidth,
+                            top = highlightBorderInset,
+                            bottom = highlightBorderInset,
+                        )
                         .background(appBarBackground)
                         .then(
                             if (isHighlighted) {
@@ -999,6 +1018,7 @@ private fun ColumnScope.DayRow(
                     showBottomBorder = showBottomBorder,
                     isHighlighted = isHighlighted,
                     shape = leftSubcontainerShape,
+                    textColor = dayTextColor,
                     appBarBackground = appBarBackground,
                 )
                 DayContentContainer(
@@ -1009,7 +1029,28 @@ private fun ColumnScope.DayRow(
                     isHighlighted = isHighlighted,
                     shape = rightSubcontainerShape,
                     background = rightContainerBackground,
+                    textColor = dayTextColor,
                     modifier = Modifier.fillMaxHeight().weight(1f),
+                )
+            }
+            if (isWeekend) {
+                Spacer(
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .fillMaxHeight()
+                            .width(DAY_ACCENT_STRIPE_WIDTH)
+                            .clip(DAY_ACCENT_STRIPE_SHAPE)
+                            .background(MaterialTheme.colorScheme.secondary),
+                )
+                Spacer(
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .width(DAY_ACCENT_STRIPE_WIDTH)
+                            .clip(DAY_ACCENT_STRIPE_SHAPE)
+                            .background(MaterialTheme.colorScheme.secondary),
                 )
             }
             Canvas(modifier = Modifier.matchParentSize()) {
@@ -1034,6 +1075,7 @@ private fun DayLabelContainer(
     showBottomBorder: Boolean,
     isHighlighted: Boolean,
     shape: RoundedCornerShape,
+    textColor: Color,
     appBarBackground: Color,
 ) {
     Surface(
@@ -1069,6 +1111,7 @@ private fun DayLabelContainer(
                     text = dayLabelText(day),
                     modifier = Modifier.fillMaxWidth(),
                     style = MaterialTheme.typography.titleLarge,
+                    color = textColor,
                     textAlign = TextAlign.End,
                 )
             }
@@ -1095,6 +1138,7 @@ private fun DayContentContainer(
     isHighlighted: Boolean,
     shape: RoundedCornerShape,
     background: Color,
+    textColor: Color,
     modifier: Modifier,
 ) {
     Surface(
@@ -1120,6 +1164,7 @@ private fun DayContentContainer(
                         softWrap = false,
                         overflow = TextOverflow.Clip,
                         style = MaterialTheme.typography.bodyMedium,
+                        color = textColor,
                         textAlign = TextAlign.Start,
                     )
                 }

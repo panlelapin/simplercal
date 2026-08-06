@@ -52,14 +52,21 @@
   - the right inner container takes the remaining width and contains the day content.
 - Only the left inner container has an accent pill. It is inside that inner container along its
   right edge, never on the day-container boundary or between two parent day containers. The pill
-  is 6 dp wide, uses `MaterialTheme.colorScheme.primary`, and has fully rounded ends so it
+  is 4 dp wide, uses `MaterialTheme.colorScheme.primary`, and has fully rounded ends so it
   visually follows the rounded inner-container language.
+- Saturday and Sunday also have one 4 dp vertical pill in `MaterialTheme.colorScheme.secondary`
+  immediately outside the left edge of the left inner container and one immediately outside the
+  right edge of the right inner container.
 - The current day in the current displayed week has a border in the
   `MaterialTheme.colorScheme.primary` role around the combined pair of inner containers. This
   highlight is recalculated by the `update` action group. Other inner-container borders continue
   to use the configured Debug1 border color. Only for the highlighted day, the left inner
   container has no right corner radii and the right inner container has no left corner radii, so
-  the two highlighted halves join continuously.
+  the two highlighted halves join continuously. Reserve the highlight border thickness inside
+  the parent day container so this combined border remains fully visible.
+- In the current displayed week, every day before the current day uses
+  `MaterialTheme.colorScheme.secondary` for all of its day-label and right-content text. The
+  current day and following days use `ColorScheme.onSurface`.
 - There is no vertical peripheral gap or horizontal delimiter between Saturday and Sunday; their
   vertical side borders and other inner-container borders remain visible.
 - There is no outer delimiter above the first day container or below the last day container.
@@ -117,6 +124,8 @@
 - Reserve a right-side strip after the day containers whose width is 22.5 percent of the
   greater of the raw mandatory system-gesture inset and 24 dp. This visible strip uses the
   app-bar-background color.
+- Reserve a left-side strip before the day containers with exactly the same width as the
+  right-side strip. It also uses the app-bar-background color.
 - Keep every full click target above the system inset, use Material interaction feedback,
   and expose each day container as one accessible semantic element.
 
@@ -141,8 +150,8 @@
 - The next section selects the persisted `Scroll mode`. Display the `Discrete` and `Linear`
   choices side by side as a single-choice Material segmented control, not in a menu.
 - The next section is `Debug1`. Persist its two side-by-side Material segmented choices:
-  `Black` is the default and maps to `ColorScheme.onSurface`; `App bar background` maps to the
-  shared app-bar-background color. Apply the selection immediately to every day-parent and
+  `App bar background` is the default and maps to the shared app-bar-background color; `Black`
+  maps to `ColorScheme.onSurface`. Apply the selection immediately to every day-parent and
   inner-container border/separator.
 - The next section is `Debug2`. Persist its two side-by-side Material segmented choices:
   `Surface` is the default and maps to `ColorScheme.surface`; `App bar background` maps to the
