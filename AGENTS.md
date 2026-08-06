@@ -43,24 +43,23 @@
   widths are the same in all seven day containers:
   - the left inner container width is automatically calculated from the widest complete
     day/date label among all seven days (`MON. 1` through `SUN. 31`); every day uses that same
-    width. It contains the accent stripe at its top,
+    width. It contains a vertical accent pill along its right edge,
     then the three-letter day abbreviation in small caps matching the title's reduced text size,
     followed on the same line by the numeric day of the month in the normal title size.
     This day/date block is right-aligned, vertically centered when compact, and aligned at the
-    top below the stripe when expanded. Include a period and a space between the day and number,
+    top when expanded. Include a period and a space between the day and number,
     for example `WED.31`.
   - the right inner container takes the remaining width and contains the day content.
-- Only the left inner container has an accent stripe. It is inside that inner container at its
-  top edge, never on the day-container boundary or between two parent day containers. The stripe
-  is 6 dp high, uses `MaterialTheme.colorScheme.secondary`, and has fully rounded pill ends so
-  it visually follows the rounded inner-container language.
+- Only the left inner container has an accent pill. It is inside that inner container along its
+  right edge, never on the day-container boundary or between two parent day containers. The pill
+  is 6 dp wide, uses `MaterialTheme.colorScheme.primary`, and has fully rounded ends so it
+  visually follows the rounded inner-container language.
 - The current day in the current displayed week has a border in the
-  `MaterialTheme.colorScheme.primary` role around both inner containers. This highlight is
-  recalculated by the `update` action group. Other inner-container borders continue to use the
-  configured Debug1 border color. The border for the current day is recalculated by the `update`
-  action group. Only for the highlighted day, the left inner container has no right corner radii
-  and the right inner container has no left corner radii, so the two highlighted halves join
-  continuously.
+  `MaterialTheme.colorScheme.primary` role around the combined pair of inner containers. This
+  highlight is recalculated by the `update` action group. Other inner-container borders continue
+  to use the configured Debug1 border color. Only for the highlighted day, the left inner
+  container has no right corner radii and the right inner container has no left corner radii, so
+  the two highlighted halves join continuously.
 - There is no vertical peripheral gap or horizontal delimiter between Saturday and Sunday; their
   vertical side borders and other inner-container borders remain visible.
 - There is no outer delimiter above the first day container or below the last day container.
@@ -115,7 +114,7 @@
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
   system-inset area, while the app-bar-background color continues underneath to the
   bottom edge.
-- Reserve a right-side strip after the day containers whose width is 45 percent of the
+- Reserve a right-side strip after the day containers whose width is 22.5 percent of the
   greater of the raw mandatory system-gesture inset and 24 dp. This visible strip uses the
   app-bar-background color.
 - Keep every full click target above the system inset, use Material interaction feedback,

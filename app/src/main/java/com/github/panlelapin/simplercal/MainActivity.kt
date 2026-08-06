@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -131,10 +132,10 @@ private const val COMPACT_CONTENT_LINE_COUNT = 1
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 private val DAY_SEPARATOR_THICKNESS = 1.5.dp
 private val DAY_SUBCONTAINER_CORNER_RADIUS = 10.dp
-private val DAY_ACCENT_STRIPE_HEIGHT = 6.dp
+private val DAY_ACCENT_STRIPE_WIDTH = 6.dp
 private val DAY_ACCENT_STRIPE_SHAPE = RoundedCornerShape(percent = 50)
 private val MINIMUM_RIGHT_GESTURE_GUTTER = 24.dp
-private const val RIGHT_GESTURE_GUTTER_FRACTION = 0.45f
+private const val RIGHT_GESTURE_GUTTER_FRACTION = 0.225f
 private const val BOTTOM_GESTURE_GUTTER_FRACTION = 0.72f
 private val DAY_SUBCONTAINER_SHAPE = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS)
 
@@ -154,6 +155,25 @@ private fun daySubcontainerShape(
         bottomStart = if (isHighlighted && !isLeft) 0.dp else bottomStart,
     )
 }
+
+private fun dayCombinedShape(dayIndex: Int): RoundedCornerShape =
+    when (dayIndex) {
+        WEEKEND_START_INDEX ->
+            RoundedCornerShape(
+                topStart = DAY_SUBCONTAINER_CORNER_RADIUS,
+                topEnd = DAY_SUBCONTAINER_CORNER_RADIUS,
+                bottomEnd = 0.dp,
+                bottomStart = 0.dp,
+            )
+        WEEKEND_START_INDEX + 1 ->
+            RoundedCornerShape(
+                topStart = 0.dp,
+                topEnd = 0.dp,
+                bottomEnd = DAY_SUBCONTAINER_CORNER_RADIUS,
+                bottomStart = DAY_SUBCONTAINER_CORNER_RADIUS,
+            )
+        else -> DAY_SUBCONTAINER_SHAPE
+    }
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -930,6 +950,7 @@ private fun ColumnScope.DayRow(
         daySubcontainerShape(dayIndex, isHighlighted, isLeft = true)
     val rightSubcontainerShape =
         daySubcontainerShape(dayIndex, isHighlighted, isLeft = false)
+    val combinedShape = dayCombinedShape(dayIndex)
     Surface(
         modifier =
             Modifier
@@ -948,6 +969,20 @@ private fun ColumnScope.DayRow(
                     Modifier
                         .fillMaxSize()
                         .background(appBarBackground)
+                        .then(
+                            if (isHighlighted) {
+                                Modifier.border(
+                                    border =
+                                        BorderStroke(
+                                            DAY_SEPARATOR_THICKNESS,
+                                            MaterialTheme.colorScheme.primary,
+                                        ),
+                                    shape = combinedShape,
+                                )
+                            } else {
+                                Modifier
+                            },
+                        )
                         .padding(
                             start = 2.dp,
                             end = 2.dp,
@@ -1004,12 +1039,6 @@ private fun DayLabelContainer(
     Surface(
         modifier = Modifier.width(width).fillMaxHeight(),
         shape = shape,
-        border =
-            if (isHighlighted) {
-                BorderStroke(DAY_SEPARATOR_THICKNESS, MaterialTheme.colorScheme.primary)
-            } else {
-                null
-            },
         color = appBarBackground,
     ) {
         Box(
@@ -1018,11 +1047,11 @@ private fun DayLabelContainer(
             Spacer(
                 modifier =
                     Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(DAY_ACCENT_STRIPE_HEIGHT)
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .width(DAY_ACCENT_STRIPE_WIDTH)
                         .clip(DAY_ACCENT_STRIPE_SHAPE)
-                        .background(MaterialTheme.colorScheme.secondary),
+                        .background(MaterialTheme.colorScheme.primary),
             )
             Column(
                 modifier =
@@ -1031,7 +1060,7 @@ private fun DayLabelContainer(
                         .padding(
                             start = DAY_LABEL_HORIZONTAL_PADDING,
                             end = DAY_LABEL_HORIZONTAL_PADDING,
-                            top = DAY_ACCENT_STRIPE_HEIGHT + 2.dp,
+                            top = 2.dp,
                         ),
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = if (isExpanded) Arrangement.Top else Arrangement.Center,
@@ -1071,12 +1100,6 @@ private fun DayContentContainer(
     Surface(
         modifier = modifier,
         shape = shape,
-        border =
-            if (isHighlighted) {
-                BorderStroke(DAY_SEPARATOR_THICKNESS, MaterialTheme.colorScheme.primary)
-            } else {
-                null
-            },
         color = background,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
