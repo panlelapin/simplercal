@@ -50,12 +50,11 @@
     top when expanded. Include a period and a space between the day and number,
     for example `WED.31`.
   - the right inner container takes the remaining width and contains the day content.
-- Only the right inner container has an accent pill. It is inside that inner container along its
+- Only the right inner container has an accent line. It is inside that inner container along its
   left edge, immediately before the content, never on the day-container boundary or between two
-  parent day containers. The pill is 4 dp wide, uses `ColorScheme.secondary` for days before the
-  current day and `ColorScheme.primary` for the current day and following days, and has fully
-  rounded ends.
-- Saturday and Sunday also have one 4 dp vertical pill in `MaterialTheme.colorScheme.secondary`
+  parent day containers. The line is 3 dp wide, has square ends, uses `ColorScheme.secondary` for
+  days before the current day and `ColorScheme.primary` for the current day and following days.
+- Saturday and Sunday also have one 4 dp vertical line in `MaterialTheme.colorScheme.secondary`
   immediately outside the left edge of the left inner container and one immediately outside the
   right edge of the right inner container.
 - The current day in the current displayed week has a border in the

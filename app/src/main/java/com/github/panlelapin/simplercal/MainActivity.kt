@@ -133,9 +133,8 @@ private const val COMPACT_CONTENT_LINE_COUNT = 1
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 private val DAY_SEPARATOR_THICKNESS = 1.5.dp
 private val DAY_SUBCONTAINER_CORNER_RADIUS = 10.dp
-private val DAY_ACCENT_STRIPE_WIDTH = 4.dp
-private val WEEKEND_SIDE_PILL_WIDTH = 5.dp
-private val DAY_ACCENT_STRIPE_SHAPE = RoundedCornerShape(percent = 50)
+private val DAY_ACCENT_STRIPE_WIDTH = 3.dp
+private val WEEKEND_SIDE_PILL_WIDTH = 4.dp
 private val MINIMUM_RIGHT_GESTURE_GUTTER = 24.dp
 private const val RIGHT_GESTURE_GUTTER_FRACTION = 0.225f
 private const val BOTTOM_GESTURE_GUTTER_FRACTION = 0.72f
@@ -940,7 +939,7 @@ private fun ColumnScope.DayRow(
                 .semantics(mergeDescendants = true) {
                     contentDescription = "${day.abbreviation}, $stateDescription"
         },
-        shape = RectangleShape,
+        shape = combinedShape,
         color = appBarBackground,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -1009,7 +1008,6 @@ private fun ColumnScope.DayRow(
                             .align(Alignment.CenterStart)
                             .fillMaxHeight()
                             .width(WEEKEND_SIDE_PILL_WIDTH)
-                            .clip(DAY_ACCENT_STRIPE_SHAPE)
                             .background(MaterialTheme.colorScheme.secondary),
                 )
                 Spacer(
@@ -1018,7 +1016,6 @@ private fun ColumnScope.DayRow(
                             .align(Alignment.CenterEnd)
                             .fillMaxHeight()
                             .width(WEEKEND_SIDE_PILL_WIDTH)
-                            .clip(DAY_ACCENT_STRIPE_SHAPE)
                             .background(MaterialTheme.colorScheme.secondary),
                 )
             }
@@ -1123,7 +1120,6 @@ private fun DayContentContainer(
                         .align(Alignment.CenterStart)
                         .fillMaxHeight()
                         .width(DAY_ACCENT_STRIPE_WIDTH)
-                        .clip(DAY_ACCENT_STRIPE_SHAPE)
                         .background(accentColor),
             )
             Column(
@@ -1132,8 +1128,8 @@ private fun DayContentContainer(
                         .fillMaxSize()
                         .clip(shape)
                         .padding(
-                            start = 16.dp + DAY_ACCENT_STRIPE_WIDTH + 2.dp,
-                            end = 16.dp,
+                            start = 8.dp + DAY_ACCENT_STRIPE_WIDTH,
+                            end = 8.dp,
                         ),
                 verticalArrangement = Arrangement.Center,
             ) {
