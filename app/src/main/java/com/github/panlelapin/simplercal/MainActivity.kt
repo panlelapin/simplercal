@@ -128,7 +128,7 @@ private const val EXPANDED_CONTENT_LINE_COUNT = 9
 private const val COMPACT_CONTENT_LINE_COUNT = 1
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 private val DAY_SEPARATOR_THICKNESS = 1.5.dp
-private val DAY_SUBCONTAINER_CORNER_RADIUS = 18.dp
+private val DAY_SUBCONTAINER_CORNER_RADIUS = 12.dp
 private val DAY_ACCENT_STRIPE_HEIGHT = 6.dp
 private val DAY_ACCENT_STRIPE_SHAPE = RoundedCornerShape(percent = 50)
 private val MINIMUM_RIGHT_GESTURE_GUTTER = 24.dp
@@ -615,7 +615,7 @@ private fun WeekView(
     val currentStartDrag = rememberUpdatedState(startDrag)
     val currentDragToFocus = rememberUpdatedState(dragToFocus)
     val currentEndDrag = rememberUpdatedState(endDrag)
-    val dayLabelColumnWidth = dayLabelColumnWidth()
+    val dayLabelColumnWidth = dayLabelColumnWidth(days)
     val separatorColor = debug1OutlineColor.resolve(MaterialTheme.colorScheme, appBarBackground)
     val rightContainerBackground =
         debug2RightBackground.resolve(MaterialTheme.colorScheme, appBarBackground)
@@ -769,6 +769,7 @@ private fun WeekView(
                 val isExpanded = index in expandedDayIndices(selectedDayIndex)
                 val isContentExpanded = index in contentExpandedDays
                 DayRow(
+                    dayIndex = index,
                     day = day,
                     isExpanded = isExpanded,
                     isContentExpanded = isContentExpanded,
@@ -879,6 +880,7 @@ private fun dayGroupTransitionDistance(height: Float): Float {
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun ColumnScope.DayRow(
+    dayIndex: Int,
     day: WeekDay,
     isExpanded: Boolean,
     isContentExpanded: Boolean,
@@ -910,7 +912,12 @@ private fun ColumnScope.DayRow(
                 Modifier
                     .fillMaxSize()
                     .background(appBarBackground)
-                    .padding(2.dp),
+                    .padding(
+                        start = 2.dp,
+                        end = 2.dp,
+                        top = if (dayIndex == WEEKEND_START_INDEX + 1) 0.dp else 2.dp,
+                        bottom = if (dayIndex == WEEKEND_START_INDEX) 0.dp else 2.dp,
+                    ),
         ) {
             DayLabelContainer(
                 day = day,
@@ -968,34 +975,15 @@ private fun DayLabelContainer(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = if (isExpanded) Arrangement.Top else Arrangement.Center,
             ) {
-                Row(
+                Text(
+                    text = dayLabelText(day),
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(
-                                SpanStyle(
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                ),
-                            ) {
-                                append(day.abbreviation.uppercase(Locale.ROOT))
-                            }
-                        },
-                        textAlign = TextAlign.End,
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = day.dayOfMonth.toString(),
-                        style =
-                            MaterialTheme.typography.bodySmall.copy(
-                                fontWeight = FontWeight.Bold,
-                            ),
-                        textAlign = TextAlign.End,
-                    )
-                }
+                    style =
+                        MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                        ),
+                    textAlign = TextAlign.End,
+                )
             }
         }
     }
@@ -1041,22 +1029,35 @@ private fun DayContentContainer(
 
 @Composable
 @Suppress("FunctionName", "ktlint:standard:function-naming")
-private fun dayLabelColumnWidth(): Dp {
+private fun dayLabelColumnWidth(days: List<WeekDay>): Dp {
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val textStyle =
-        MaterialTheme.typography.bodySmall.copy(
+    val textStyle = MaterialTheme.typography.titleLarge.copy(
             fontWeight = FontWeight.Bold,
         )
     val widestLabelWidth =
-        DAY_ABBREVIATIONS.maxOf { abbreviation ->
+        days.maxOf { day ->
             textMeasurer.measure(
-                text = AnnotatedString(abbreviation.uppercase(Locale.ROOT)),
+                text = dayLabelText(day),
                 style = textStyle,
             ).size.width
         }
     return with(density) { widestLabelWidth.toDp() } + DAY_LABEL_HORIZONTAL_PADDING * 2
 }
+
+private fun dayLabelText(day: WeekDay): AnnotatedString =
+    buildAnnotatedString {
+        withStyle(
+            SpanStyle(
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+            ),
+        ) {
+            append(day.abbreviation.uppercase(Locale.ROOT))
+        }
+        append(".")
+        append(day.dayOfMonth.toString())
+    }
 
 private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
     val monday = currentWeekMonday(today)

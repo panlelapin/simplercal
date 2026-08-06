@@ -41,12 +41,14 @@
   containers arranged vertically from Monday through Sunday.
 - Each day container contains two full-height inner containers arranged horizontally. Their
   widths are the same in all seven day containers:
-  - the left inner container is only wide enough for the widest three-letter uppercase
-    English day abbreviation (`MON` through `SUN`); it contains the accent stripe at its top,
+  - the left inner container width is automatically calculated from the widest complete
+    day/date label among all seven days (`MON. 1` through `SUN. 31`); every day uses that same
+    width. It contains the accent stripe at its top,
     then the three-letter day abbreviation in bold small caps matching the title's reduced text
     size, followed on the same line by the numeric day of the month in bold body-small size.
     This day/date block is right-aligned, vertically centered when compact, and aligned at the
-    top below the stripe when expanded;
+    top below the stripe when expanded. Include a period and a space between the day and number,
+    for example `WED.31`.
   - the right inner container takes the remaining width and contains the day content.
 - Only the left inner container has an accent stripe. It is inside that inner container at its
   top edge, never on the day-container boundary or between two parent day containers. The stripe
@@ -55,6 +57,8 @@
 - The Saturday and Sunday left and right inner containers use a border in the
   `MaterialTheme.colorScheme.primary` role. Weekday inner-container borders continue to use the
   configured Debug1 border color.
+- There is no vertical peripheral gap between the Saturday and Sunday day containers; their
+  separators and inner-container borders remain visible.
 - Compute the current calendar week with Monday as its first day.
 - The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
   proutcul` on nine successive lines when expanded and one line when compact, using a
@@ -99,7 +103,7 @@
 - Define `app bar background` as the `surfaceContainer` role used explicitly by the top app
   bars. Use that same color for every left inner container and all peripheral areas around the
   day containers, including the bottom and right gesture strips. Each left and right inner
-  container has all four corners rounded by 18 dp.
+  container has all four corners rounded by 12 dp.
 - The Sunday container must stop immediately above a bottom band equal to 72 percent of
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
   system-inset area, while the app-bar-background color continues underneath to the
