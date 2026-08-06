@@ -113,11 +113,12 @@
   dock-style magnification movement without scaling content.
 - Define `app bar background` as the `surfaceContainer` role used explicitly by the top app
   bars. Use that same color for every left inner container and all peripheral areas around the
-  day containers, including the bottom and right gesture strips. Each day-row parent has all four
-  corners rounded by 10 dp. The two inner containers have default square corners and do not carry
-  the row-level rounding. In the current displayed week, both inner-container backgrounds of
-  days before the current day use the app-bar-background color; the current day and following
-  days use `ColorScheme.surface` for both inner containers.
+  day containers, including the bottom and right gesture strips. Each day-row parent has 10 dp
+  corner radii, except that Saturday has square bottom corners and Sunday has square top corners.
+  The two inner containers have default square corners and do not carry the row-level rounding.
+  In the current displayed week, both inner-container backgrounds of days before the current day
+  use the app-bar-background color; the current day and following days use `ColorScheme.surface`
+  for both inner containers.
 - The Sunday container must stop immediately above a bottom band equal to 72 percent of
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
   system-inset area, while the app-bar-background color continues underneath to the

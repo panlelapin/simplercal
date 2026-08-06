@@ -140,6 +140,25 @@ private const val RIGHT_GESTURE_GUTTER_FRACTION = 0.225f
 private const val BOTTOM_GESTURE_GUTTER_FRACTION = 0.72f
 private val DAY_SUBCONTAINER_SHAPE = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS)
 
+private fun dayRowShape(dayIndex: Int): RoundedCornerShape =
+    when (dayIndex) {
+        WEEKEND_START_INDEX ->
+            RoundedCornerShape(
+                topStart = DAY_SUBCONTAINER_CORNER_RADIUS,
+                topEnd = DAY_SUBCONTAINER_CORNER_RADIUS,
+                bottomStart = 0.dp,
+                bottomEnd = 0.dp,
+            )
+        WEEKEND_START_INDEX + 1 ->
+            RoundedCornerShape(
+                topStart = 0.dp,
+                topEnd = 0.dp,
+                bottomStart = DAY_SUBCONTAINER_CORNER_RADIUS,
+                bottomEnd = DAY_SUBCONTAINER_CORNER_RADIUS,
+            )
+        else -> DAY_SUBCONTAINER_SHAPE
+    }
+
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 private fun currentWeekMonday(today: LocalDate = LocalDate.now()): LocalDate =
@@ -929,7 +948,7 @@ private fun ColumnScope.DayRow(
     val isWeekend = dayIndex >= WEEKEND_START_INDEX
     val highlightBorderInset = if (isHighlighted) DAY_SEPARATOR_THICKNESS else 0.dp
     val weekendPillWidth = if (isWeekend) WEEKEND_SIDE_PILL_WIDTH else 0.dp
-    val combinedShape = DAY_SUBCONTAINER_SHAPE
+    val combinedShape = dayRowShape(dayIndex)
     Surface(
         modifier =
             Modifier
@@ -1114,6 +1133,16 @@ private fun DayContentContainer(
         color = background,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            if (!isHighlighted) {
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    drawDayBorder(
+                        color = separatorColor,
+                        showTop = showTopBorder,
+                        showBottom = showBottomBorder,
+                        showVertical = false,
+                    )
+                }
+            }
             Spacer(
                 modifier =
                     Modifier
@@ -1144,16 +1173,6 @@ private fun DayContentContainer(
                         style = MaterialTheme.typography.bodyMedium,
                         color = textColor,
                         textAlign = TextAlign.Start,
-                    )
-                }
-            }
-            if (!isHighlighted) {
-                Canvas(modifier = Modifier.matchParentSize()) {
-                    drawDayBorder(
-                        color = separatorColor,
-                        showTop = showTopBorder,
-                        showBottom = showBottomBorder,
-                        showVertical = false,
                     )
                 }
             }
