@@ -86,7 +86,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -112,8 +117,6 @@ private const val SCROLL_MODE_KEY = "scroll_mode"
 private const val DEBUG1_OUTLINE_COLOR_KEY = "debug1_outline_color"
 private const val DEBUG2_RIGHT_BACKGROUND_KEY = "debug2_right_background"
 private const val GITHUB_URL = "https://github.com/panlelapin/simplercal"
-private const val WEEK_TITLE_WIDE_SPACE = "\u2004"
-private const val WEEK_TITLE_HALF_SPACE = "\u2002"
 private const val WEEK_DAY_COUNT = 7
 private const val WEEKEND_START_INDEX = 5
 private const val COMPACT_DAY_WEIGHT = 6.5f
@@ -137,14 +140,20 @@ private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
 private fun currentWeekMonday(today: LocalDate = LocalDate.now()): LocalDate =
     today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
-private fun weekTitle(monday: LocalDate): String {
+private fun weekTitle(monday: LocalDate): AnnotatedString {
     val weekNumber = monday.get(WeekFields.ISO.weekOfWeekBasedYear())
     val month =
         monday.month
             .getDisplayName(TextStyle.FULL, Locale.ENGLISH)
-            .take(4)
-            .lowercase(Locale.ROOT)
-    return "s$weekNumber$WEEK_TITLE_WIDE_SPACE${monday.dayOfMonth}$WEEK_TITLE_HALF_SPACE$month"
+            .take(3)
+            .uppercase(Locale.ROOT)
+    return buildAnnotatedString {
+        withStyle(SpanStyle(fontSize = 12.sp)) { append("S") }
+        append(weekNumber.toString())
+        withStyle(SpanStyle(fontSize = 12.sp)) { append("/") }
+        append(monday.dayOfMonth.toString())
+        withStyle(SpanStyle(fontSize = 12.sp)) { append(month) }
+    }
 }
 
 private data class CalendarChoice(
@@ -296,6 +305,7 @@ private enum class Debug2RightBackground(
 
 private data class WeekDay(
     val abbreviation: String,
+    val dayOfMonth: Int,
     val isWeekend: Boolean,
 )
 
@@ -474,7 +484,7 @@ private fun SimplerCalApp() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun HelloScreen(
-    title: String,
+    title: AnnotatedString,
     displayedMonday: LocalDate,
     scrollMode: WeekScrollMode,
     debug1OutlineColor: Debug1OutlineColor,
@@ -925,7 +935,6 @@ private fun DayLabelContainer(
     separatorColor: Color,
     appBarBackground: Color,
 ) {
-    val verticalAlignment = if (isExpanded) Alignment.TopEnd else Alignment.CenterEnd
     Surface(
         modifier = Modifier.width(width).fillMaxHeight(),
         shape = DAY_SUBCONTAINER_SHAPE,
@@ -934,18 +943,42 @@ private fun DayLabelContainer(
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = verticalAlignment,
         ) {
-            Text(
-                text = day.abbreviation.uppercase(Locale.ROOT),
+            Spacer(
                 modifier =
-                    if (isExpanded) {
-                        Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING, top = 8.dp)
-                    } else {
-                        Modifier.padding(end = DAY_LABEL_HORIZONTAL_PADDING)
-                    },
-                style = MaterialTheme.typography.titleMedium,
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(DAY_ACCENT_STRIPE_HEIGHT)
+                        .clip(DAY_ACCENT_STRIPE_SHAPE)
+                        .background(MaterialTheme.colorScheme.secondary),
             )
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(
+                            start = DAY_LABEL_HORIZONTAL_PADDING,
+                            end = DAY_LABEL_HORIZONTAL_PADDING,
+                            top = DAY_ACCENT_STRIPE_HEIGHT + 2.dp,
+                        ),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = if (isExpanded) Arrangement.Top else Arrangement.Center,
+            ) {
+                Text(
+                    text = day.abbreviation.uppercase(Locale.ROOT),
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.Bold,
+                        ),
+                    textAlign = TextAlign.End,
+                )
+                Text(
+                    text = day.dayOfMonth.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.End,
+                )
+            }
         }
     }
 }
@@ -972,14 +1005,6 @@ private fun DayContentContainer(
                     .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.Center,
         ) {
-            Spacer(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(DAY_ACCENT_STRIPE_HEIGHT)
-                        .clip(DAY_ACCENT_STRIPE_SHAPE)
-                        .background(MaterialTheme.colorScheme.secondary),
-            )
             repeat(if (isExpanded) EXPANDED_CONTENT_LINE_COUNT else COMPACT_CONTENT_LINE_COUNT) {
                 lineIndex ->
                 Text(
@@ -1001,7 +1026,10 @@ private fun DayContentContainer(
 private fun dayLabelColumnWidth(): Dp {
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val textStyle = MaterialTheme.typography.titleMedium
+    val textStyle =
+        MaterialTheme.typography.bodySmall.copy(
+            fontWeight = FontWeight.Bold,
+        )
     val widestLabelWidth =
         DAY_ABBREVIATIONS.maxOf { abbreviation ->
             textMeasurer.measure(
@@ -1018,6 +1046,7 @@ private fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
         val date = monday.plusDays(dayIndex.toLong())
         WeekDay(
             abbreviation = abbreviation,
+            dayOfMonth = date.dayOfMonth,
             isWeekend = date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY,
         )
     }
