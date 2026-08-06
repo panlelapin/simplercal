@@ -128,11 +128,12 @@ private const val EXPANDED_CONTENT_LINE_COUNT = 9
 private const val COMPACT_CONTENT_LINE_COUNT = 1
 private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 private val DAY_SEPARATOR_THICKNESS = 1.5.dp
-private val DAY_SUBCONTAINER_CORNER_RADIUS = 24.dp
-private val DAY_ACCENT_STRIPE_HEIGHT = 12.dp
+private val DAY_SUBCONTAINER_CORNER_RADIUS = 18.dp
+private val DAY_ACCENT_STRIPE_HEIGHT = 6.dp
 private val DAY_ACCENT_STRIPE_SHAPE = RoundedCornerShape(percent = 50)
 private val MINIMUM_RIGHT_GESTURE_GUTTER = 24.dp
-private const val GESTURE_GUTTER_FRACTION = 0.6f
+private const val RIGHT_GESTURE_GUTTER_FRACTION = 0.45f
+private const val BOTTOM_GESTURE_GUTTER_FRACTION = 0.72f
 private val DAY_SUBCONTAINER_SHAPE = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS)
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -150,7 +151,7 @@ private fun weekTitle(monday: LocalDate): AnnotatedString {
     return buildAnnotatedString {
         withStyle(SpanStyle(fontSize = 12.sp)) { append("S") }
         append(weekNumber.toString())
-        withStyle(SpanStyle(fontSize = 12.sp)) { append("/") }
+        withStyle(SpanStyle(fontSize = 12.sp)) { append(" - ") }
         append(monday.dayOfMonth.toString())
         withStyle(SpanStyle(fontSize = 12.sp)) { append(month) }
     }
@@ -620,12 +621,12 @@ private fun WeekView(
         debug2RightBackground.resolve(MaterialTheme.colorScheme, appBarBackground)
     val mandatoryGesturePadding = WindowInsets.mandatorySystemGestures.asPaddingValues()
     val bottomGestureInset =
-        mandatoryGesturePadding.calculateBottomPadding() * GESTURE_GUTTER_FRACTION
+        mandatoryGesturePadding.calculateBottomPadding() * BOTTOM_GESTURE_GUTTER_FRACTION
     val rightGestureInset =
         maxOf(
                 MINIMUM_RIGHT_GESTURE_GUTTER,
                 mandatoryGesturePadding.calculateRightPadding(LocalLayoutDirection.current),
-            ) * GESTURE_GUTTER_FRACTION
+            ) * RIGHT_GESTURE_GUTTER_FRACTION
     val density = LocalDensity.current
     val bottomGestureInsetPx = with(density) { bottomGestureInset.toPx() }
     val rightGestureInsetPx = with(density) { rightGestureInset.toPx() }
@@ -889,6 +890,8 @@ private fun ColumnScope.DayRow(
     onClick: () -> Unit,
 ) {
     val stateDescription = if (isExpanded) "expanded" else "compact"
+    val innerContainerBorderColor =
+        if (day.isWeekend) MaterialTheme.colorScheme.primary else separatorColor
     Surface(
         modifier =
             Modifier
@@ -913,12 +916,12 @@ private fun ColumnScope.DayRow(
                 day = day,
                 isExpanded = isExpanded,
                 width = dayLabelColumnWidth,
-                separatorColor = separatorColor,
+                separatorColor = innerContainerBorderColor,
                 appBarBackground = appBarBackground,
             )
             DayContentContainer(
                 isExpanded = isContentExpanded,
-                separatorColor = separatorColor,
+                separatorColor = innerContainerBorderColor,
                 background = rightContainerBackground,
                 modifier = Modifier.fillMaxHeight().weight(1f),
             )
@@ -965,19 +968,34 @@ private fun DayLabelContainer(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = if (isExpanded) Arrangement.Top else Arrangement.Center,
             ) {
-                Text(
-                    text = day.abbreviation.uppercase(Locale.ROOT),
-                    style =
-                        MaterialTheme.typography.bodySmall.copy(
-                            fontWeight = FontWeight.Bold,
-                        ),
-                    textAlign = TextAlign.End,
-                )
-                Text(
-                    text = day.dayOfMonth.toString(),
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.End,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(
+                                SpanStyle(
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                ),
+                            ) {
+                                append(day.abbreviation.uppercase(Locale.ROOT))
+                            }
+                        },
+                        textAlign = TextAlign.End,
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = day.dayOfMonth.toString(),
+                        style =
+                            MaterialTheme.typography.bodySmall.copy(
+                                fontWeight = FontWeight.Bold,
+                            ),
+                        textAlign = TextAlign.End,
+                    )
+                }
             }
         }
     }
