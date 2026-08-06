@@ -44,8 +44,8 @@
   - the left inner container width is automatically calculated from the widest complete
     day/date label among all seven days (`MON. 1` through `SUN. 31`); every day uses that same
     width. It contains the accent stripe at its top,
-    then the three-letter day abbreviation in bold small caps matching the title's reduced text
-    size, followed on the same line by the numeric day of the month in bold body-small size.
+    then the three-letter day abbreviation in small caps matching the title's reduced text size,
+    followed on the same line by the numeric day of the month in the normal title size.
     This day/date block is right-aligned, vertically centered when compact, and aligned at the
     top below the stripe when expanded. Include a period and a space between the day and number,
     for example `WED.31`.
@@ -54,11 +54,14 @@
   top edge, never on the day-container boundary or between two parent day containers. The stripe
   is 6 dp high, uses `MaterialTheme.colorScheme.secondary`, and has fully rounded pill ends so
   it visually follows the rounded inner-container language.
-- The Saturday and Sunday left and right inner containers use a border in the
-  `MaterialTheme.colorScheme.primary` role. Weekday inner-container borders continue to use the
-  configured Debug1 border color.
-- There is no vertical peripheral gap between the Saturday and Sunday day containers; their
-  separators and inner-container borders remain visible.
+- The current day in the current displayed week has a border in the
+  `MaterialTheme.colorScheme.primary` role around both inner containers. This highlight is
+  recalculated by the `update` action group. Other inner-container borders continue to use the
+  configured Debug1 border color. The border for the current day is recalculated by the `update`
+  action group.
+- There is no vertical peripheral gap or horizontal delimiter between Saturday and Sunday; their
+  vertical side borders and other inner-container borders remain visible.
+- There is no outer delimiter above the first day container or below the last day container.
 - Compute the current calendar week with Monday as its first day.
 - The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
   proutcul` on nine successive lines when expanded and one line when compact, using a
@@ -103,7 +106,9 @@
 - Define `app bar background` as the `surfaceContainer` role used explicitly by the top app
   bars. Use that same color for every left inner container and all peripheral areas around the
   day containers, including the bottom and right gesture strips. Each left and right inner
-  container has all four corners rounded by 12 dp.
+  container has all four corners rounded by 10 dp, except where the Saturday and Sunday
+  containers meet: Saturday has no bottom-left or bottom-right corner radius, and Sunday has no
+  top-left or top-right corner radius, for both horizontal inner containers.
 - The Sunday container must stop immediately above a bottom band equal to 72 percent of
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
   system-inset area, while the app-bar-background color continues underneath to the
@@ -135,7 +140,7 @@
 - The next section selects the persisted `Scroll mode`. Display the `Discrete` and `Linear`
   choices side by side as a single-choice Material segmented control, not in a menu.
 - The next section is `Debug1`. Persist its two side-by-side Material segmented choices:
-  `White` is the default and maps to `ColorScheme.surface`; `App bar background` maps to the
+  `Black` is the default and maps to `ColorScheme.onSurface`; `App bar background` maps to the
   shared app-bar-background color. Apply the selection immediately to every day-parent and
   inner-container border/separator.
 - The next section is `Debug2`. Persist its two side-by-side Material segmented choices:
