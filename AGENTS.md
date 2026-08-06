@@ -50,10 +50,11 @@
     top when expanded. Include a period and a space between the day and number,
     for example `WED.31`.
   - the right inner container takes the remaining width and contains the day content.
-- Only the left inner container has an accent pill. It is inside that inner container along its
-  right edge, never on the day-container boundary or between two parent day containers. The pill
-  is 4 dp wide, uses `MaterialTheme.colorScheme.primary`, and has fully rounded ends so it
-  visually follows the rounded inner-container language.
+- Only the right inner container has an accent pill. It is inside that inner container along its
+  left edge, immediately before the content, never on the day-container boundary or between two
+  parent day containers. The pill is 4 dp wide, uses `ColorScheme.secondary` for days before the
+  current day and `ColorScheme.primary` for the current day and following days, and has fully
+  rounded ends.
 - Saturday and Sunday also have one 4 dp vertical pill in `MaterialTheme.colorScheme.secondary`
   immediately outside the left edge of the left inner container and one immediately outside the
   right edge of the right inner container.
@@ -113,10 +114,11 @@
   dock-style magnification movement without scaling content.
 - Define `app bar background` as the `surfaceContainer` role used explicitly by the top app
   bars. Use that same color for every left inner container and all peripheral areas around the
-  day containers, including the bottom and right gesture strips. Each left and right inner
-  container has all four corners rounded by 10 dp, except where the Saturday and Sunday
-  containers meet: Saturday has no bottom-left or bottom-right corner radius, and Sunday has no
-  top-left or top-right corner radius, for both horizontal inner containers.
+  day containers, including the bottom and right gesture strips. Each day-row parent has all four
+  corners rounded by 10 dp. The two inner containers have default square corners and do not carry
+  the row-level rounding. In the current displayed week, both inner-container backgrounds of
+  days before the current day use the app-bar-background color; the current day and following
+  days use `ColorScheme.surface` for both inner containers.
 - The Sunday container must stop immediately above a bottom band equal to 72 percent of
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
   system-inset area, while the app-bar-background color continues underneath to the
@@ -153,10 +155,10 @@
   `App bar background` is the default and maps to the shared app-bar-background color; `Black`
   maps to `ColorScheme.onSurface`. Apply the selection immediately to every day-parent and
   inner-container border/separator.
-- The next section is `Debug2`. Persist its two side-by-side Material segmented choices:
-  `Surface` is the default and maps to `ColorScheme.surface`; `App bar background` maps to the
-  shared app-bar-background color. Apply the selection immediately to every right inner
-  container background.
+- The next section is `Debug2`. Persist its two side-by-side Material segmented choices. The
+  main day view always uses the temporal background rule: both inner containers of days before
+  the current day use the app-bar-background color, while both inner containers of the current
+  day and following days use `ColorScheme.surface`.
 - The final section is smaller and horizontally centered. It displays:
   - `SimplerCal v<release version>`;
   - the GitHub project URL as a clickable web link.
