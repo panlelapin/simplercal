@@ -66,7 +66,8 @@
   the parent day container so this combined border remains fully visible.
 - In the current displayed week, every day before the current day uses
   `MaterialTheme.colorScheme.secondary` for all of its day-label and right-content text. The
-  current day and following days use `ColorScheme.onSurface`.
+  current day and following days use `ColorScheme.onSurface`, except that past Saturday also
+  remains `ColorScheme.onSurface`.
 - There is no vertical peripheral gap or horizontal delimiter between Saturday and Sunday; their
   vertical side borders and other inner-container borders remain visible.
 - There is no outer delimiter above the first day container or below the last day container.
@@ -117,8 +118,8 @@
   corner radii, except that Saturday has square bottom corners and Sunday has square top corners.
   The two inner containers have default square corners and do not carry the row-level rounding.
   In the current displayed week, both inner-container backgrounds of days before the current day
-  use the app-bar-background color; the current day and following days use `ColorScheme.surface`
-  for both inner containers.
+  use the app-bar-background color; current/future Saturday and Sunday use `ColorScheme.secondary`,
+  and other current/future days use `ColorScheme.surface` for both inner containers.
 - The Sunday container must stop immediately above a bottom band equal to 72 percent of
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
   system-inset area, while the app-bar-background color continues underneath to the
@@ -156,9 +157,9 @@
   maps to `ColorScheme.onSurface`. Apply the selection immediately to every day-parent and
   inner-container border/separator.
 - The next section is `Debug2`. Persist its two side-by-side Material segmented choices. The
-  main day view always uses the temporal background rule: both inner containers of days before
-  the current day use the app-bar-background color, while both inner containers of the current
-  day and following days use `ColorScheme.surface`.
+  main day view uses the temporal background rule: both inner containers of days before the
+  current day use the app-bar-background color, current/future Saturday and Sunday use
+  `ColorScheme.secondary`, and other current/future days use `ColorScheme.surface`.
 - The final section is smaller and horizontally centered. It displays:
   - `SimplerCal v<release version>`;
   - the GitHub project URL as a clickable web link.

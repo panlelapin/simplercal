@@ -925,11 +925,12 @@ private fun ColumnScope.DayRow(
         if (dayIndex == highlightedDayIndex) MaterialTheme.colorScheme.primary else separatorColor
     val isHighlighted = dayIndex == highlightedDayIndex
     val isPast = highlightedDayIndex != null && dayIndex < highlightedDayIndex
+    val isWeekend = dayIndex >= WEEKEND_START_INDEX
     val dayBackground =
-        if (isPast) {
-            appBarBackground
-        } else {
-            MaterialTheme.colorScheme.surface
+        when {
+            isPast -> appBarBackground
+            isWeekend -> MaterialTheme.colorScheme.secondary
+            else -> MaterialTheme.colorScheme.surface
         }
     val dayAccentColor =
         if (isPast) {
@@ -938,14 +939,13 @@ private fun ColumnScope.DayRow(
             MaterialTheme.colorScheme.primary
         }
     val dayTextColor =
-        if (isPast) {
+        if (isPast && dayIndex != WEEKEND_START_INDEX) {
             MaterialTheme.colorScheme.secondary
         } else {
             MaterialTheme.colorScheme.onSurface
         }
     val showTopBorder = dayIndex != 0 && dayIndex != WEEKEND_START_INDEX + 1
     val showBottomBorder = dayIndex != WEEKEND_START_INDEX && dayIndex != WEEK_DAY_COUNT - 1
-    val isWeekend = dayIndex >= WEEKEND_START_INDEX
     val highlightBorderInset = if (isHighlighted) DAY_SEPARATOR_THICKNESS else 0.dp
     val weekendPillWidth = if (isWeekend) WEEKEND_SIDE_PILL_WIDTH else 0.dp
     val combinedShape = dayRowShape(dayIndex)
@@ -1038,7 +1038,9 @@ private fun ColumnScope.DayRow(
                             .background(MaterialTheme.colorScheme.secondary),
                 )
             }
-            Canvas(modifier = Modifier.matchParentSize()) {
+            Canvas(
+                modifier = Modifier.matchParentSize().clip(combinedShape),
+            ) {
                 drawDayBorder(
                     color = separatorColor,
                     showTop = showTopBorder,
