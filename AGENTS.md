@@ -58,7 +58,9 @@
   `MaterialTheme.colorScheme.primary` role around both inner containers. This highlight is
   recalculated by the `update` action group. Other inner-container borders continue to use the
   configured Debug1 border color. The border for the current day is recalculated by the `update`
-  action group.
+  action group. Only for the highlighted day, the left inner container has no right corner radii
+  and the right inner container has no left corner radii, so the two highlighted halves join
+  continuously.
 - There is no vertical peripheral gap or horizontal delimiter between Saturday and Sunday; their
   vertical side borders and other inner-container borders remain visible.
 - There is no outer delimiter above the first day container or below the last day container.

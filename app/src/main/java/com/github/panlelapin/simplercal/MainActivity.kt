@@ -13,6 +13,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -137,24 +138,22 @@ private const val RIGHT_GESTURE_GUTTER_FRACTION = 0.45f
 private const val BOTTOM_GESTURE_GUTTER_FRACTION = 0.72f
 private val DAY_SUBCONTAINER_SHAPE = RoundedCornerShape(DAY_SUBCONTAINER_CORNER_RADIUS)
 
-private fun daySubcontainerShape(dayIndex: Int): RoundedCornerShape =
-    when (dayIndex) {
-        WEEKEND_START_INDEX ->
-            RoundedCornerShape(
-                topStart = DAY_SUBCONTAINER_CORNER_RADIUS,
-                topEnd = DAY_SUBCONTAINER_CORNER_RADIUS,
-                bottomEnd = 0.dp,
-                bottomStart = 0.dp,
-            )
-        WEEKEND_START_INDEX + 1 ->
-            RoundedCornerShape(
-                topStart = 0.dp,
-                topEnd = 0.dp,
-                bottomEnd = DAY_SUBCONTAINER_CORNER_RADIUS,
-                bottomStart = DAY_SUBCONTAINER_CORNER_RADIUS,
-            )
-        else -> DAY_SUBCONTAINER_SHAPE
-    }
+private fun daySubcontainerShape(
+    dayIndex: Int,
+    isHighlighted: Boolean,
+    isLeft: Boolean,
+): RoundedCornerShape {
+    val topStart = if (dayIndex == WEEKEND_START_INDEX + 1) 0.dp else DAY_SUBCONTAINER_CORNER_RADIUS
+    val topEnd = topStart
+    val bottomStart = if (dayIndex == WEEKEND_START_INDEX) 0.dp else DAY_SUBCONTAINER_CORNER_RADIUS
+    val bottomEnd = bottomStart
+    return RoundedCornerShape(
+        topStart = topStart,
+        topEnd = if (isHighlighted && isLeft) 0.dp else topEnd,
+        bottomEnd = if (isHighlighted && isLeft) 0.dp else bottomEnd,
+        bottomStart = if (isHighlighted && !isLeft) 0.dp else bottomStart,
+    )
+}
 
 private val DAY_ABBREVIATIONS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -924,9 +923,13 @@ private fun ColumnScope.DayRow(
     val stateDescription = if (isExpanded) "expanded" else "compact"
     val innerContainerBorderColor =
         if (dayIndex == highlightedDayIndex) MaterialTheme.colorScheme.primary else separatorColor
+    val isHighlighted = dayIndex == highlightedDayIndex
     val showTopBorder = dayIndex != 0 && dayIndex != WEEKEND_START_INDEX + 1
     val showBottomBorder = dayIndex != WEEKEND_START_INDEX && dayIndex != WEEK_DAY_COUNT - 1
-    val subcontainerShape = daySubcontainerShape(dayIndex)
+    val leftSubcontainerShape =
+        daySubcontainerShape(dayIndex, isHighlighted, isLeft = true)
+    val rightSubcontainerShape =
+        daySubcontainerShape(dayIndex, isHighlighted, isLeft = false)
     Surface(
         modifier =
             Modifier
@@ -959,7 +962,8 @@ private fun ColumnScope.DayRow(
                     separatorColor = innerContainerBorderColor,
                     showTopBorder = showTopBorder,
                     showBottomBorder = showBottomBorder,
-                    shape = subcontainerShape,
+                    isHighlighted = isHighlighted,
+                    shape = leftSubcontainerShape,
                     appBarBackground = appBarBackground,
                 )
                 DayContentContainer(
@@ -967,7 +971,8 @@ private fun ColumnScope.DayRow(
                     separatorColor = innerContainerBorderColor,
                     showTopBorder = showTopBorder,
                     showBottomBorder = showBottomBorder,
-                    shape = subcontainerShape,
+                    isHighlighted = isHighlighted,
+                    shape = rightSubcontainerShape,
                     background = rightContainerBackground,
                     modifier = Modifier.fillMaxHeight().weight(1f),
                 )
@@ -992,12 +997,19 @@ private fun DayLabelContainer(
     separatorColor: Color,
     showTopBorder: Boolean,
     showBottomBorder: Boolean,
+    isHighlighted: Boolean,
     shape: RoundedCornerShape,
     appBarBackground: Color,
 ) {
     Surface(
         modifier = Modifier.width(width).fillMaxHeight(),
         shape = shape,
+        border =
+            if (isHighlighted) {
+                BorderStroke(DAY_SEPARATOR_THICKNESS, MaterialTheme.colorScheme.primary)
+            } else {
+                null
+            },
         color = appBarBackground,
     ) {
         Box(
@@ -1031,12 +1043,14 @@ private fun DayLabelContainer(
                     textAlign = TextAlign.End,
                 )
             }
-            Canvas(modifier = Modifier.matchParentSize()) {
-                drawDayBorder(
-                    color = separatorColor,
-                    showTop = showTopBorder,
-                    showBottom = showBottomBorder,
-                )
+            if (!isHighlighted) {
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    drawDayBorder(
+                        color = separatorColor,
+                        showTop = showTopBorder,
+                        showBottom = showBottomBorder,
+                    )
+                }
             }
         }
     }
@@ -1049,6 +1063,7 @@ private fun DayContentContainer(
     separatorColor: Color,
     showTopBorder: Boolean,
     showBottomBorder: Boolean,
+    isHighlighted: Boolean,
     shape: RoundedCornerShape,
     background: Color,
     modifier: Modifier,
@@ -1056,6 +1071,12 @@ private fun DayContentContainer(
     Surface(
         modifier = modifier,
         shape = shape,
+        border =
+            if (isHighlighted) {
+                BorderStroke(DAY_SEPARATOR_THICKNESS, MaterialTheme.colorScheme.primary)
+            } else {
+                null
+            },
         color = background,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -1080,12 +1101,14 @@ private fun DayContentContainer(
                     )
                 }
             }
-            Canvas(modifier = Modifier.matchParentSize()) {
-                drawDayBorder(
-                    color = separatorColor,
-                    showTop = showTopBorder,
-                    showBottom = showBottomBorder,
-                )
+            if (!isHighlighted) {
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    drawDayBorder(
+                        color = separatorColor,
+                        showTop = showTopBorder,
+                        showBottom = showBottomBorder,
+                    )
+                }
             }
         }
     }
