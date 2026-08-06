@@ -134,6 +134,7 @@ private val DAY_LABEL_HORIZONTAL_PADDING = 8.dp
 private val DAY_SEPARATOR_THICKNESS = 1.5.dp
 private val DAY_SUBCONTAINER_CORNER_RADIUS = 10.dp
 private val DAY_ACCENT_STRIPE_WIDTH = 4.dp
+private val WEEKEND_SIDE_PILL_WIDTH = 5.dp
 private val DAY_ACCENT_STRIPE_SHAPE = RoundedCornerShape(percent = 50)
 private val MINIMUM_RIGHT_GESTURE_GUTTER = 24.dp
 private const val RIGHT_GESTURE_GUTTER_FRACTION = 0.225f
@@ -928,7 +929,7 @@ private fun ColumnScope.DayRow(
     val showBottomBorder = dayIndex != WEEKEND_START_INDEX && dayIndex != WEEK_DAY_COUNT - 1
     val isWeekend = dayIndex >= WEEKEND_START_INDEX
     val highlightBorderInset = if (isHighlighted) DAY_SEPARATOR_THICKNESS else 0.dp
-    val weekendPillWidth = if (isWeekend) DAY_ACCENT_STRIPE_WIDTH else 0.dp
+    val weekendPillWidth = if (isWeekend) WEEKEND_SIDE_PILL_WIDTH else 0.dp
     val combinedShape = DAY_SUBCONTAINER_SHAPE
     Surface(
         modifier =
@@ -970,8 +971,8 @@ private fun ColumnScope.DayRow(
                             },
                         )
                         .padding(
-                            start = 2.dp,
-                            end = 2.dp,
+                            start = if (isWeekend) 0.dp else 2.dp,
+                            end = if (isWeekend) 0.dp else 2.dp,
                             top = if (dayIndex == WEEKEND_START_INDEX + 1) 0.dp else 2.dp,
                             bottom = if (dayIndex == WEEKEND_START_INDEX) 0.dp else 2.dp,
                         ),
@@ -1007,7 +1008,7 @@ private fun ColumnScope.DayRow(
                         Modifier
                             .align(Alignment.CenterStart)
                             .fillMaxHeight()
-                            .width(DAY_ACCENT_STRIPE_WIDTH)
+                            .width(WEEKEND_SIDE_PILL_WIDTH)
                             .clip(DAY_ACCENT_STRIPE_SHAPE)
                             .background(MaterialTheme.colorScheme.secondary),
                 )
@@ -1016,7 +1017,7 @@ private fun ColumnScope.DayRow(
                         Modifier
                             .align(Alignment.CenterEnd)
                             .fillMaxHeight()
-                            .width(DAY_ACCENT_STRIPE_WIDTH)
+                            .width(WEEKEND_SIDE_PILL_WIDTH)
                             .clip(DAY_ACCENT_STRIPE_SHAPE)
                             .background(MaterialTheme.colorScheme.secondary),
                 )
@@ -1026,6 +1027,7 @@ private fun ColumnScope.DayRow(
                     color = separatorColor,
                     showTop = showTopBorder,
                     showBottom = showBottomBorder,
+                    showVertical = !isHighlighted,
                 )
             }
         }
@@ -1075,7 +1077,7 @@ private fun DayLabelContainer(
                     style =
                         MaterialTheme.typography.titleLarge.copy(
                             fontSize =
-                                (MaterialTheme.typography.titleLarge.fontSize.value - 1f).sp,
+                                (MaterialTheme.typography.titleLarge.fontSize.value - 2f).sp,
                         ),
                     color = textColor,
                     textAlign = TextAlign.End,
@@ -1087,6 +1089,7 @@ private fun DayLabelContainer(
                         color = separatorColor,
                         showTop = showTopBorder,
                         showBottom = showBottomBorder,
+                        showVertical = false,
                     )
                 }
             }
@@ -1154,6 +1157,7 @@ private fun DayContentContainer(
                         color = separatorColor,
                         showTop = showTopBorder,
                         showBottom = showBottomBorder,
+                        showVertical = false,
                     )
                 }
             }
@@ -1165,6 +1169,7 @@ private fun DrawScope.drawDayBorder(
     color: Color,
     showTop: Boolean,
     showBottom: Boolean,
+    showVertical: Boolean = true,
 ) {
     val strokeWidth = DAY_SEPARATOR_THICKNESS.toPx()
     val halfStroke = strokeWidth / 2f
@@ -1184,18 +1189,20 @@ private fun DrawScope.drawDayBorder(
             strokeWidth = strokeWidth,
         )
     }
-    drawLine(
-        color = color,
-        start = Offset(halfStroke, halfStroke),
-        end = Offset(halfStroke, size.height - halfStroke),
-        strokeWidth = strokeWidth,
-    )
-    drawLine(
-        color = color,
-        start = Offset(size.width - halfStroke, halfStroke),
-        end = Offset(size.width - halfStroke, size.height - halfStroke),
-        strokeWidth = strokeWidth,
-    )
+    if (showVertical) {
+        drawLine(
+            color = color,
+            start = Offset(halfStroke, halfStroke),
+            end = Offset(halfStroke, size.height - halfStroke),
+            strokeWidth = strokeWidth,
+        )
+        drawLine(
+            color = color,
+            start = Offset(size.width - halfStroke, halfStroke),
+            end = Offset(size.width - halfStroke, size.height - halfStroke),
+            strokeWidth = strokeWidth,
+        )
+    }
 }
 
 @Composable
@@ -1206,7 +1213,7 @@ private fun dayLabelColumnWidth(days: List<WeekDay>): Dp {
     val textStyle =
         MaterialTheme.typography.titleLarge.copy(
             fontSize =
-                (MaterialTheme.typography.titleLarge.fontSize.value - 1f).sp,
+                (MaterialTheme.typography.titleLarge.fontSize.value - 2f).sp,
         )
     val widestLabelWidth =
         days.maxOf { day ->
@@ -1227,7 +1234,6 @@ private fun dayLabelText(day: WeekDay): AnnotatedString =
         ) {
             append(day.abbreviation.uppercase(Locale.ROOT).take(2))
         }
-        append(".")
         append(day.dayOfMonth.toString())
     }
 
