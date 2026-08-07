@@ -150,6 +150,7 @@ internal data class DayLabelState(
 internal data class DayContentState(
     val isExpanded: Boolean,
     val isWEorBankH: Boolean,
+    val isHolidays: Boolean,
     val separatorColor: Color,
     val hasTopBorder: Boolean,
     val hasBottomBorder: Boolean,

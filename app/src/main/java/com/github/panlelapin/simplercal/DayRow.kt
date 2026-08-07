@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
@@ -100,6 +101,7 @@ private fun DayRowLayout(
                     DayContentState(
                         isExpanded = state.isContentExpanded,
                         isWEorBankH = state.day.isWEorBankH,
+                        isHolidays = state.day.isHolidays,
                         separatorColor = appearance.innerContainerBorderColor,
                         hasTopBorder = appearance.hasTopBorder,
                         hasBottomBorder = appearance.hasBottomBorder,
@@ -262,6 +264,7 @@ private fun DayLabelContainer(state: DayLabelState) {
 
 @Composable
 private fun DayContentContainer(state: DayContentState) {
+    val accentWidth = if (state.isHolidays) DAY_ACCENT_STRIPE_WIDTH else 0.dp
     Surface(
         modifier = state.modifier,
         shape = state.shape,
@@ -278,20 +281,22 @@ private fun DayContentContainer(state: DayContentState) {
                     )
                 }
             }
-            Spacer(
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterStart)
-                        .fillMaxHeight()
-                        .width(DAY_ACCENT_STRIPE_WIDTH)
-                        .background(state.accentColor),
-            )
+            if (state.isHolidays) {
+                Spacer(
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .fillMaxHeight()
+                            .width(accentWidth)
+                            .background(state.accentColor),
+                )
+            }
             Column(
                 modifier =
                     Modifier
                         .fillMaxSize()
                         .clip(state.shape)
-                        .padding(start = 8.dp + DAY_ACCENT_STRIPE_WIDTH, end = 8.dp),
+                        .padding(start = 8.dp + accentWidth, end = 8.dp),
                 verticalArrangement = Arrangement.Center,
             ) {
                 val lineCount =
@@ -312,6 +317,12 @@ private fun DayContentContainer(state: DayContentState) {
                                 fontStyle =
                                     if (state.isWEorBankH) FontStyle.Italic else FontStyle.Normal,
                                 fontSynthesis = FontSynthesis.Style,
+                                textGeometricTransform =
+                                    if (state.isWEorBankH) {
+                                        TextGeometricTransform(skewX = -0.2f)
+                                    } else {
+                                        null
+                                    },
                             ),
                         color = state.textColor,
                         textAlign = TextAlign.Start,
