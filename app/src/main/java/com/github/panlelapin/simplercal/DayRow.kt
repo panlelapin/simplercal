@@ -35,6 +35,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -163,10 +164,12 @@ private fun dayColors(
     when {
         isWEorBankH ->
             colorScheme.surface to
-                if (isPast) colorScheme.onTertiary else colorScheme.onSurface
+                if (isPast) colorScheme.onSecondary else colorScheme.onSurface
         isFutureOrToday ->
             (if (isDarkTheme) Color.Black else Color.White) to colorScheme.onSurface
-        else -> colorScheme.surfaceContainer to colorScheme.onSurface
+        else ->
+            colorScheme.surfaceContainer to
+                if (isPast) colorScheme.onSecondary else colorScheme.onSurface
     }
 
 @Composable
@@ -188,16 +191,12 @@ private fun Modifier.dayRowModifier(
             .clip(appearance.combinedShape)
             .background(state.appBarBackground)
             .then(
-                if (appearance.isHighlighted || state.day.isWEorBankH) {
+                if (appearance.isHighlighted) {
                     Modifier.border(
                         border =
                             BorderStroke(
                                 DAY_SEPARATOR_THICKNESS,
-                                if (appearance.isHighlighted) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.tertiary
-                                },
+                                MaterialTheme.colorScheme.primary,
                             ),
                         shape = appearance.combinedShape,
                     )
@@ -308,7 +307,12 @@ private fun DayContentContainer(state: DayContentState) {
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Clip,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style =
+                            MaterialTheme.typography.bodyMedium.copy(
+                                fontStyle =
+                                    if (state.isWEorBankH) FontStyle.Italic else FontStyle.Normal,
+                                fontSynthesis = FontSynthesis.Style,
+                            ),
                         color = state.textColor,
                         textAlign = TextAlign.Start,
                     )
