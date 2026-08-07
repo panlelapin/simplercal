@@ -59,11 +59,12 @@
   container has no right corner radii and the right inner container has no left corner radii, so
   the two highlighted halves join continuously. Reserve the highlight border thickness inside
   the parent day container so this combined border remains fully visible.
-- In the current displayed week, the base day state uses `surface`/`onSurface`. Weekend and
-  holiday days use `surfaceContainer`/`onSurface`. Past days use
-  `surfaceDim`/`onSurfaceVariant`, except past weekend and holiday days, which use
-  `surfaceContainer`/`onSurface`. For validation, Monday and Tuesday are holidays and
-  Tuesday is also a bank holiday (`isBankH`).
+- In the current displayed week, non-weekend and non-holiday current/future days use
+  `onSurface` over `surface`. Weekend and holiday days use `onSurface` over
+  `onSurfaceVariant`. Past non-weekend and non-holiday days use `surfaceDim` over
+  `surfaceContainer`. Past weekend and holiday days use `surfaceDim` over
+  `onSurfaceVariant`. For validation, Monday and Tuesday are holidays and Tuesday is also a
+  bank holiday (`isBankH`).
 - There is no vertical peripheral gap or horizontal delimiter between Saturday and Sunday; their
   vertical side borders and other inner-container borders remain visible.
 - There is no outer delimiter above the first day container or below the last day container.
@@ -118,10 +119,12 @@
   corner radii, except that Saturday has square bottom corners and Sunday has square top corners.
   The two inner containers have default square corners and do not carry the row-level rounding.
   In the current displayed week, both inner-container backgrounds of days before the current day
-  use `ColorScheme.surfaceDim`, except past weekend and holiday days use
-  `ColorScheme.surfaceContainer`. Current/future weekend and holiday days also use
-  `ColorScheme.surfaceContainer`; other current/future days use `ColorScheme.surface` for both
-  inner containers.
+  use `ColorScheme.surfaceContainer` as the background with `ColorScheme.surfaceDim` as the
+  foreground, except past weekend and holiday days use `ColorScheme.onSurfaceVariant` as the
+  background with `ColorScheme.surfaceDim` as the foreground. Current/future weekend and
+  holiday days use `ColorScheme.onSurfaceVariant` as the background with
+  `ColorScheme.onSurface` as the foreground; other current/future days use
+  `ColorScheme.surface`/`ColorScheme.onSurface`.
 - The Sunday container must stop immediately above a bottom band equal to 72 percent of
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
   system-inset area, while the app-bar-background color continues underneath to the

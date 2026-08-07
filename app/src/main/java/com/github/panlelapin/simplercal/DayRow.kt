@@ -149,8 +149,9 @@ private fun dayColors(
     isPast: Boolean,
 ): Pair<Color, Color> =
     when {
-        isHolidayLike -> colorScheme.surfaceContainer to colorScheme.onSurface
-        isPast -> colorScheme.surfaceDim to colorScheme.onSurfaceVariant
+        isPast && isHolidayLike -> colorScheme.onSurfaceVariant to colorScheme.surfaceDim
+        isPast -> colorScheme.surfaceContainer to colorScheme.surfaceDim
+        isHolidayLike -> colorScheme.onSurfaceVariant to colorScheme.onSurface
         else -> colorScheme.surface to colorScheme.onSurface
     }
 
