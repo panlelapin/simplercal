@@ -98,8 +98,14 @@ internal fun ColumnScope.WeekRows(
 
 @Composable
 internal fun WeekView(state: WeekViewState) {
-    val days = remember(state.weekMonday) { currentWeek(state.weekMonday) }
-    val interaction = rememberWeekInteraction(state.todaySelectionRequest)
+    val days =
+        remember(state.weekMonday, state.simulationMode) {
+            currentWeek(
+                today = state.weekMonday,
+                simulationMode = state.simulationMode,
+            )
+        }
+    val interaction = rememberWeekInteraction(state.todaySelectionRequest, state.todayDayIndex)
     val currentAnimatedDayWeights = rememberUpdatedState(interaction.animatedDayWeights)
     val currentSelectedDayIndex = rememberUpdatedState(interaction.selectedDayIndex)
     val currentSelectDay = rememberUpdatedState(interaction::selectDay)

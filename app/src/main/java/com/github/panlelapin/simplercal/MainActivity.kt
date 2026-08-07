@@ -59,9 +59,8 @@ internal data class CalendarChoice(
 internal data class WeekDay(
     val abbreviation: String,
     val dayOfMonth: Int,
-    val isWeekend: Boolean,
+    val isWEorBankH: Boolean,
     val isHoliday: Boolean,
-    val isBankH: Boolean,
 )
 
 internal class AppPreferences(
@@ -69,14 +68,14 @@ internal class AppPreferences(
     initialAccentTheme: AccentTheme,
     initialThemeMode: ThemeMode,
     initialScrollMode: WeekScrollMode,
+    initialSimulationMode: SimulationMode,
     initialDebug1OutlineColor: Debug1OutlineColor,
-    initialDebug2RightBackground: Debug2RightBackground,
 ) {
     var accentTheme by mutableStateOf(initialAccentTheme)
     var themeMode by mutableStateOf(initialThemeMode)
     var scrollMode by mutableStateOf(initialScrollMode)
+    var simulationMode by mutableStateOf(initialSimulationMode)
     var debug1OutlineColor by mutableStateOf(initialDebug1OutlineColor)
-    var debug2RightBackground by mutableStateOf(initialDebug2RightBackground)
 }
 
 internal data class MainScreenState(
@@ -84,8 +83,10 @@ internal data class MainScreenState(
     val displayedMonday: LocalDate,
     val highlightedDayIndex: Int?,
     val scrollMode: WeekScrollMode,
+    val simulationMode: SimulationMode,
     val debug1OutlineColor: Debug1OutlineColor,
     val todaySelectionRequest: Int,
+    val todayDayIndex: Int,
 )
 
 internal data class MainScreenActions(
@@ -99,9 +100,11 @@ internal data class WeekViewState(
     val weekMonday: LocalDate,
     val highlightedDayIndex: Int?,
     val scrollMode: WeekScrollMode,
+    val simulationMode: SimulationMode,
     val debug1OutlineColor: Debug1OutlineColor,
     val appBarBackground: Color,
     val todaySelectionRequest: Int,
+    val todayDayIndex: Int,
 )
 
 internal data class DayRowState(
@@ -191,16 +194,16 @@ internal data class SettingsState(
     val selectedAccentTheme: AccentTheme,
     val selectedThemeMode: ThemeMode,
     val selectedScrollMode: WeekScrollMode,
+    val selectedSimulationMode: SimulationMode,
     val selectedDebug1OutlineColor: Debug1OutlineColor,
-    val selectedDebug2RightBackground: Debug2RightBackground,
 )
 
 internal data class SettingsActions(
     val onAccentThemeChange: (AccentTheme) -> Unit,
     val onThemeModeChange: (ThemeMode) -> Unit,
     val onScrollModeChange: (WeekScrollMode) -> Unit,
+    val onSimulationModeChange: (SimulationMode) -> Unit,
     val onDebug1OutlineColorChange: (Debug1OutlineColor) -> Unit,
-    val onDebug2RightBackgroundChange: (Debug2RightBackground) -> Unit,
     val onBack: () -> Unit,
 )
 
@@ -244,6 +247,13 @@ private fun SimplerCalApp() {
             dynamicLightColorScheme(LocalContext.current)
         }
     val colorScheme = appPreferences.accentTheme.applyTo(dynamicColorScheme, isDarkTheme)
+    val simulationMode = appPreferences.simulationMode
+    val todayDayIndex =
+        if (simulationMode == SimulationMode.SIMULATION) {
+            2
+        } else {
+            LocalDate.now().dayOfWeek.value - 1
+        }
     val selectToday: () -> Unit = {
         displayedMonday = currentWeekMonday()
         todaySelectionRequest += 1
@@ -253,11 +263,10 @@ private fun SimplerCalApp() {
     }
     val update: () -> Unit = {
         topBarTitle = weekTitle(displayedMonday)
-        val today = LocalDate.now()
         highlightedDayIndex =
-            if (displayedMonday == currentWeekMonday(today)) today.dayOfWeek.value - 1 else null
+            if (displayedMonday == currentWeekMonday()) todayDayIndex else null
     }
-    AppUpdateEffects(componentActivity, displayedMonday, update)
+    AppUpdateEffects(componentActivity, displayedMonday, simulationMode, update)
     SideEffect { componentActivity?.let { updateSystemBars(it, isDarkTheme) } }
     MaterialTheme(colorScheme = colorScheme) {
         AppSurface(
@@ -268,8 +277,10 @@ private fun SimplerCalApp() {
                     displayedMonday = displayedMonday,
                     highlightedDayIndex = highlightedDayIndex,
                     scrollMode = appPreferences.scrollMode,
+                    simulationMode = simulationMode,
                     debug1OutlineColor = appPreferences.debug1OutlineColor,
                     todaySelectionRequest = todaySelectionRequest,
+                    todayDayIndex = todayDayIndex,
                 ),
             onSelectToday = selectToday,
             onPreviousWeek = { displayedMonday = displayedMonday.minusWeeks(1) },
@@ -282,10 +293,11 @@ private fun SimplerCalApp() {
 private fun AppUpdateEffects(
     componentActivity: ComponentActivity?,
     displayedMonday: LocalDate,
+    simulationMode: SimulationMode,
     update: () -> Unit,
 ) {
     val currentUpdate = rememberUpdatedState(update)
-    LaunchedEffect(displayedMonday) { currentUpdate.value() }
+    LaunchedEffect(displayedMonday, simulationMode) { currentUpdate.value() }
     DisposableEffect(componentActivity) {
         val lifecycle = componentActivity?.lifecycle
         if (lifecycle == null) {
@@ -336,19 +348,19 @@ private fun rememberAppPreferences(preferences: SharedPreferences): AppPreferenc
                     preferences.getString(SCROLL_MODE_KEY, WeekScrollMode.SMOOTH.preferenceValue)
                         ?: WeekScrollMode.SMOOTH.preferenceValue,
                 ),
+            initialSimulationMode =
+                SimulationMode.fromPreferenceValue(
+                    preferences.getString(
+                        SIMULATION_MODE_KEY,
+                        SimulationMode.OFF.preferenceValue,
+                    ) ?: SimulationMode.OFF.preferenceValue,
+                ),
             initialDebug1OutlineColor =
                 Debug1OutlineColor.fromPreferenceValue(
                     preferences.getString(
                         DEBUG1_OUTLINE_COLOR_KEY,
                         Debug1OutlineColor.APP_BAR_BACKGROUND.preferenceValue,
                     ) ?: Debug1OutlineColor.APP_BAR_BACKGROUND.preferenceValue,
-                ),
-            initialDebug2RightBackground =
-                Debug2RightBackground.fromPreferenceValue(
-                    preferences.getString(
-                        DEBUG2_RIGHT_BACKGROUND_KEY,
-                        Debug2RightBackground.SURFACE.preferenceValue,
-                    ) ?: Debug2RightBackground.SURFACE.preferenceValue,
                 ),
         )
     }
@@ -383,8 +395,8 @@ private fun AppSurface(
                         selectedAccentTheme = preferences.accentTheme,
                         selectedThemeMode = preferences.themeMode,
                         selectedScrollMode = preferences.scrollMode,
+                        selectedSimulationMode = preferences.simulationMode,
                         selectedDebug1OutlineColor = preferences.debug1OutlineColor,
-                        selectedDebug2RightBackground = preferences.debug2RightBackground,
                     ),
                 actions = settingsActions(preferences) { isSettingsVisible = false },
             )
@@ -409,6 +421,10 @@ private fun settingsActions(
             preferences.preferences.edit { putString(SCROLL_MODE_KEY, mode.preferenceValue) }
             preferences.scrollMode = mode
         },
+        onSimulationModeChange = { mode ->
+            preferences.preferences.edit { putString(SIMULATION_MODE_KEY, mode.preferenceValue) }
+            preferences.simulationMode = mode
+        },
         onDebug1OutlineColorChange = { color ->
             preferences.preferences.edit {
                 putString(
@@ -417,12 +433,6 @@ private fun settingsActions(
                 )
             }
             preferences.debug1OutlineColor = color
-        },
-        onDebug2RightBackgroundChange = { background ->
-            preferences.preferences.edit {
-                putString(DEBUG2_RIGHT_BACKGROUND_KEY, background.preferenceValue)
-            }
-            preferences.debug2RightBackground = background
         },
         onBack = onBack,
     )
@@ -448,9 +458,11 @@ private fun HelloScreen(
                         weekMonday = state.displayedMonday,
                         highlightedDayIndex = state.highlightedDayIndex,
                         scrollMode = state.scrollMode,
+                        simulationMode = state.simulationMode,
                         debug1OutlineColor = state.debug1OutlineColor,
                         appBarBackground = appBarBackground,
                         todaySelectionRequest = state.todaySelectionRequest,
+                        todayDayIndex = state.todayDayIndex,
                     ),
             )
         }
@@ -515,8 +527,6 @@ private fun settingsScreen(
     val onScrollModeChange = actions.onScrollModeChange
     val selectedDebug1OutlineColor = state.selectedDebug1OutlineColor
     val onDebug1OutlineColorChange = actions.onDebug1OutlineColorChange
-    val selectedDebug2RightBackground = state.selectedDebug2RightBackground
-    val onDebug2RightBackgroundChange = actions.onDebug2RightBackgroundChange
     val onBack = actions.onBack
     val context = LocalContext.current
     val appBarBackground = MaterialTheme.colorScheme.surfaceContainer
@@ -648,24 +658,6 @@ private fun settingsScreen(
                             ),
                     ) {
                         Text(color.label)
-                    }
-                }
-            }
-            Spacer(Modifier.height(24.dp))
-            Text("Debug2", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                Debug2RightBackground.entries.forEachIndexed { index, background ->
-                    SegmentedButton(
-                        selected = selectedDebug2RightBackground == background,
-                        onClick = { onDebug2RightBackgroundChange(background) },
-                        shape =
-                            SegmentedButtonDefaults.itemShape(
-                                index = index,
-                                count = Debug2RightBackground.entries.size,
-                            ),
-                    ) {
-                        Text(background.label)
                     }
                 }
             }

@@ -126,14 +126,21 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
     val isHighlighted = state.dayIndex == state.highlightedDayIndex
     val isPast =
         state.highlightedDayIndex != null && state.dayIndex < state.highlightedDayIndex
-    val isHolidayLike = state.day.isWeekend || state.day.isHoliday || state.day.isBankH
-    val (dayBackground, dayTextColor) = dayColors(colorScheme, isHolidayLike, isPast)
+    val isFutureOrToday =
+        state.highlightedDayIndex != null && state.dayIndex >= state.highlightedDayIndex
+    val (dayBackground, dayTextColor) =
+        dayColors(
+            colorScheme = colorScheme,
+            isWEorBankH = state.day.isWEorBankH,
+            isFutureOrToday = isFutureOrToday,
+        )
     return DayAppearance(
         isHighlighted = isHighlighted,
         innerContainerBorderColor =
             if (isHighlighted) colorScheme.primary else state.separatorColor,
         dayBackground = dayBackground,
-        dayAccentColor = if (isPast) colorScheme.secondary else colorScheme.primary,
+        dayAccentColor =
+            if (state.day.isHoliday && isPast) colorScheme.secondary else colorScheme.primary,
         dayTextColor = dayTextColor,
         hasTopBorder = state.dayIndex != 0 && state.dayIndex != WEEKEND_START_INDEX + 1,
         hasBottomBorder =
@@ -145,14 +152,13 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
 
 private fun dayColors(
     colorScheme: ColorScheme,
-    isHolidayLike: Boolean,
-    isPast: Boolean,
+    isWEorBankH: Boolean,
+    isFutureOrToday: Boolean,
 ): Pair<Color, Color> =
     when {
-        isPast && isHolidayLike -> colorScheme.onSurfaceVariant to colorScheme.surfaceDim
-        isPast -> colorScheme.surfaceContainer to colorScheme.surfaceDim
-        isHolidayLike -> colorScheme.onSurfaceVariant to colorScheme.onSurface
-        else -> colorScheme.surface to colorScheme.onSurface
+        isWEorBankH -> Color.White to colorScheme.onSurface
+        isFutureOrToday -> colorScheme.surface to colorScheme.onSurface
+        else -> colorScheme.surfaceContainer to colorScheme.onSurfaceVariant
     }
 
 @Composable
@@ -369,16 +375,33 @@ private fun dayLabelText(day: WeekDay): AnnotatedString =
         append(day.dayOfMonth.toString())
     }
 
-internal fun currentWeek(today: LocalDate = LocalDate.now()): List<WeekDay> {
+internal fun currentWeek(
+    today: LocalDate = LocalDate.now(),
+    simulationMode: SimulationMode = SimulationMode.OFF,
+): List<WeekDay> {
     val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     return (0 until WEEK_DAY_COUNT).map { dayIndex ->
         val date = monday.plusDays(dayIndex.toLong())
+        val isSimulation = simulationMode == SimulationMode.SIMULATION
         WeekDay(
             abbreviation = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
             dayOfMonth = date.dayOfMonth,
-            isWeekend = date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY,
-            isHoliday = date.dayOfWeek == DayOfWeek.MONDAY || date.dayOfWeek == DayOfWeek.TUESDAY,
-            isBankH = date.dayOfWeek == DayOfWeek.TUESDAY,
+            isWEorBankH =
+                if (isSimulation) {
+                    dayIndex == 0 ||
+                        date.dayOfWeek == DayOfWeek.SATURDAY ||
+                        date.dayOfWeek == DayOfWeek.SUNDAY
+                } else {
+                    date.dayOfWeek == DayOfWeek.SATURDAY ||
+                        date.dayOfWeek == DayOfWeek.SUNDAY ||
+                        date.dayOfWeek == DayOfWeek.TUESDAY
+                },
+            isHoliday =
+                if (isSimulation) {
+                    dayIndex <= 3
+                } else {
+                    date.dayOfWeek == DayOfWeek.MONDAY || date.dayOfWeek == DayOfWeek.TUESDAY
+                },
         )
     }
 }

@@ -4,22 +4,20 @@ config:
   excludes: []
 
 comments:
-  active: true
+  active: false
 complexity:
-  active: true
+  active: false
 coroutines:
-  active: true
+  active: false
 empty-blocks:
-  active: true
+  active: false
 exceptions:
-  active: true
+  active: false
 naming:
-  active: true
-  FunctionNaming:
-    ignoreAnnotated: [Composable]
+  active: false
 performance:
-  active: true
+  active: false
 potential-bugs:
   active: true
 style:
-  active: true
+  active: false

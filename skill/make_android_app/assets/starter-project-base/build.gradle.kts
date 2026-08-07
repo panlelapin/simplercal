@@ -7,7 +7,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" apply false
 }
 
-val ktlint = configurations.create("ktlint")
+val ktlint by configurations.creating
 
 dependencies {
     ktlint("com.pinterest.ktlint:ktlint-cli:1.8.0") {
@@ -17,19 +17,18 @@ dependencies {
     }
 }
 
-val ktlintCheck =
-    tasks.register<JavaExec>("ktlintCheck") {
-        group = LifecycleBasePlugin.VERIFICATION_GROUP
-        description = "Check all Kotlin source and Gradle Kotlin scripts with KtLint."
-        classpath = ktlint
-        mainClass.set("com.pinterest.ktlint.Main")
-        args(
-            "--relative",
-            "**/src/**/*.kt",
-            "**.kts",
-            "!**/build/**",
-        )
-    }
+val ktlintCheck by tasks.registering(JavaExec::class) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = "Check all Kotlin source and Gradle Kotlin scripts with KtLint."
+    classpath = ktlint
+    mainClass.set("com.pinterest.ktlint.Main")
+    args(
+        "--relative",
+        "**/src/**/*.kt",
+        "**.kts",
+        "!**/build/**",
+    )
+}
 
 tasks.register<JavaExec>("ktlintFormat") {
     group = "formatting"

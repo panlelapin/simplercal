@@ -13,7 +13,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
-import java.time.LocalDate
 import kotlin.math.roundToInt
 
 internal class WeekInteraction {
@@ -71,11 +70,14 @@ internal class WeekInteraction {
 }
 
 @Composable
-internal fun rememberWeekInteraction(todaySelectionRequest: Int): WeekInteraction {
+internal fun rememberWeekInteraction(
+    todaySelectionRequest: Int,
+    todayDayIndex: Int,
+): WeekInteraction {
     val interaction = remember { WeekInteraction() }
-    LaunchedEffect(todaySelectionRequest) {
+    LaunchedEffect(todaySelectionRequest, todayDayIndex) {
         if (todaySelectionRequest > 0) {
-            interaction.selectDay(LocalDate.now().dayOfWeek.value - 1)
+            interaction.selectDay(todayDayIndex)
         }
     }
     return interaction

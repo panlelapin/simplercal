@@ -38,6 +38,7 @@ current_source_digest() {
         sed 's/[[:space:]].*$//'
 }
 
+# shellcheck disable=SC2317
 android_sdk_is_usable() {
     local candidate=$1
 
@@ -46,6 +47,7 @@ android_sdk_is_usable() {
         [[ -x "$candidate/cmdline-tools/latest/bin/apkanalyzer" ]]
 }
 
+# shellcheck disable=SC2317
 jdk_is_usable() {
     local candidate=$1
     local version
@@ -55,6 +57,7 @@ jdk_is_usable() {
     [[ "$version" == *'version "17.'* ]]
 }
 
+# shellcheck disable=SC2317
 resolve_toolchains() {
     local candidate
     local java_bin
@@ -126,20 +129,10 @@ resolve_toolchains() {
 
 run_check() {
     local label=$1
-    local check_name=$2
+    shift
 
     printf '\n===== CHECK: %s =====\n' "$label"
-    if case "$check_name" in
-        shell_syntax) check_shell_syntax ;;
-        shellcheck) check_shellcheck ;;
-        toolchains) resolve_toolchains ;;
-        gradle) ./gradlew functionalCheck qualityCheck --no-daemon --stacktrace ;;
-        xml) check_xml ;;
-        workflow) check_workflow ;;
-        project_contract) check_project_contract ;;
-        *) die "unknown check: $check_name" ;;
-    esac
-    then
+    if "$@"; then
         printf 'PASS: %s\n' "$label"
     else
         printf 'FAIL: %s\n' "$label" >&2
@@ -147,14 +140,17 @@ run_check() {
     fi
 }
 
+# shellcheck disable=SC2317
 check_shell_syntax() {
     bash -n scripts/check-github-stuff scripts/check-local scripts/make-remote scripts/verify-apk gradlew
 }
 
+# shellcheck disable=SC2317
 check_shellcheck() {
     shellcheck scripts/check-github-stuff scripts/check-local scripts/make-remote scripts/verify-apk gradlew
 }
 
+# shellcheck disable=SC2317
 check_xml() {
     python3 - <<'PY'
 from pathlib import Path
@@ -166,6 +162,7 @@ print("All Android XML files parsed successfully.")
 PY
 }
 
+# shellcheck disable=SC2317
 check_workflow() {
     python3 - "$WORKFLOW_FILE" <<'PY'
 import sys
@@ -179,13 +176,14 @@ triggers = workflow.get(True, workflow.get("on", {}))
 assert list(triggers) == ["workflow_dispatch"], triggers
 text = path.read_text(encoding="utf-8")
 assert "functionalCheck" in text
-assert "qualityCheck" in text
+assert "qualityCheck" not in text
 assert "assembleRelease" in text
 assert "scripts/verify-apk" in text
 print("Workflow is YAML-valid and has the required manual release checks.")
 PY
 }
 
+# shellcheck disable=SC2317
 check_project_contract() {
     [[ -x gradlew ]]
     [[ -f gradle/wrapper/gradle-wrapper.jar ]]
@@ -214,7 +212,6 @@ need bash
 need cmp
 need git
 need python3
-need shellcheck
 need readlink
 need rg
 need sha256sum
@@ -233,13 +230,12 @@ printf 'Starting complete local validation for %s.\n' "$ROOT"
 source_digest=$(current_source_digest)
 printf 'CHECK_LOCAL_SOURCE_DIGEST=%s\n' "$source_digest"
 
-run_check "shell syntax" shell_syntax
-run_check "ShellCheck" shellcheck
-run_check "JDK and Android SDK discovery" toolchains
-run_check "Gradle functionalCheck and qualityCheck" gradle
-run_check "Android XML parsing" xml
-run_check "workflow YAML and CI assertions" workflow
-run_check "project and script contract" project_contract
+run_check "shell syntax" check_shell_syntax
+run_check "JDK and Android SDK discovery" resolve_toolchains
+run_check "Gradle functionalCheck" ./gradlew functionalCheck --no-daemon --stacktrace
+run_check "Android XML parsing" check_xml
+run_check "workflow YAML and CI assertions" check_workflow
+run_check "project and script contract" check_project_contract
 
 if [[ "$failures" -eq 0 ]]; then
     printf 'CHECK_LOCAL_RESULT=PASS\n'

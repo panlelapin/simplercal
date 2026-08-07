@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+@Suppress("FunctionName", "ktlint:standard:function-naming")
 private fun HelloScreen() {
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {

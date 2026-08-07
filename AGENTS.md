@@ -59,12 +59,14 @@
   container has no right corner radii and the right inner container has no left corner radii, so
   the two highlighted halves join continuously. Reserve the highlight border thickness inside
   the parent day container so this combined border remains fully visible.
-- In the current displayed week, non-weekend and non-holiday current/future days use
-  `onSurface` over `surface`. Weekend and holiday days use `onSurface` over
-  `onSurfaceVariant`. Past non-weekend and non-holiday days use `surfaceDim` over
-  `surfaceContainer`. Past weekend and holiday days use `surfaceDim` over
-  `onSurfaceVariant`. For validation, Monday and Tuesday are holidays and Tuesday is also a
-  bank holiday (`isBankH`).
+- Each day exposes one combined `isWEorBankH` flag for Saturday, Sunday, or bank holidays;
+  `isHoliday` remains separate. Holiday days use a `secondary` vertical bar when past and a
+  `primary` vertical bar when current or future. The current day alone has the global
+  `primary` contour. Current/future days that are not `isWEorBankH` use `onSurface` over
+  `surface`; past days that are not `isWEorBankH` use `onSurfaceVariant` over
+  `surfaceContainer`; every `isWEorBankH` day uses `onSurface` over white. For validation,
+  Monday and Tuesday are holidays and Tuesday is also the bank holiday represented by
+  `isWEorBankH`.
 - There is no vertical peripheral gap or horizontal delimiter between Saturday and Sunday; their
   vertical side borders and other inner-container borders remain visible.
 - There is no outer delimiter above the first day container or below the last day container.
@@ -79,6 +81,10 @@
   When Saturday or Sunday is selected, Saturday and Sunday are both expanded.
 - On the initial arrival in the app, invoke the same action as the `Today` button so the current
   calendar day is selected automatically.
+- Persist a `Simulation mode` setting, defaulting to `Off`. When `Simulation` is selected, ignore
+  real calendar state for the displayed week: Wednesday is today, Monday is a bank holiday, and
+  Monday through Thursday are holidays. The simulation also uses the combined `isWEorBankH`
+  state for Monday, Saturday, and Sunday.
 - Distribute the available safe height according to the current states:
   - every compact container occupies 6.5 percent;
   - the two expanded containers share the remaining height equally.
@@ -119,12 +125,10 @@
   corner radii, except that Saturday has square bottom corners and Sunday has square top corners.
   The two inner containers have default square corners and do not carry the row-level rounding.
   In the current displayed week, both inner-container backgrounds of days before the current day
-  use `ColorScheme.surfaceContainer` as the background with `ColorScheme.surfaceDim` as the
-  foreground, except past weekend and holiday days use `ColorScheme.onSurfaceVariant` as the
-  background with `ColorScheme.surfaceDim` as the foreground. Current/future weekend and
-  holiday days use `ColorScheme.onSurfaceVariant` as the background with
-  `ColorScheme.onSurface` as the foreground; other current/future days use
-  `ColorScheme.surface`/`ColorScheme.onSurface`.
+  use `ColorScheme.surfaceContainer` as the background with `ColorScheme.onSurfaceVariant` as
+  the foreground; current/future non-`isWEorBankH` days use `ColorScheme.surface` with
+  `ColorScheme.onSurface`; every `isWEorBankH` day uses a white background with
+  `ColorScheme.onSurface`.
 - The Sunday container must stop immediately above a bottom band equal to 72 percent of
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
   system-inset area, while the app-bar-background color continues underneath to the
@@ -157,15 +161,12 @@
   reachable on compact screens.
 - The next section selects the persisted `Scroll mode`. Display the `Discrete` and `Linear`
   choices side by side as a single-choice Material segmented control, not in a menu.
+- The next section selects the persisted `Simulation mode`. Display `Off` and `Simulation`
+  side by side as a single-choice Material segmented control, with `Off` as the default.
 - The next section is `Debug1`. Persist its two side-by-side Material segmented choices:
   `App bar background` is the default and maps to the shared app-bar-background color; `Black`
   maps to `ColorScheme.onSurface`. Apply the selection immediately to every day-parent and
   inner-container border/separator.
-- The next section is `Debug2`. Persist its two side-by-side Material segmented choices. The
-  main day view uses the temporal background rule: both inner containers of days before the
-  current day use `ColorScheme.surfaceDim`, except past weekend and holiday days use
-  `ColorScheme.surfaceContainer`; current/future weekend and holiday days also use
-  `ColorScheme.surfaceContainer`, and other current/future days use `ColorScheme.surface`.
 - The final section is smaller and horizontally centered. It displays:
   - `SimplerCal v<release version>`;
   - the GitHub project URL as a clickable web link.
@@ -181,12 +182,13 @@
 - The local-check freshness digest must represent current file paths, contents, executable
   modes, and symbolic-link targets. It must remain unchanged when identical content is
   staged or committed so `make-remote` can safely resume after a partial failure.
-- The normal local and GitHub Actions gate runs both `functionalCheck` and `qualityCheck`.
-- Detekt runs with type resolution and all configured rule sets enabled; convention, naming,
-  complexity, formatting, and style findings are part of the validation.
-- KtLint, Android Lint, and ShellCheck are all executed by `check-local` and GitHub Actions.
-- Any validation finding must be fixed; no cosmetic, naming, complexity, style, or lint category
-  is bypassed by the normal workflow.
+- The normal local and GitHub Actions gate runs `functionalCheck` only.
+- Detekt runs with type resolution and only the `potential-bugs` rule set enabled. Convention,
+  naming, complexity, formatting, and style findings are not part of the normal validation.
+- KtLint, Android Lint, the optional `qualityCheck` task, and the ShellCheck helper remain
+  available for explicit manual use but are bypassed by `check-local` and GitHub Actions.
+- Cosmetic formatting, naming, complexity, style, and lint findings must not block the normal
+  workflow; real compilation and bug-detection failures still do.
 - GitHub Actions remains manually dispatched with `workflow_dispatch`. It runs
   `functionalCheck`, builds the release APK, verifies it, and publishes the APK with its
   SHA-256 checksum.

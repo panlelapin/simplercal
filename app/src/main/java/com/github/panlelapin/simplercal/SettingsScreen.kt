@@ -186,17 +186,17 @@ private fun SettingsContent(
             label = { it.label },
         )
         SingleChoiceSection(
+            title = "Simulation mode",
+            options = SimulationMode.entries,
+            selected = state.selectedSimulationMode,
+            onSelected = actions.settings.onSimulationModeChange,
+            label = { it.label },
+        )
+        SingleChoiceSection(
             title = "Debug1",
             options = Debug1OutlineColor.entries,
             selected = state.selectedDebug1OutlineColor,
             onSelected = actions.settings.onDebug1OutlineColorChange,
-            label = { it.label },
-        )
-        SingleChoiceSection(
-            title = "Debug2",
-            options = Debug2RightBackground.entries,
-            selected = state.selectedDebug2RightBackground,
-            onSelected = actions.settings.onDebug2RightBackgroundChange,
             label = { it.label },
         )
         Spacer(Modifier.height(32.dp))

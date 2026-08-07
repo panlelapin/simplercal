@@ -122,6 +122,20 @@ internal enum class WeekScrollMode(
     }
 }
 
+internal enum class SimulationMode(
+    val preferenceValue: String,
+    val label: String,
+) {
+    OFF("off", "Off"),
+    SIMULATION("simulation", "Simulation"),
+    ;
+
+    companion object {
+        fun fromPreferenceValue(value: String): SimulationMode =
+            entries.firstOrNull { it.preferenceValue == value } ?: OFF
+    }
+}
+
 internal enum class Debug1OutlineColor(
     val preferenceValue: String,
     val label: String,
@@ -142,28 +156,5 @@ internal enum class Debug1OutlineColor(
     companion object {
         fun fromPreferenceValue(value: String): Debug1OutlineColor =
             entries.firstOrNull { it.preferenceValue == value } ?: APP_BAR_BACKGROUND
-    }
-}
-
-internal enum class Debug2RightBackground(
-    val preferenceValue: String,
-    val label: String,
-) {
-    SURFACE("surface", "Surface"),
-    APP_BAR_BACKGROUND("app_bar_background", "App bar background"),
-    ;
-
-    fun resolve(
-        colorScheme: ColorScheme,
-        appBarBackground: Color,
-    ): Color =
-        when (this) {
-            SURFACE -> colorScheme.surface
-            APP_BAR_BACKGROUND -> appBarBackground
-        }
-
-    companion object {
-        fun fromPreferenceValue(value: String): Debug2RightBackground =
-            entries.firstOrNull { it.preferenceValue == value } ?: SURFACE
     }
 }
