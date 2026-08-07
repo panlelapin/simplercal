@@ -83,6 +83,7 @@ internal fun ColumnScope.WeekRows(
                 DayRowState(
                     dayIndex = index,
                     highlightedDayIndex = state.highlightedDayIndex,
+                    isDarkTheme = state.isDarkTheme,
                     day = day,
                     isExpanded = index in expandedDayIndices(state.selectedDayIndex),
                     isContentExpanded = index in state.contentExpandedDays,
@@ -153,6 +154,7 @@ internal fun WeekView(state: WeekViewState) {
                         contentExpandedDays = interaction.contentExpandedDays,
                         animatedDayWeights = interaction.animatedDayWeights,
                         highlightedDayIndex = state.highlightedDayIndex,
+                        isDarkTheme = state.isDarkTheme,
                         dayLabelColumnWidth = dayLabelColumnWidth,
                         separatorColor = separatorColor,
                         appBarBackground = state.appBarBackground,

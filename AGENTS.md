@@ -59,12 +59,14 @@
   container has no right corner radii and the right inner container has no left corner radii, so
   the two highlighted halves join continuously. Reserve the highlight border thickness inside
   the parent day container so this combined border remains fully visible.
-- Each day exposes one combined `isWEorBankH` flag for Saturday, Sunday, or bank holidays;
-  `isHoliday` remains separate. Holiday days use a `secondary` vertical bar when past and a
-  `primary` vertical bar when current or future. The current day alone has the global
-  `primary` contour. Current/future days that are not `isWEorBankH` use `onSurface` over
-  `surface`; past days that are not `isWEorBankH` use `onSurfaceVariant` over
-  `surfaceContainer`; every `isWEorBankH` day uses `onSurface` over white. For validation,
+- In Simulation, `isHolidays` is true only from Monday through Thursday, while the combined
+  `isWEorBankH` flag is true only on Monday, Saturday, and Sunday; Monday therefore has both
+  states. Holiday days use a `secondary` vertical bar when past and a `primary` vertical bar
+  when current or future. The current day alone has the global
+  `primary` contour. Current/future days that are not `isWEorBankH` use `onSurface` over white
+  in light theme and black in dark theme; past days that are not `isWEorBankH` use
+  `onSurfaceVariant` over `surfaceContainer`; every `isWEorBankH` day uses `onSurface` over
+  `surface`. For validation,
   Monday and Tuesday are holidays and Tuesday is also the bank holiday represented by
   `isWEorBankH`.
 - There is no vertical peripheral gap or horizontal delimiter between Saturday and Sunday; their
@@ -126,9 +128,9 @@
   The two inner containers have default square corners and do not carry the row-level rounding.
   In the current displayed week, both inner-container backgrounds of days before the current day
   use `ColorScheme.surfaceContainer` as the background with `ColorScheme.onSurfaceVariant` as
-  the foreground; current/future non-`isWEorBankH` days use `ColorScheme.surface` with
-  `ColorScheme.onSurface`; every `isWEorBankH` day uses a white background with
-  `ColorScheme.onSurface`.
+  the foreground; current/future non-`isWEorBankH` days use a white background in light theme
+  and a black background in dark theme with `ColorScheme.onSurface`; every `isWEorBankH` day
+  uses `ColorScheme.surface` with `ColorScheme.onSurface`.
 - The Sunday container must stop immediately above a bottom band equal to 72 percent of
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
   system-inset area, while the app-bar-background color continues underneath to the

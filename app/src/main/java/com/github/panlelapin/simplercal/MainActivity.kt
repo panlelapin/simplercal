@@ -60,7 +60,7 @@ internal data class WeekDay(
     val abbreviation: String,
     val dayOfMonth: Int,
     val isWEorBankH: Boolean,
-    val isHoliday: Boolean,
+    val isHolidays: Boolean,
 )
 
 internal class AppPreferences(
@@ -82,6 +82,7 @@ internal data class MainScreenState(
     val title: AnnotatedString,
     val displayedMonday: LocalDate,
     val highlightedDayIndex: Int?,
+    val isDarkTheme: Boolean,
     val scrollMode: WeekScrollMode,
     val simulationMode: SimulationMode,
     val debug1OutlineColor: Debug1OutlineColor,
@@ -99,6 +100,7 @@ internal data class MainScreenActions(
 internal data class WeekViewState(
     val weekMonday: LocalDate,
     val highlightedDayIndex: Int?,
+    val isDarkTheme: Boolean,
     val scrollMode: WeekScrollMode,
     val simulationMode: SimulationMode,
     val debug1OutlineColor: Debug1OutlineColor,
@@ -110,6 +112,7 @@ internal data class WeekViewState(
 internal data class DayRowState(
     val dayIndex: Int,
     val highlightedDayIndex: Int?,
+    val isDarkTheme: Boolean,
     val day: WeekDay,
     val isExpanded: Boolean,
     val isContentExpanded: Boolean,
@@ -125,6 +128,7 @@ internal data class WeekRowsState(
     val contentExpandedDays: Set<Int>,
     val animatedDayWeights: List<Float>,
     val highlightedDayIndex: Int?,
+    val isDarkTheme: Boolean,
     val dayLabelColumnWidth: Dp,
     val separatorColor: Color,
     val appBarBackground: Color,
@@ -276,6 +280,7 @@ private fun SimplerCalApp() {
                     title = topBarTitle,
                     displayedMonday = displayedMonday,
                     highlightedDayIndex = highlightedDayIndex,
+                    isDarkTheme = isDarkTheme,
                     scrollMode = appPreferences.scrollMode,
                     simulationMode = simulationMode,
                     debug1OutlineColor = appPreferences.debug1OutlineColor,
@@ -457,6 +462,7 @@ private fun HelloScreen(
                     WeekViewState(
                         weekMonday = state.displayedMonday,
                         highlightedDayIndex = state.highlightedDayIndex,
+                        isDarkTheme = state.isDarkTheme,
                         scrollMode = state.scrollMode,
                         simulationMode = state.simulationMode,
                         debug1OutlineColor = state.debug1OutlineColor,

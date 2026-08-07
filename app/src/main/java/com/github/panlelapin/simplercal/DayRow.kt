@@ -133,6 +133,7 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
             colorScheme = colorScheme,
             isWEorBankH = state.day.isWEorBankH,
             isFutureOrToday = isFutureOrToday,
+            isDarkTheme = state.isDarkTheme,
         )
     return DayAppearance(
         isHighlighted = isHighlighted,
@@ -140,7 +141,7 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
             if (isHighlighted) colorScheme.primary else state.separatorColor,
         dayBackground = dayBackground,
         dayAccentColor =
-            if (state.day.isHoliday && isPast) colorScheme.secondary else colorScheme.primary,
+            if (state.day.isHolidays && isPast) colorScheme.secondary else colorScheme.primary,
         dayTextColor = dayTextColor,
         hasTopBorder = state.dayIndex != 0 && state.dayIndex != WEEKEND_START_INDEX + 1,
         hasBottomBorder =
@@ -154,10 +155,12 @@ private fun dayColors(
     colorScheme: ColorScheme,
     isWEorBankH: Boolean,
     isFutureOrToday: Boolean,
+    isDarkTheme: Boolean,
 ): Pair<Color, Color> =
     when {
-        isWEorBankH -> Color.White to colorScheme.onSurface
-        isFutureOrToday -> colorScheme.surface to colorScheme.onSurface
+        isWEorBankH -> colorScheme.surface to colorScheme.onSurface
+        isFutureOrToday ->
+            (if (isDarkTheme) Color.Black else Color.White) to colorScheme.onSurface
         else -> colorScheme.surfaceContainer to colorScheme.onSurfaceVariant
     }
 
@@ -396,7 +399,7 @@ internal fun currentWeek(
                         date.dayOfWeek == DayOfWeek.SUNDAY ||
                         date.dayOfWeek == DayOfWeek.TUESDAY
                 },
-            isHoliday =
+            isHolidays =
                 if (isSimulation) {
                     dayIndex <= 3
                 } else {
