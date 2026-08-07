@@ -27,15 +27,13 @@ internal enum class AccentTheme(
     SYSTEM("system", "System", null),
     GOOGLE_VIOLET("google_violet", "Google Violet", ARGB_GOOGLE_VIOLET),
     SAMSUNG_BLUE("samsung_blue", "Samsung Blue", ARGB_SAMSUNG_BLUE),
-    ROYAL_BLUE("royal_blue", "Royal blue", ARGB_ROYAL_BLUE),
     INDIGO("indigo", "Indigo", ARGB_INDIGO),
     TEAL("teal", "Teal", ARGB_TEAL),
     MATERIAL_VIOLET("material_violet", "Material violet", ARGB_MATERIAL_VIOLET),
     PLUM("plum", "Plum", ARGB_PLUM),
     RASPBERRY("raspberry", "Raspberry", ARGB_RASPBERRY),
-    MANDARIN("mandarin", "Mandarin", ARGB_MANDARIN),
     EMERALD_GREEN("emerald_green", "Emerald green", ARGB_EMERALD_GREEN),
-    TEAL_SECOND("teal_second", "Teal", ARGB_TEAL),
+    PINK("pink", "Pink", ARGB_PINK),
     ;
 
     fun applyTo(
