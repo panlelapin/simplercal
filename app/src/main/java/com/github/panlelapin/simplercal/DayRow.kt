@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -97,6 +98,7 @@ private fun DayRowLayout(
                 state =
                     DayContentState(
                         isExpanded = state.isContentExpanded,
+                        isWEorBankH = state.day.isWEorBankH,
                         separatorColor = appearance.innerContainerBorderColor,
                         hasTopBorder = appearance.hasTopBorder,
                         hasBottomBorder = appearance.hasBottomBorder,
@@ -132,6 +134,7 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
         dayColors(
             colorScheme = colorScheme,
             isWEorBankH = state.day.isWEorBankH,
+            isPast = isPast,
             isFutureOrToday = isFutureOrToday,
             isDarkTheme = state.isDarkTheme,
         )
@@ -154,11 +157,14 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
 private fun dayColors(
     colorScheme: ColorScheme,
     isWEorBankH: Boolean,
+    isPast: Boolean,
     isFutureOrToday: Boolean,
     isDarkTheme: Boolean,
 ): Pair<Color, Color> =
     when {
-        isWEorBankH -> colorScheme.surface to colorScheme.onSurface
+        isWEorBankH ->
+            colorScheme.surface to
+                if (isPast) colorScheme.onSurfaceVariant else colorScheme.onSurface
         isFutureOrToday ->
             (if (isDarkTheme) Color.Black else Color.White) to colorScheme.onSurface
         else -> colorScheme.surfaceContainer to colorScheme.onSurfaceVariant
@@ -299,7 +305,11 @@ private fun DayContentContainer(state: DayContentState) {
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Clip,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style =
+                            MaterialTheme.typography.bodyMedium.copy(
+                                fontStyle =
+                                    if (state.isWEorBankH) FontStyle.Italic else FontStyle.Normal,
+                            ),
                         color = state.textColor,
                         textAlign = TextAlign.Start,
                     )

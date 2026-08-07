@@ -170,6 +170,7 @@ private fun SettingsContent(
     ) {
         Spacer(Modifier.height(24.dp))
         CalendarSection(controller, actions.onOpenCalendarPicker)
+        AccentSection(state.selectedAccentTheme, actions.onOpenAccentPicker)
         SingleChoiceSection(
             title = "Theme",
             options = ThemeMode.entries,
@@ -177,7 +178,6 @@ private fun SettingsContent(
             onSelected = actions.settings.onThemeModeChange,
             label = { it.label },
         )
-        AccentSection(state.selectedAccentTheme, actions.onOpenAccentPicker)
         SingleChoiceSection(
             title = "Scroll mode",
             options = WeekScrollMode.entries,
@@ -249,7 +249,7 @@ private fun AccentSection(
     selected: AccentTheme,
     onOpenPicker: () -> Unit,
 ) {
-    Text("Accent color", style = MaterialTheme.typography.titleMedium)
+    Text("Material primary color", style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(8.dp))
     Button(onClick = onOpenPicker) { Text(selected.label) }
     Spacer(Modifier.height(24.dp))
@@ -311,7 +311,7 @@ private fun AccentPickerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        title = { Text("Accent color") },
+        title = { Text("Material primary color") },
         text = {
             Column(
                 modifier =

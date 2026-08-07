@@ -8,9 +8,9 @@ internal enum class ThemeMode(
     val preferenceValue: String,
     val label: String,
 ) {
+    SYSTEM("system", "System"),
     LIGHT("light", "Light"),
     DARK("dark", "Dark"),
-    SYSTEM("system", "System"),
     ;
 
     companion object {
@@ -25,6 +25,8 @@ internal enum class AccentTheme(
     private val argb: Long?,
 ) {
     SYSTEM("system", "System", null),
+    GOOGLE_VIOLET("google_violet", "Google Violet", ARGB_GOOGLE_VIOLET),
+    SAMSUNG_BLUE("samsung_blue", "Samsung Blue", ARGB_SAMSUNG_BLUE),
     ROYAL_BLUE("royal_blue", "Royal blue", ARGB_ROYAL_BLUE),
     INDIGO("indigo", "Indigo", ARGB_INDIGO),
     TEAL("teal", "Teal", ARGB_TEAL),
