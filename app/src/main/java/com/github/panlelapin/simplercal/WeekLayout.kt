@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -120,6 +121,7 @@ internal fun WeekView(state: WeekViewState) {
                         bottomGestureInsetPx = insets.bottomPx,
                         rightGestureInsetPx = insets.rightPx,
                         leftGestureInsetPx = insets.rightPx,
+                        touchSlopPx = LocalViewConfiguration.current.touchSlop,
                         selectedDayIndex = { currentSelectedDayIndex.value },
                         animatedDayWeights = { currentAnimatedDayWeights.value },
                         selectDay = { dayIndex -> currentSelectDay.value(dayIndex) },

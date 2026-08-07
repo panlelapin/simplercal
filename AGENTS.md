@@ -99,8 +99,10 @@
     point.
   - `Linear` starts a vertical drag anywhere in the week area, including compact containers,
     the right-side strip, and the bottom strip. It starts from the currently expanded group,
-    not from the touch-down container. Do not apply touch slop or wait for the pointer to
-    reach any position: the very first non-zero vertical pointer delta starts the change.
+    not from the touch-down container. In both scroll modes, preserve a simple tap until the
+    pointer has crossed Android's device-specific `LocalViewConfiguration.touchSlop`; only then
+    start a drag. After that threshold, Linear must not wait for the pointer to reach any
+    particular container position.
     Transfer that exact pixel delta from the expanded container at the leading edge of the
     drag to the compact container entering at the opposite edge. The shared expanded
     container keeps its height, so its boundaries move by exactly the same number of pixels

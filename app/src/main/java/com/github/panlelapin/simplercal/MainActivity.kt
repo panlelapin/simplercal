@@ -170,6 +170,7 @@ internal data class WeekGestureState(
     val bottomGestureInsetPx: Float,
     val rightGestureInsetPx: Float,
     val leftGestureInsetPx: Float,
+    val touchSlopPx: Float,
     val selectedDayIndex: () -> Int,
     val animatedDayWeights: () -> List<Float>,
     val selectDay: (Int) -> Unit,
