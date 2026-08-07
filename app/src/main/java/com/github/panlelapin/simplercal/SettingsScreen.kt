@@ -249,7 +249,7 @@ private fun AccentSection(
     selected: AccentTheme,
     onOpenPicker: () -> Unit,
 ) {
-    Text("Material primary color", style = MaterialTheme.typography.titleMedium)
+    Text("Seed color", style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(8.dp))
     Button(onClick = onOpenPicker) { Text(selected.label) }
     Spacer(Modifier.height(24.dp))
@@ -311,7 +311,7 @@ private fun AccentPickerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        title = { Text("Material primary color") },
+        title = { Text("Seed color") },
         text = {
             Column(
                 modifier =

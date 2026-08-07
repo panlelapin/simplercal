@@ -143,8 +143,7 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
         innerContainerBorderColor =
             if (isHighlighted) colorScheme.primary else state.separatorColor,
         dayBackground = dayBackground,
-        dayAccentColor =
-            if (state.day.isHolidays && isPast) colorScheme.secondary else colorScheme.primary,
+        dayAccentColor = if (isPast) colorScheme.secondary else colorScheme.primary,
         dayTextColor = dayTextColor,
         hasTopBorder = state.dayIndex != 0 && state.dayIndex != WEEKEND_START_INDEX + 1,
         hasBottomBorder =
@@ -164,10 +163,10 @@ private fun dayColors(
     when {
         isWEorBankH ->
             colorScheme.surface to
-                if (isPast) colorScheme.onSurfaceVariant else colorScheme.onSurface
+                if (isPast) colorScheme.onTertiary else colorScheme.onSurface
         isFutureOrToday ->
             (if (isDarkTheme) Color.Black else Color.White) to colorScheme.onSurface
-        else -> colorScheme.surfaceContainer to colorScheme.onSurfaceVariant
+        else -> colorScheme.surfaceContainer to colorScheme.onSurface
     }
 
 @Composable
@@ -189,12 +188,16 @@ private fun Modifier.dayRowModifier(
             .clip(appearance.combinedShape)
             .background(state.appBarBackground)
             .then(
-                if (appearance.isHighlighted) {
+                if (appearance.isHighlighted || state.day.isWEorBankH) {
                     Modifier.border(
                         border =
                             BorderStroke(
                                 DAY_SEPARATOR_THICKNESS,
-                                MaterialTheme.colorScheme.primary,
+                                if (appearance.isHighlighted) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.tertiary
+                                },
                             ),
                         shape = appearance.combinedShape,
                     )
@@ -300,16 +303,12 @@ private fun DayContentContainer(state: DayContentState) {
                     }
                 repeat(lineCount) { lineIndex ->
                     Text(
-                        text = "${lineIndex + 1} $DAY_CONTENT_TEXT",
+                        text = dayContentText(lineIndex, state.isWEorBankH),
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Clip,
-                        style =
-                            MaterialTheme.typography.bodyMedium.copy(
-                                fontStyle =
-                                    if (state.isWEorBankH) FontStyle.Italic else FontStyle.Normal,
-                            ),
+                        style = MaterialTheme.typography.bodyMedium,
                         color = state.textColor,
                         textAlign = TextAlign.Start,
                     )
@@ -318,6 +317,19 @@ private fun DayContentContainer(state: DayContentState) {
         }
     }
 }
+
+private fun dayContentText(
+    lineIndex: Int,
+    isWEorBankH: Boolean,
+): AnnotatedString =
+    buildAnnotatedString {
+        val line = "${lineIndex + 1} $DAY_CONTENT_TEXT"
+        if (isWEorBankH) {
+            withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(line) }
+        } else {
+            append(line)
+        }
+    }
 
 private fun DrawScope.drawDayBorder(
     color: Color,
