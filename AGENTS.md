@@ -42,21 +42,16 @@
 - Each day container contains two full-height inner containers arranged horizontally. Their
   widths are the same in all seven day containers:
   - the left inner container width is automatically calculated from the widest complete
-    day/date label among all seven days (`MON. 1` through `SUN. 31`); every day uses that same
-    width. It contains a vertical accent pill along its right edge,
-    then the three-letter day abbreviation in small caps matching the title's reduced text size,
-    followed on the same line by the numeric day of the month in the normal title size.
-    This day/date block is right-aligned, vertically centered when compact, and aligned at the
-    top when expanded. Include a period and a space between the day and number,
-    for example `WED.31`.
+    day/date label among all seven days; every day uses that same width. It contains the two-letter
+    day abbreviation in small caps matching the title's reduced text size, followed on the same
+    line by the numeric day of the month in a slightly smaller title size. This day/date block is
+    right-aligned, vertically centered when compact, and aligned at the top when expanded, without
+    a separator between the abbreviation and number.
   - the right inner container takes the remaining width and contains the day content.
 - Only the right inner container has an accent line. It is inside that inner container along its
   left edge, immediately before the content, never on the day-container boundary or between two
   parent day containers. The line is 3 dp wide, has square ends, uses `ColorScheme.secondary` for
   days before the current day and `ColorScheme.primary` for the current day and following days.
-- Saturday and Sunday also have one 4 dp vertical line in `MaterialTheme.colorScheme.secondary`
-  immediately outside the left edge of the left inner container and one immediately outside the
-  right edge of the right inner container.
 - The current day in the current displayed week has a border in the
   `MaterialTheme.colorScheme.primary` role around the combined pair of inner containers. This
   highlight is recalculated by the `update` action group. Other inner-container borders continue
@@ -64,10 +59,11 @@
   container has no right corner radii and the right inner container has no left corner radii, so
   the two highlighted halves join continuously. Reserve the highlight border thickness inside
   the parent day container so this combined border remains fully visible.
-- In the current displayed week, every day before the current day uses
-  `MaterialTheme.colorScheme.secondary` for all of its day-label and right-content text. The
-  current day and following days use `ColorScheme.onSurface`, except that past Saturday also
-  remains `ColorScheme.onSurface`.
+- In the current displayed week, the base day state uses `surface`/`onSurface`. Weekend and
+  holiday days use `surfaceContainer`/`onSurface`. Past days use
+  `surfaceDim`/`onSurfaceVariant`, except past weekend and holiday days, which use
+  `surfaceContainer`/`onSurface`. For validation, Monday and Tuesday are holidays and
+  Tuesday is also a bank holiday (`isBankH`).
 - There is no vertical peripheral gap or horizontal delimiter between Saturday and Sunday; their
   vertical side borders and other inner-container borders remain visible.
 - There is no outer delimiter above the first day container or below the last day container.
@@ -80,6 +76,8 @@
 - Initially, Monday and Tuesday are expanded. When Monday through Friday is selected, the
   selected day and the following day are expanded and all other containers are compact.
   When Saturday or Sunday is selected, Saturday and Sunday are both expanded.
+- On the initial arrival in the app, invoke the same action as the `Today` button so the current
+  calendar day is selected automatically.
 - Distribute the available safe height according to the current states:
   - every compact container occupies 6.5 percent;
   - the two expanded containers share the remaining height equally.
@@ -118,8 +116,10 @@
   corner radii, except that Saturday has square bottom corners and Sunday has square top corners.
   The two inner containers have default square corners and do not carry the row-level rounding.
   In the current displayed week, both inner-container backgrounds of days before the current day
-  use the app-bar-background color; current/future Saturday and Sunday use `ColorScheme.secondary`,
-  and other current/future days use `ColorScheme.surface` for both inner containers.
+  use `ColorScheme.surfaceDim`, except past weekend and holiday days use
+  `ColorScheme.surfaceContainer`. Current/future weekend and holiday days also use
+  `ColorScheme.surfaceContainer`; other current/future days use `ColorScheme.surface` for both
+  inner containers.
 - The Sunday container must stop immediately above a bottom band equal to 72 percent of
   the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
   system-inset area, while the app-bar-background color continues underneath to the
@@ -158,8 +158,9 @@
   inner-container border/separator.
 - The next section is `Debug2`. Persist its two side-by-side Material segmented choices. The
   main day view uses the temporal background rule: both inner containers of days before the
-  current day use the app-bar-background color, current/future Saturday and Sunday use
-  `ColorScheme.secondary`, and other current/future days use `ColorScheme.surface`.
+  current day use `ColorScheme.surfaceDim`, except past weekend and holiday days use
+  `ColorScheme.surfaceContainer`; current/future weekend and holiday days also use
+  `ColorScheme.surfaceContainer`, and other current/future days use `ColorScheme.surface`.
 - The final section is smaller and horizontally centered. It displays:
   - `SimplerCal v<release version>`;
   - the GitHub project URL as a clickable web link.
@@ -175,14 +176,12 @@
 - The local-check freshness digest must represent current file paths, contents, executable
   modes, and symbolic-link targets. It must remain unchanged when identical content is
   staged or committed so `make-remote` can safely resume after a partial failure.
-- The normal local and GitHub Actions gate is `functionalCheck`.
-- `functionalCheck` runs Detekt with type resolution and only the `potential-bugs` rule
-  set. Detekt convention-oriented rules are disabled.
-- KtLint, Android Lint, the optional `qualityCheck` task, and the ShellCheck helper remain
-  available for explicit manual use but are bypassed by `check-local`, `make-remote`, and
-  GitHub Actions.
-- Cosmetic formatting, naming, complexity, and style findings must not block the normal
-  workflow.
+- The normal local and GitHub Actions gate runs both `functionalCheck` and `qualityCheck`.
+- Detekt runs with type resolution and all configured rule sets enabled; convention, naming,
+  complexity, formatting, and style findings are part of the validation.
+- KtLint, Android Lint, and ShellCheck are all executed by `check-local` and GitHub Actions.
+- Any validation finding must be fixed; no cosmetic, naming, complexity, style, or lint category
+  is bypassed by the normal workflow.
 - GitHub Actions remains manually dispatched with `workflow_dispatch`. It runs
   `functionalCheck`, builds the release APK, verifies it, and publishes the APK with its
   SHA-256 checksum.

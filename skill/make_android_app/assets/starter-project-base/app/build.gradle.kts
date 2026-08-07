@@ -62,7 +62,7 @@ detekt {
     toolVersion = "2.0.0-alpha.5"
     config.setFrom(rootProject.files("config/detekt/detekt.yml"))
     buildUponDefaultConfig = true
-    allRules = false
+    allRules = true
     parallel = true
     ignoreFailures = false
     failOnSeverity = FailOnSeverity.Warning

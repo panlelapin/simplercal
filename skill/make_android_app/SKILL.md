@@ -39,13 +39,10 @@ Run `scripts/check-local` after changes to Kotlin, resources, manifests, or Grad
 and before `scripts/make-remote`. If source was created or changed because of `AGENTS.md`,
 ask before launching that check. Never use a baseline, lenient dependency verification,
 `ignoreFailures`, broad suppressions, or local APK assembly to turn failures into success.
-`functionalCheck` is the local/CI Kotlin gate. It runs only Detekt's `potential-bugs`
-rules with type resolution; all convention-oriented Detekt rule sets are disabled.
-
-Keep KtLint, Android Lint, the optional `qualityCheck` task, and the ShellCheck helper
-available for explicit manual use, but do not invoke them from `scripts/check-local`,
-`scripts/make-remote`, or GitHub Actions. Cosmetic formatting, naming, complexity, and
-style findings must not block the normal local or remote workflow.
+The local and CI validation gate runs both `functionalCheck` and `qualityCheck`. Detekt runs
+with type resolution and all configured rule sets enabled. KtLint, Android Lint, and ShellCheck
+are executed by `scripts/check-local` and GitHub Actions. Formatting, naming, complexity, style,
+and lint findings must be fixed; none of these categories is bypassed by the normal workflow.
 
 Always invoke the tracked `scripts/check-local` and `scripts/make-remote` entry points
 directly when their responsibilities are needed. Do not manually reproduce any operation
@@ -127,7 +124,8 @@ Copy `scripts/check-github-stuff`, `scripts/check-local`, `scripts/make-remote`,
 executable bits, and copy `references/github-actions-template.yml` to
 `.github/workflows/android-app.yml`. The workflow must use only `workflow_dispatch`, run
 `functionalCheck`, then `:app:assembleRelease`, inspect one APK with `verify-apk`, and upload
-the APK plus its SHA-256 checksum.
+the APK plus its SHA-256 checksum. Before the APK build, the workflow runs both `functionalCheck`
+and `qualityCheck`.
 
 Delegate every commit, push, dispatch, poll, artifact download, checksum verification,
 and optional ADB installation to `scripts/make-remote --bootstrap`; never reproduce that
