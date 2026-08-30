@@ -83,8 +83,10 @@ internal fun ColumnScope.WeekRows(
                 DayRowState(
                     dayIndex = index,
                     highlightedDayIndex = state.highlightedDayIndex,
+                    referenceDate = state.referenceDate,
                     isDarkTheme = state.isDarkTheme,
                     day = day,
+                    isSelected = index == state.selectedDayIndex,
                     isExpanded = index in expandedDayIndices(state.selectedDayIndex),
                     isContentExpanded = index in state.contentExpandedDays,
                     weight = state.animatedDayWeights[index],
@@ -100,16 +102,26 @@ internal fun ColumnScope.WeekRows(
 @Composable
 internal fun WeekView(state: WeekViewState) {
     val days =
-        remember(state.weekMonday, state.simulationMode) {
+        remember(
+            state.weekMonday,
+            state.referenceDate,
+            state.simulationMode,
+            state.eventsByDay,
+        ) {
             currentWeek(
-                today = state.weekMonday,
+                monday = state.weekMonday,
                 simulationMode = state.simulationMode,
+                eventsByDay = state.eventsByDay,
             )
         }
-    val interaction = rememberWeekInteraction(state.todaySelectionRequest, state.todayDayIndex)
+    val interaction =
+        rememberWeekInteraction(
+            requestedDayIndex = state.requestedDayIndex,
+            selectionRequest = state.selectionRequest,
+            onSelectionChanged = state.onSelectionChanged,
+        )
     val currentAnimatedDayWeights = rememberUpdatedState(interaction.animatedDayWeights)
     val currentSelectedDayIndex = rememberUpdatedState(interaction.selectedDayIndex)
-    val currentSelectDay = rememberUpdatedState(interaction::selectDay)
     val currentStartDrag = rememberUpdatedState(interaction::startDrag)
     val currentDragToFocus = rememberUpdatedState(interaction::dragToFocus)
     val currentEndDrag = rememberUpdatedState(interaction::endDrag)
@@ -131,10 +143,10 @@ internal fun WeekView(state: WeekViewState) {
                         touchSlopPx = LocalViewConfiguration.current.touchSlop,
                         selectedDayIndex = { currentSelectedDayIndex.value },
                         animatedDayWeights = { currentAnimatedDayWeights.value },
-                        selectDay = { dayIndex -> currentSelectDay.value(dayIndex) },
-                        startDrag = { dayIndex -> currentStartDrag.value(dayIndex) },
+                        startDrag = { currentStartDrag.value() },
                         dragToFocus = { focus -> currentDragToFocus.value(focus) },
                         endDrag = { currentEndDrag.value() },
+                        cancelDrag = interaction::cancelDrag,
                     ),
                 ),
     ) {
@@ -154,6 +166,7 @@ internal fun WeekView(state: WeekViewState) {
                         contentExpandedDays = interaction.contentExpandedDays,
                         animatedDayWeights = interaction.animatedDayWeights,
                         highlightedDayIndex = state.highlightedDayIndex,
+                        referenceDate = state.referenceDate,
                         isDarkTheme = state.isDarkTheme,
                         dayLabelColumnWidth = dayLabelColumnWidth,
                         separatorColor = separatorColor,
@@ -171,7 +184,7 @@ internal fun dayWeightsFor(selectedDayIndex: Int): List<Float> {
     val compactDayCount = WEEK_DAY_COUNT - expandedDays.size
     val expandedDayWeight =
         (TOTAL_DAY_WEIGHT - COMPACT_DAY_WEIGHT * compactDayCount) / expandedDays.size
-    return List(DAY_ABBREVIATIONS.size) { dayIndex ->
+    return List(WEEK_DAY_COUNT) { dayIndex ->
         if (dayIndex in expandedDays) expandedDayWeight else COMPACT_DAY_WEIGHT
     }
 }
@@ -187,7 +200,7 @@ internal fun dayWeightsForFocus(focusPosition: Float): List<Float> {
     val fraction = boundedFocus - lowerDayIndex
     val lowerWeights = dayWeightsFor(lowerDayIndex)
     val upperWeights = dayWeightsFor(upperDayIndex)
-    return List(DAY_ABBREVIATIONS.size) { dayIndex ->
+    return List(WEEK_DAY_COUNT) { dayIndex ->
         interpolateWeight(
             start = lowerWeights[dayIndex],
             end = upperWeights[dayIndex],
@@ -197,11 +210,15 @@ internal fun dayWeightsForFocus(focusPosition: Float): List<Float> {
 }
 
 internal fun expandedDayIndices(selectedDayIndex: Int): Set<Int> =
-    if (selectedDayIndex < WEEKEND_START_INDEX) {
-        setOf(selectedDayIndex, selectedDayIndex + 1)
+    if (groupIndexFor(selectedDayIndex) < WEEKEND_START_INDEX) {
+        val groupIndex = groupIndexFor(selectedDayIndex)
+        setOf(groupIndex, groupIndex + 1)
     } else {
         setOf(WEEKEND_START_INDEX, WEEKEND_START_INDEX + 1)
     }
+
+internal fun groupIndexFor(selectedDayIndex: Int): Int =
+    selectedDayIndex.coerceIn(0, WEEKEND_START_INDEX)
 
 internal fun interpolateWeight(
     start: Float,

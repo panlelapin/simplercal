@@ -143,6 +143,22 @@
 - Keep every full click target above the system inset, use Material interaction feedback,
   and expose each day container as one accessible semantic element.
 
+## Calendar data synchronization
+
+- When a calendar is selected and `READ_CALENDAR` permission is granted, load the selected
+  calendar's event instances for the displayed Monday-to-Sunday week from
+  `CalendarContract.Instances.CONTENT_URI`.
+- While the main composition is active and a calendar is selected, register a
+  `ContentObserver` on `CalendarContract.Events.CONTENT_URI` with descendant notifications
+  enabled. Unregister it when the composition is disposed or the selected calendar changes.
+- An observer callback means that calendar data changed; it must invoke the existing `update`
+  action group and reload the displayed week's events. This covers additions, modifications,
+  deletions, and recurrence changes without relying on a visible polling interval.
+- The Calendar Provider callback does not reliably identify whether the change was an addition
+  or deletion. Treat it as an invalidation, re-query the selected calendar, and replace the
+  current week's event lists with the query result. The existing resume and displayed-week
+  refreshes remain required as a fallback for changes received while the app was not visible.
+
 ## Settings screen
 
 - Show the settings screen over the main screen with a Material 3 top bar and back action.
@@ -150,6 +166,9 @@
   - without calendar permission, show a button requesting permission;
   - after permission is granted, replace it with the calendar-selection button;
   - persist the selected calendar.
+- The `Schedules` section contains exactly five rows in a two-column layout. The first
+  column labels them `Case 1` through `Case 5`; the second column contains a Material 3
+  time selector for each row. Persist each selected time independently.
 - The next section is `Theme`, with persisted `Light`, `Dark`, and `System` options; `System`
   is the default. Display all three choices side by side as a single-choice Material segmented
   control, not in a menu.

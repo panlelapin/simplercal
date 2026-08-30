@@ -1,88 +1,83 @@
 package com.github.panlelapin.simplercal
 
 import android.Manifest
-import android.content.ContentResolver
-import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.provider.CalendarContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import androidx.core.content.edit
 import androidx.core.net.toUri
-
-private data class CalendarSettingsController(
-    val calendars: List<CalendarChoice>,
-    val selectedId: Long,
-    val selectedCalendarName: String?,
-    val hasPermission: Boolean,
-    val requestPermission: () -> Unit,
-    val selectCalendar: (Long) -> Unit,
-)
-
-private data class SettingsContentActions(
-    val settings: SettingsActions,
-    val onOpenCalendarPicker: () -> Unit,
-    val onOpenAccentPicker: () -> Unit,
-)
+import java.time.LocalTime
+import java.util.Locale
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 internal fun SettingsScreen(
-    state: SettingsState,
+    state: AppUiState,
     actions: SettingsActions,
 ) {
-    val context = LocalContext.current
-    val controller = rememberCalendarController(context)
-    var isCalendarPickerVisible by remember { mutableStateOf(false) }
-    var isAccentThemePickerVisible by remember { mutableStateOf(false) }
+    var calendarPickerVisible by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    var accentPickerVisible by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    var selectedScheduleSlot by rememberSaveable {
+        androidx.compose.runtime.mutableStateOf<Int?>(null)
+    }
+    val permissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            actions.onCalendarPermissionResult(granted)
+        }
     val appBarBackground = MaterialTheme.colorScheme.surfaceContainer
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = appBarBackground),
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = actions.onBack) {
                         Icon(
                             painter = painterResource(R.drawable.ic_arrow_back),
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.action_back),
                         )
                     }
                 },
@@ -91,74 +86,60 @@ internal fun SettingsScreen(
     ) { innerPadding ->
         SettingsContent(
             state = state,
-            controller = controller,
-            actions =
-                SettingsContentActions(
-                    settings = actions,
-                    onOpenCalendarPicker = { isCalendarPickerVisible = true },
-                    onOpenAccentPicker = { isAccentThemePickerVisible = true },
-                ),
+            onRequestCalendarPermission = {
+                permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+            },
+            onOpenCalendarPicker = {
+                actions.onRefreshCalendars()
+                calendarPickerVisible = true
+            },
+            onOpenTimePicker = { selectedScheduleSlot = it },
+            onOpenAccentPicker = { accentPickerVisible = true },
+            actions = actions,
             modifier = Modifier.fillMaxSize().padding(innerPadding),
         )
     }
-    if (isCalendarPickerVisible) {
-        CalendarPickerDialog(
-            controller = controller,
-            onDismiss = { isCalendarPickerVisible = false },
-        )
-    }
-    if (isAccentThemePickerVisible) {
-        AccentPickerDialog(
-            actions = actions,
-            onDismiss = { isAccentThemePickerVisible = false },
-        )
-    }
-}
 
-@Composable
-private fun rememberCalendarController(context: Context): CalendarSettingsController {
-    var calendars by remember { mutableStateOf(emptyList<CalendarChoice>()) }
-    var selectedId by remember {
-        mutableStateOf(
-            context.getSharedPreferences(PREFERENCES_NAME, 0).getLong(SELECTED_CALENDAR_KEY, -1L),
+    if (calendarPickerVisible) {
+        CalendarPickerDialog(
+            state = state,
+            onSelect = {
+                actions.onCalendarSelected(it)
+                calendarPickerVisible = false
+            },
+            onDismiss = { calendarPickerVisible = false },
         )
     }
-    var hasPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_CALENDAR,
-            ) == PackageManager.PERMISSION_GRANTED,
+    if (accentPickerVisible) {
+        AccentPickerDialog(
+            selected = state.accentTheme,
+            onSelect = {
+                actions.onAccentThemeChange(it)
+                accentPickerVisible = false
+            },
+            onDismiss = { accentPickerVisible = false },
         )
     }
-    val permissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            hasPermission = granted
-            if (granted) calendars = loadCalendars(context)
-        }
-    LaunchedEffect(hasPermission) {
-        if (hasPermission) calendars = loadCalendars(context)
+    selectedScheduleSlot?.let { slotIndex ->
+        ScheduleTimePickerDialog(
+            initialMinutes = state.scheduleTimes.getOrElse(slotIndex) { UNSET_SCHEDULE_TIME },
+            onDismiss = { selectedScheduleSlot = null },
+            onConfirm = { minutes ->
+                actions.onScheduleTimeChange(slotIndex, minutes)
+                selectedScheduleSlot = null
+            },
+        )
     }
-    return CalendarSettingsController(
-        calendars = calendars,
-        selectedId = selectedId,
-        selectedCalendarName = calendars.firstOrNull { it.id == selectedId }?.name,
-        hasPermission = hasPermission,
-        requestPermission = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
-        selectCalendar = { id ->
-            selectedId = id
-            context.getSharedPreferences(PREFERENCES_NAME, 0).edit {
-                putLong(SELECTED_CALENDAR_KEY, id)
-            }
-        },
-    )
 }
 
 @Composable
 private fun SettingsContent(
-    state: SettingsState,
-    controller: CalendarSettingsController,
-    actions: SettingsContentActions,
+    state: AppUiState,
+    onRequestCalendarPermission: () -> Unit,
+    onOpenCalendarPicker: () -> Unit,
+    onOpenTimePicker: (Int) -> Unit,
+    onOpenAccentPicker: () -> Unit,
+    actions: SettingsActions,
     modifier: Modifier,
 ) {
     val context = LocalContext.current
@@ -169,39 +150,44 @@ private fun SettingsContent(
                 .verticalScroll(rememberScrollState()),
     ) {
         Spacer(Modifier.height(24.dp))
-        CalendarSection(controller, actions.onOpenCalendarPicker)
-        AccentSection(state.selectedAccentTheme, actions.onOpenAccentPicker)
+        CalendarSection(
+            state = state,
+            onRequestPermission = onRequestCalendarPermission,
+            onOpenPicker = onOpenCalendarPicker,
+        )
+        ScheduleSection(state.scheduleTimes, onOpenTimePicker)
         SingleChoiceSection(
-            title = "Theme",
+            title = stringResource(R.string.section_theme),
             options = ThemeMode.entries,
-            selected = state.selectedThemeMode,
-            onSelected = actions.settings.onThemeModeChange,
-            label = { it.label },
+            selected = state.themeMode,
+            onSelected = actions.onThemeModeChange,
+            label = { stringResource(it.labelResource) },
         )
+        AccentSection(state.accentTheme, onOpenAccentPicker)
         SingleChoiceSection(
-            title = "Scroll mode",
+            title = stringResource(R.string.section_scroll_mode),
             options = WeekScrollMode.entries,
-            selected = state.selectedScrollMode,
-            onSelected = actions.settings.onScrollModeChange,
-            label = { it.label },
+            selected = state.scrollMode,
+            onSelected = actions.onScrollModeChange,
+            label = { stringResource(it.labelResource) },
         )
         SingleChoiceSection(
-            title = "Simulation mode",
+            title = stringResource(R.string.section_simulation_mode),
             options = SimulationMode.entries,
-            selected = state.selectedSimulationMode,
-            onSelected = actions.settings.onSimulationModeChange,
-            label = { it.label },
+            selected = state.simulationMode,
+            onSelected = actions.onSimulationModeChange,
+            label = { stringResource(it.labelResource) },
         )
         SingleChoiceSection(
-            title = "Debug1",
+            title = stringResource(R.string.section_debug1),
             options = Debug1OutlineColor.entries,
-            selected = state.selectedDebug1OutlineColor,
-            onSelected = actions.settings.onDebug1OutlineColorChange,
-            label = { it.label },
+            selected = state.debug1OutlineColor,
+            onSelected = actions.onDebug1OutlineColorChange,
+            label = { stringResource(it.labelResource) },
         )
         Spacer(Modifier.height(32.dp))
         Text(
-            text = "SimplerCal v${BuildConfig.OFFICIAL_RELEASE_VERSION}",
+            text = stringResource(R.string.release_version, BuildConfig.OFFICIAL_RELEASE_VERSION),
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
@@ -212,34 +198,69 @@ private fun SettingsContent(
                 Modifier
                     .fillMaxWidth()
                     .clickable {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, GITHUB_URL.toUri()))
+                        val intent = Intent(Intent.ACTION_VIEW, GITHUB_URL.toUri())
+                        if (intent.resolveActivity(context.packageManager) != null) {
+                            context.startActivity(intent)
+                        }
                     },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center,
         )
+        Spacer(Modifier.height(24.dp))
     }
 }
 
 @Composable
 private fun CalendarSection(
-    controller: CalendarSettingsController,
+    state: AppUiState,
+    onRequestPermission: () -> Unit,
     onOpenPicker: () -> Unit,
 ) {
-    Text("Calendar", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.section_calendar), style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(8.dp))
-    if (!controller.hasPermission) {
-        Text("Allow access to choose an Android calendar.")
+    if (!state.hasCalendarPermission) {
+        Text(stringResource(R.string.calendar_permission_explanation))
         Spacer(Modifier.height(8.dp))
-        Button(onClick = controller.requestPermission) { Text("Allow") }
+        Button(onClick = onRequestPermission) { Text(stringResource(R.string.action_allow)) }
     } else {
+        val selectedCalendar = state.calendars.firstOrNull { it.id == state.selectedCalendarId }
         Button(
             onClick = onOpenPicker,
-            enabled = controller.calendars.isNotEmpty(),
+            enabled = !state.isCalendarListLoading,
         ) {
-            Text(controller.selectedCalendarName ?: "Choose calendar")
+            Text(selectedCalendar?.name ?: stringResource(R.string.action_choose_calendar))
         }
-        if (controller.calendars.isEmpty()) Text("No visible calendars available.")
+        if (state.isCalendarListLoading) {
+            CircularProgressIndicator()
+        } else if (state.calendars.isEmpty() && state.calendarListFailure == null) {
+            Text(stringResource(R.string.calendar_none_available))
+        }
+        calendarFailureMessage(state.calendarListFailure)?.let { Text(it) }
+    }
+    Spacer(Modifier.height(24.dp))
+}
+
+@Composable
+private fun ScheduleSection(
+    scheduleTimes: List<Int>,
+    onOpenTimePicker: (Int) -> Unit,
+) {
+    Text(stringResource(R.string.section_schedules), style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(8.dp))
+    scheduleTimes.forEachIndexed { index, minutes ->
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.schedule_case, index + 1),
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedButton(onClick = { onOpenTimePicker(index) }) {
+                Text(formatScheduleTime(minutes))
+            }
+        }
     }
     Spacer(Modifier.height(24.dp))
 }
@@ -249,9 +270,9 @@ private fun AccentSection(
     selected: AccentTheme,
     onOpenPicker: () -> Unit,
 ) {
-    Text("Seed color", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.section_accent_color), style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(8.dp))
-    Button(onClick = onOpenPicker) { Text(selected.label) }
+    Button(onClick = onOpenPicker) { Text(stringResource(selected.labelResource)) }
     Spacer(Modifier.height(24.dp))
 }
 
@@ -261,7 +282,7 @@ private fun <T> SingleChoiceSection(
     options: List<T>,
     selected: T,
     onSelected: (T) -> Unit,
-    label: (T) -> String,
+    label: @Composable (T) -> String,
 ) where T : Enum<T> {
     Text(title, style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(8.dp))
@@ -281,21 +302,39 @@ private fun <T> SingleChoiceSection(
 
 @Composable
 private fun CalendarPickerDialog(
-    controller: CalendarSettingsController,
+    state: AppUiState,
+    onSelect: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        title = { Text("Choose calendar") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+        title = { Text(stringResource(R.string.action_choose_calendar)) },
         text = {
-            Column {
-                controller.calendars.forEach { calendar ->
-                    TextButton(onClick = {
-                        controller.selectCalendar(calendar.id)
-                        onDismiss()
-                    }) {
-                        Text(calendar.name)
+            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
+                items(state.calendars, key = { it.id }) { calendar ->
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { onSelect(calendar.id) },
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(calendar.name)
+                            if (calendar.accountName.isNotEmpty()) {
+                                Text(
+                                    calendar.accountName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            if (
+                                calendar.ownerAccount.isNotEmpty() &&
+                                    calendar.ownerAccount != calendar.accountName
+                            ) {
+                                Text(
+                                    calendar.ownerAccount,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -305,26 +344,30 @@ private fun CalendarPickerDialog(
 
 @Composable
 private fun AccentPickerDialog(
-    actions: SettingsActions,
+    selected: AccentTheme,
+    onSelect: (AccentTheme) -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        title = { Text("Seed color") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+        title = { Text(stringResource(R.string.section_accent_color)) },
         text = {
-            Column(
-                modifier =
-                    Modifier
-                        .heightIn(max = 400.dp)
-                        .verticalScroll(rememberScrollState()),
-            ) {
-                AccentTheme.entries.forEach { option ->
-                    TextButton(onClick = {
-                        actions.onAccentThemeChange(option)
-                        onDismiss()
-                    }) {
-                        Text(option.label)
+            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
+                items(AccentTheme.entries, key = { it.preferenceValue }) { option ->
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelect(option) }
+                                .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = option == selected,
+                            onClick = { onSelect(option) },
+                        )
+                        Text(stringResource(option.labelResource))
                     }
                 }
             }
@@ -332,27 +375,50 @@ private fun AccentPickerDialog(
     )
 }
 
-private fun loadCalendars(context: Context): List<CalendarChoice> =
-    runCatching { readCalendars(context.contentResolver) }.getOrDefault(emptyList())
-
-private fun readCalendars(resolver: ContentResolver): List<CalendarChoice> {
-    val uri = CalendarContract.Calendars.CONTENT_URI
-    val columns =
-        arrayOf(
-            CalendarContract.Calendars._ID,
-            CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun ScheduleTimePickerDialog(
+    initialMinutes: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit,
+) {
+    val safeMinutes = initialMinutes.takeIf { it in 0 until 24 * 60 }
+    val initialTime = safeMinutes?.let { LocalTime.of(it / 60, it % 60) } ?: LocalTime.now()
+    val timePickerState =
+        rememberTimePickerState(
+            initialHour = initialTime.hour,
+            initialMinute = initialTime.minute,
+            is24Hour = true,
         )
-    val visible = "${CalendarContract.Calendars.VISIBLE} = 1"
-    val nameSort = CalendarContract.Calendars.CALENDAR_DISPLAY_NAME
-    return resolver.query(uri, columns, visible, null, nameSort).use { cursor ->
-        if (cursor == null) {
-            emptyList()
-        } else {
-            buildList {
-                while (cursor.moveToNext()) {
-                    add(CalendarChoice(id = cursor.getLong(0), name = cursor.getString(1)))
-                }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.action_choose_time)) },
+        text = { TimePicker(state = timePickerState) },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(timePickerState.hour * 60 + timePickerState.minute) }) {
+                Text(stringResource(R.string.action_ok))
             }
-        }
-    }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
 }
+
+@Composable
+private fun formatScheduleTime(minutes: Int): String =
+    if (minutes !in 0 until 24 * 60) {
+        stringResource(R.string.action_choose_time)
+    } else {
+        String.format(Locale.ROOT, "%02d:%02d", minutes / 60, minutes % 60)
+    }
+
+@Composable
+private fun calendarFailureMessage(reason: CalendarFailureReason?): String? =
+    when (reason) {
+        CalendarFailureReason.PERMISSION_REVOKED ->
+            stringResource(R.string.calendar_error_permission)
+        CalendarFailureReason.PROVIDER_UNAVAILABLE ->
+            stringResource(R.string.calendar_error_provider)
+        null -> null
+    }

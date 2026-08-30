@@ -30,7 +30,9 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -47,7 +49,7 @@ import androidx.compose.ui.unit.sp
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.TextStyle
-import java.time.temporal.TemporalAdjusters
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
@@ -56,7 +58,23 @@ internal fun ColumnScope.DayRow(
     onClick: () -> Unit,
 ) {
     val day = state.day
-    val stateDescription = if (state.isExpanded) "expanded" else "compact"
+    val expansionDescription =
+        androidx.compose.ui.res.stringResource(
+            if (state.isExpanded) R.string.state_expanded else R.string.state_compact,
+        )
+    val eventDescription =
+        androidx.compose.ui.res.pluralStringResource(
+            R.plurals.event_count,
+            day.events.size,
+            day.events.size,
+        )
+    val spokenDate = day.date.format(DAY_ACCESSIBILITY_DATE_FORMAT)
+    val accessibilityDescription =
+        androidx.compose.ui.res.stringResource(
+            R.string.day_accessibility_description,
+            spokenDate,
+            eventDescription,
+        )
     val appearance = dayAppearance(state)
     Surface(
         modifier =
@@ -65,7 +83,9 @@ internal fun ColumnScope.DayRow(
                 .weight(state.weight)
                 .clickable(role = Role.Button, onClick = onClick)
                 .semantics(mergeDescendants = true) {
-                    contentDescription = "${day.abbreviation}, $stateDescription"
+                    contentDescription = accessibilityDescription
+                    stateDescription = expansionDescription
+                    selected = state.isSelected
                 },
         shape = appearance.combinedShape,
         color = state.appBarBackground,
@@ -102,6 +122,7 @@ private fun DayRowLayout(
                         isExpanded = state.isContentExpanded,
                         isWEorBankH = state.day.isWEorBankH,
                         isHolidays = state.day.isHolidays,
+                        events = state.day.events,
                         separatorColor = appearance.innerContainerBorderColor,
                         hasTopBorder = appearance.hasTopBorder,
                         hasBottomBorder = appearance.hasBottomBorder,
@@ -129,25 +150,26 @@ private fun DayRowLayout(
 private fun dayAppearance(state: DayRowState): DayAppearance {
     val colorScheme = MaterialTheme.colorScheme
     val isHighlighted = state.dayIndex == state.highlightedDayIndex
-    val isPast =
-        state.highlightedDayIndex != null && state.dayIndex < state.highlightedDayIndex
-    val isFutureOrToday =
-        state.highlightedDayIndex != null && state.dayIndex >= state.highlightedDayIndex
-    val (dayBackground, dayTextColor) =
+    val temporalState = temporalStateFor(state.day.date, state.referenceDate)
+    val colors =
         dayColors(
             colorScheme = colorScheme,
             isWEorBankH = state.day.isWEorBankH,
-            isPast = isPast,
-            isFutureOrToday = isFutureOrToday,
+            temporalState = temporalState,
             isDarkTheme = state.isDarkTheme,
         )
     return DayAppearance(
         isHighlighted = isHighlighted,
         innerContainerBorderColor =
             if (isHighlighted) colorScheme.primary else state.separatorColor,
-        dayBackground = dayBackground,
-        dayAccentColor = if (isPast) colorScheme.secondary else colorScheme.primary,
-        dayTextColor = dayTextColor,
+        dayBackground = colors.background,
+        dayAccentColor =
+            if (temporalState == DayTemporalState.PAST) {
+                colorScheme.secondary
+            } else {
+                colorScheme.primary
+            },
+        dayTextColor = colors.foreground,
         hasTopBorder = state.dayIndex != 0 && state.dayIndex != WEEKEND_START_INDEX + 1,
         hasBottomBorder =
             state.dayIndex != WEEKEND_START_INDEX && state.dayIndex != WEEK_DAY_COUNT - 1,
@@ -159,19 +181,17 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
 private fun dayColors(
     colorScheme: ColorScheme,
     isWEorBankH: Boolean,
-    isPast: Boolean,
-    isFutureOrToday: Boolean,
+    temporalState: DayTemporalState,
     isDarkTheme: Boolean,
-): Pair<Color, Color> =
+): DayColors =
     when {
-        isWEorBankH ->
-            colorScheme.surface to
-                if (isPast) colorScheme.onSecondary else colorScheme.onSurface
-        isFutureOrToday ->
-            (if (isDarkTheme) Color.Black else Color.White) to colorScheme.onSurface
-        else ->
-            colorScheme.surfaceContainer to
-                if (isPast) colorScheme.onSecondary else colorScheme.onSurface
+        isWEorBankH -> DayColors(colorScheme.surface, colorScheme.onSurface)
+        temporalState != DayTemporalState.PAST ->
+            DayColors(
+                background = if (isDarkTheme) Color.Black else Color.White,
+                foreground = colorScheme.onSurface,
+            )
+        else -> DayColors(colorScheme.surfaceContainer, colorScheme.onSurfaceVariant)
     }
 
 @Composable
@@ -299,15 +319,17 @@ private fun DayContentContainer(state: DayContentState) {
                         .padding(start = 8.dp + accentWidth, end = 8.dp),
                 verticalArrangement = Arrangement.Center,
             ) {
-                val lineCount =
-                    if (state.isExpanded) {
-                        EXPANDED_CONTENT_LINE_COUNT
-                    } else {
-                        COMPACT_CONTENT_LINE_COUNT
-                    }
-                repeat(lineCount) { lineIndex ->
+                val displayedEvents =
+                    state.events.take(
+                        if (state.isExpanded) {
+                            EXPANDED_CONTENT_LINE_COUNT
+                        } else {
+                            COMPACT_CONTENT_LINE_COUNT
+                        },
+                    )
+                displayedEvents.forEach { event ->
                     Text(
-                        text = dayContentText(lineIndex, state.isWEorBankH),
+                        text = event.title,
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 1,
                         softWrap = false,
@@ -332,19 +354,6 @@ private fun DayContentContainer(state: DayContentState) {
         }
     }
 }
-
-private fun dayContentText(
-    lineIndex: Int,
-    isWEorBankH: Boolean,
-): AnnotatedString =
-    buildAnnotatedString {
-        val line = "${lineIndex + 1} $DAY_CONTENT_TEXT"
-        if (isWEorBankH) {
-            withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(line) }
-        } else {
-            append(line)
-        }
-    }
 
 private fun DrawScope.drawDayBorder(
     color: Color,
@@ -412,20 +421,20 @@ private fun dayLabelText(day: WeekDay): AnnotatedString =
         withStyle(
             SpanStyle(fontSize = 12.sp),
         ) { append(day.abbreviation.take(2).uppercase(Locale.ROOT)) }
-        append(day.dayOfMonth.toString())
+        append(day.date.dayOfMonth.toString())
     }
 
 internal fun currentWeek(
-    today: LocalDate = LocalDate.now(),
+    monday: LocalDate = currentWeekMonday(),
     simulationMode: SimulationMode = SimulationMode.OFF,
+    eventsByDay: List<List<CalendarEvent>> = emptyList(),
 ): List<WeekDay> {
-    val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     return (0 until WEEK_DAY_COUNT).map { dayIndex ->
         val date = monday.plusDays(dayIndex.toLong())
         val isSimulation = simulationMode == SimulationMode.SIMULATION
         WeekDay(
+            date = date,
             abbreviation = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
-            dayOfMonth = date.dayOfMonth,
             isWEorBankH =
                 if (isSimulation) {
                     dayIndex == 0 ||
@@ -433,15 +442,28 @@ internal fun currentWeek(
                         date.dayOfWeek == DayOfWeek.SUNDAY
                 } else {
                     date.dayOfWeek == DayOfWeek.SATURDAY ||
-                        date.dayOfWeek == DayOfWeek.SUNDAY ||
-                        date.dayOfWeek == DayOfWeek.TUESDAY
+                        date.dayOfWeek == DayOfWeek.SUNDAY
                 },
             isHolidays =
                 if (isSimulation) {
                     dayIndex <= 3
                 } else {
-                    date.dayOfWeek == DayOfWeek.MONDAY || date.dayOfWeek == DayOfWeek.TUESDAY
+                    false
                 },
+            events = eventsByDay.getOrNull(dayIndex).orEmpty(),
         )
     }
 }
+
+private val DAY_ACCESSIBILITY_DATE_FORMAT =
+    DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.ENGLISH)
+
+internal fun temporalStateFor(
+    date: LocalDate,
+    referenceDate: LocalDate,
+): DayTemporalState =
+    when {
+        date < referenceDate -> DayTemporalState.PAST
+        date > referenceDate -> DayTemporalState.FUTURE
+        else -> DayTemporalState.CURRENT
+    }
