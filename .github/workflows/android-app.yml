@@ -57,11 +57,13 @@ jobs:
         run: |
           set -Eeuo pipefail
           sudo chmod 666 /dev/kvm
+          sudo apt-get update -qq
+          sudo apt-get install -y libpulse0 libasound2t64 libxcb-cursor0
           sdkmanager "emulator" "system-images;android-34;google_apis;x86_64"
           echo no | avdmanager create avd -n tests -k "system-images;android-34;google_apis;x86_64" --force
           "$ANDROID_HOME/emulator/emulator" -avd tests -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
           emulator_pid=$!
-          trap 'kill "$emulator_pid" 2>/dev/null || true' EXIT
+          trap 'result=$?; if (( result != 0 )); then tail -n 150 "$RUNNER_TEMP/emulator.log"; fi; kill "$emulator_pid" 2>/dev/null || true; exit "$result"' EXIT
           timeout 180 adb wait-for-device
           booted=false
           for attempt in $(seq 1 180); do
