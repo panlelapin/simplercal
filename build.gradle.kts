@@ -54,5 +54,5 @@ tasks.register("qualityCheck") {
 tasks.register("functionalCheck") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     description = "Run the non-cosmetic Kotlin checks used locally and in CI."
-    dependsOn(":app:detektRelease", ":app:testReleaseUnitTest")
+    dependsOn(":app:detektRelease", ":app:testReleaseUnitTest", ":app:compileDebugAndroidTestKotlin")
 }

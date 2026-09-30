@@ -49,7 +49,7 @@ class WeekGestureTest {
             down(Offset(centerX, height * 0.9f))
             moveBy(Offset(0f, -touchSlop - step * 0.1f))
             // This updates the up event, without dispatching another move event.
-            updatePointerBy(Offset(0f, -step * 0.6f))
+            updatePointerBy(0, Offset(0f, -step * 0.6f))
             up()
         }
         composeRule.runOnIdle { assertEquals(1, selected) }
