@@ -1,10 +1,7 @@
 package com.github.panlelapin.simplercal
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,14 +17,18 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -40,7 +41,6 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
@@ -56,6 +56,7 @@ import java.util.Locale
 internal fun ColumnScope.DayRow(
     state: DayRowState,
     onClick: () -> Unit,
+    onShowDetails: () -> Unit = {},
 ) {
     val day = state.day
     val expansionDescription =
@@ -81,7 +82,9 @@ internal fun ColumnScope.DayRow(
             Modifier
                 .fillMaxWidth()
                 .weight(state.weight)
-                .clickable(role = Role.Button, onClick = onClick)
+                .combinedClickable(role = Role.Button, onClick = onClick,
+                    onLongClick = onShowDetails,
+                    onLongClickLabel = androidx.compose.ui.res.stringResource(R.string.action_day_details))
                 .semantics(mergeDescendants = true) {
                     contentDescription = accessibilityDescription
                     stateDescription = expansionDescription
@@ -90,7 +93,7 @@ internal fun ColumnScope.DayRow(
         shape = appearance.combinedShape,
         color = state.appBarBackground,
     ) {
-        DayRowLayout(state, appearance)
+        DayRowLayout(state, appearance, onShowDetails)
     }
 }
 
@@ -98,20 +101,30 @@ internal fun ColumnScope.DayRow(
 private fun DayRowLayout(
     state: DayRowState,
     appearance: DayAppearance,
+    onShowDetails: () -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Row(modifier = Modifier.dayRowModifier(state, appearance)) {
+    val borderColor = if (appearance.isHighlighted) MaterialTheme.colorScheme.primary else state.separatorColor
+    Box(modifier = Modifier.fillMaxSize().drawWithContent {
+        drawContent()
+        val stroke = DAY_SEPARATOR_THICKNESS.toPx()
+        val outline = appearance.combinedShape.createOutline(
+            Size((size.width - stroke).coerceAtLeast(0f), (size.height - stroke).coerceAtLeast(0f)),
+            layoutDirection, this,
+        )
+        clipRect(
+            top = if (appearance.isHighlighted || appearance.hasTopBorder) 0f else stroke,
+            bottom = if (appearance.isHighlighted || appearance.hasBottomBorder) size.height else (size.height - stroke).coerceAtLeast(stroke),
+        ) {
+            translate(stroke / 2f, stroke / 2f) { drawOutline(outline, borderColor, style = Stroke(stroke)) }
+        }
+    }) {
+        Row(modifier = Modifier.dayRowModifier(appearance)) {
             DayLabelContainer(
                 state =
                     DayLabelState(
                         day = state.day,
                         isExpanded = state.isExpanded,
                         width = state.dayLabelColumnWidth,
-                        separatorColor = appearance.innerContainerBorderColor,
-                        hasTopBorder = appearance.hasTopBorder,
-                        hasBottomBorder = appearance.hasBottomBorder,
-                        isHighlighted = appearance.isHighlighted,
-                        shape = RectangleShape,
                         textColor = appearance.dayTextColor,
                         appBarBackground = appearance.dayBackground,
                     ),
@@ -123,24 +136,12 @@ private fun DayRowLayout(
                         isWEorBankH = state.day.isWEorBankH,
                         isHolidays = state.day.isHolidays,
                         events = state.day.events,
-                        separatorColor = appearance.innerContainerBorderColor,
-                        hasTopBorder = appearance.hasTopBorder,
-                        hasBottomBorder = appearance.hasBottomBorder,
-                        isHighlighted = appearance.isHighlighted,
-                        shape = RectangleShape,
                         background = appearance.dayBackground,
                         accentColor = appearance.dayAccentColor,
                         textColor = appearance.dayTextColor,
                         modifier = Modifier.fillMaxHeight().weight(1f),
                     ),
-            )
-        }
-        Canvas(modifier = Modifier.matchParentSize().clip(appearance.combinedShape)) {
-            drawDayBorder(
-                color = state.separatorColor,
-                showTop = appearance.hasTopBorder,
-                showBottom = appearance.hasBottomBorder,
-                showVertical = !appearance.isHighlighted,
+                onShowDetails = onShowDetails,
             )
         }
     }
@@ -160,8 +161,6 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
         )
     return DayAppearance(
         isHighlighted = isHighlighted,
-        innerContainerBorderColor =
-            if (isHighlighted) colorScheme.primary else state.separatorColor,
         dayBackground = colors.background,
         dayAccentColor =
             if (temporalState == DayTemporalState.PAST) {
@@ -170,10 +169,9 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
                 colorScheme.primary
             },
         dayTextColor = colors.foreground,
-        hasTopBorder = state.dayIndex != 0 && state.dayIndex != WEEKEND_START_INDEX + 1,
-        hasBottomBorder =
-            state.dayIndex != WEEKEND_START_INDEX && state.dayIndex != WEEK_DAY_COUNT - 1,
-        highlightBorderInset = if (isHighlighted) DAY_SEPARATOR_THICKNESS else 0.dp,
+        hasTopBorder = state.dayIndex != 0 && state.dayIndex != WEEKEND_START_INDEX + 1 &&
+            state.dayIndex - 1 != state.highlightedDayIndex,
+        hasBottomBorder = false, // Each ordinary seam belongs to the following row only.
         combinedShape = dayRowShape(state.dayIndex),
     )
 }
@@ -196,49 +194,23 @@ private fun dayColors(
 
 @Composable
 private fun Modifier.dayRowModifier(
-    state: DayRowState,
     appearance: DayAppearance,
 ): Modifier {
-    val baseModifier =
-        this
+    return this
             .fillMaxSize()
             .padding(
-                start = 2.dp,
-                end = 2.dp,
-                top = appearance.highlightBorderInset,
-                bottom = appearance.highlightBorderInset,
+                start = DAY_SEPARATOR_THICKNESS,
+                end = DAY_SEPARATOR_THICKNESS,
+                top = if (appearance.isHighlighted || appearance.hasTopBorder) DAY_SEPARATOR_THICKNESS else 0.dp,
+                bottom = if (appearance.isHighlighted || appearance.hasBottomBorder) DAY_SEPARATOR_THICKNESS else 0.dp,
             )
-    val borderedModifier =
-        baseModifier
-            .clip(appearance.combinedShape)
-            .background(state.appBarBackground)
-            .then(
-                if (appearance.isHighlighted) {
-                    Modifier.border(
-                        border =
-                            BorderStroke(
-                                DAY_SEPARATOR_THICKNESS,
-                                MaterialTheme.colorScheme.primary,
-                            ),
-                        shape = appearance.combinedShape,
-                    )
-                } else {
-                    Modifier
-                },
-            )
-    return borderedModifier.padding(
-        start = 0.dp,
-        end = 0.dp,
-        top = if (state.dayIndex == WEEKEND_START_INDEX + 1) 0.dp else 2.dp,
-        bottom = if (state.dayIndex == WEEKEND_START_INDEX) 0.dp else 2.dp,
-    )
 }
 
 @Composable
 private fun DayLabelContainer(state: DayLabelState) {
     Surface(
         modifier = Modifier.width(state.width).fillMaxHeight(),
-        shape = state.shape,
+        shape = RectangleShape,
         color = state.appBarBackground,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -249,7 +221,7 @@ private fun DayLabelContainer(state: DayLabelState) {
                         .padding(
                             start = DAY_LABEL_HORIZONTAL_PADDING,
                             end = DAY_LABEL_HORIZONTAL_PADDING,
-                            top = 2.dp,
+                            top = if (state.isExpanded) 2.dp else 0.dp,
                         ),
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = if (state.isExpanded) Arrangement.Top else Arrangement.Center,
@@ -268,39 +240,19 @@ private fun DayLabelContainer(state: DayLabelState) {
                     textAlign = TextAlign.End,
                 )
             }
-            if (!state.isHighlighted) {
-                Canvas(modifier = Modifier.matchParentSize()) {
-                    drawDayBorder(
-                        color = state.separatorColor,
-                        showTop = state.hasTopBorder,
-                        showBottom = state.hasBottomBorder,
-                        showVertical = false,
-                    )
-                }
-            }
         }
     }
 }
 
 @Composable
-private fun DayContentContainer(state: DayContentState) {
+private fun DayContentContainer(state: DayContentState, onShowDetails: () -> Unit) {
     val accentWidth = if (state.isHolidays) DAY_ACCENT_STRIPE_WIDTH else 0.dp
     Surface(
         modifier = state.modifier,
-        shape = state.shape,
+        shape = RectangleShape,
         color = state.background,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            if (!state.isHighlighted) {
-                Canvas(modifier = Modifier.matchParentSize()) {
-                    drawDayBorder(
-                        color = state.separatorColor,
-                        showTop = state.hasTopBorder,
-                        showBottom = state.hasBottomBorder,
-                        showVertical = false,
-                    )
-                }
-            }
             if (state.isHolidays) {
                 Spacer(
                     modifier =
@@ -315,14 +267,13 @@ private fun DayContentContainer(state: DayContentState) {
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .clip(state.shape)
                         .padding(start = 8.dp + accentWidth, end = 8.dp),
                 verticalArrangement = Arrangement.Center,
             ) {
                 val displayedEvents =
                     state.events.take(
                         if (state.isExpanded) {
-                            EXPANDED_CONTENT_LINE_COUNT
+                            if (state.events.size > EXPANDED_CONTENT_LINE_COUNT) EXPANDED_CONTENT_LINE_COUNT - 1 else EXPANDED_CONTENT_LINE_COUNT
                         } else {
                             COMPACT_CONTENT_LINE_COUNT
                         },
@@ -339,59 +290,18 @@ private fun DayContentContainer(state: DayContentState) {
                                 fontStyle =
                                     if (state.isWEorBankH) FontStyle.Italic else FontStyle.Normal,
                                 fontSynthesis = FontSynthesis.Style,
-                                textGeometricTransform =
-                                    if (state.isWEorBankH) {
-                                        TextGeometricTransform(skewX = -0.2f)
-                                    } else {
-                                        null
-                                    },
                             ),
                         color = state.textColor,
                         textAlign = TextAlign.Start,
                     )
                 }
+                if (state.isExpanded && state.events.size > EXPANDED_CONTENT_LINE_COUNT) {
+                    TextButton(onClick = onShowDetails) {
+                        Text(androidx.compose.ui.res.stringResource(R.string.action_all_events, state.events.size))
+                    }
+                }
             }
         }
-    }
-}
-
-private fun DrawScope.drawDayBorder(
-    color: Color,
-    showTop: Boolean,
-    showBottom: Boolean,
-    showVertical: Boolean = true,
-) {
-    val strokeWidth = DAY_SEPARATOR_THICKNESS.toPx()
-    val halfStroke = strokeWidth / 2f
-    if (showTop) {
-        drawLine(
-            color = color,
-            start = Offset(x = halfStroke, y = halfStroke),
-            end = Offset(x = size.width - halfStroke, y = halfStroke),
-            strokeWidth = strokeWidth,
-        )
-    }
-    if (showBottom) {
-        drawLine(
-            color = color,
-            start = Offset(x = halfStroke, y = size.height - halfStroke),
-            end = Offset(x = size.width - halfStroke, y = size.height - halfStroke),
-            strokeWidth = strokeWidth,
-        )
-    }
-    if (showVertical) {
-        drawLine(
-            color = color,
-            start = Offset(x = halfStroke, y = halfStroke),
-            end = Offset(x = halfStroke, y = size.height - halfStroke),
-            strokeWidth = strokeWidth,
-        )
-        drawLine(
-            color = color,
-            start = Offset(x = size.width - halfStroke, y = halfStroke),
-            end = Offset(x = size.width - halfStroke, y = size.height - halfStroke),
-            strokeWidth = strokeWidth,
-        )
     }
 }
 
@@ -428,6 +338,7 @@ internal fun currentWeek(
     monday: LocalDate = currentWeekMonday(),
     simulationMode: SimulationMode = SimulationMode.OFF,
     eventsByDay: List<List<CalendarEvent>> = emptyList(),
+    markers: Map<LocalDate, DayMarkers> = emptyMap(),
 ): List<WeekDay> {
     return (0 until WEEK_DAY_COUNT).map { dayIndex ->
         val date = monday.plusDays(dayIndex.toLong())
@@ -441,14 +352,14 @@ internal fun currentWeek(
                         date.dayOfWeek == DayOfWeek.SATURDAY ||
                         date.dayOfWeek == DayOfWeek.SUNDAY
                 } else {
-                    date.dayOfWeek == DayOfWeek.SATURDAY ||
+                    markers[date]?.isBankHoliday == true || date.dayOfWeek == DayOfWeek.SATURDAY ||
                         date.dayOfWeek == DayOfWeek.SUNDAY
                 },
             isHolidays =
                 if (isSimulation) {
                     dayIndex <= 3
                 } else {
-                    false
+                    markers[date]?.isHolidays == true
                 },
             events = eventsByDay.getOrNull(dayIndex).orEmpty(),
         )

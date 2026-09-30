@@ -21,7 +21,7 @@
 #   ./cleanup-github-actions.sh NOM_DU_COMPTE 3
 #
 
-set -uo pipefail
+set -Eeuo pipefail
 
 OWNER="${1:-panlelapin}"
 RETENTION_DAYS="${2:-1}"
@@ -51,13 +51,12 @@ echo "Rétention future : $RETENTION_DAYS jour(s)"
 echo
 echo "Recherche des dépôts publics…"
 
-mapfile -t REPOS < <(
-  gh repo list "$OWNER" \
+REPO_LIST=$(gh repo list "$OWNER" \
     --visibility public \
     --limit 1000 \
     --json nameWithOwner \
-    --jq '.[].nameWithOwner'
-)
+    --jq '.[].nameWithOwner') || { echo 'Échec de la liste des dépôts.' >&2; exit 1; }
+mapfile -t REPOS < <(printf '%s\n' "$REPO_LIST" | sed '/^$/d')
 
 if (( ${#REPOS[@]} == 0 )); then
   echo "Aucun dépôt public trouvé pour $OWNER."
@@ -70,6 +69,7 @@ echo
 
 TOTAL_COUNT=0
 TOTAL_BYTES=0
+INVENTORY_FAILED=0
 
 for repo in "${REPOS[@]}"; do
   REPO_FILE="$(mktemp)"
@@ -96,6 +96,7 @@ for repo in "${REPOS[@]}"; do
       TOTAL_BYTES=$((TOTAL_BYTES + bytes))
     fi
   else
+    INVENTORY_FAILED=$((INVENTORY_FAILED + 1))
     echo "Avertissement : impossible de lire les artefacts de $repo." >&2
   fi
 
@@ -108,6 +109,8 @@ printf "Total : %d artefact(s), %.2f MiB (%.3f GiB)\n" \
   "$(awk -v b="$TOTAL_BYTES" 'BEGIN {print b/1048576}')" \
   "$(awk -v b="$TOTAL_BYTES" 'BEGIN {print b/1073741824}')"
 
+DELETED=0
+FAILED=0
 if (( TOTAL_COUNT == 0 )); then
   echo "Aucun artefact à supprimer."
 else
@@ -117,6 +120,7 @@ else
 
   if [[ "$CONFIRMATION" != "SUPPRIMER" ]]; then
     echo "Suppression annulée."
+    (( INVENTORY_FAILED == 0 )) || exit 1
     exit 0
   fi
 
@@ -146,6 +150,13 @@ fi
 
 echo
 echo "Configuration de la rétention à $RETENTION_DAYS jour(s)…"
+echo "Cette opération concerne tous les dépôts listés, même ceux sans artefact."
+read -r -p 'Tape exactement RETENTION pour autoriser ce changement : ' RETENTION_CONFIRMATION || exit 1
+if [[ "$RETENTION_CONFIRMATION" != RETENTION ]]; then
+  echo 'Changement de rétention annulé.'
+  (( FAILED == 0 && INVENTORY_FAILED == 0 )) || exit 1
+  exit 0
+fi
 
 RETENTION_OK=0
 RETENTION_FAILED=0
@@ -170,4 +181,4 @@ echo "Terminé."
 echo "Rétention configurée sur $RETENTION_OK dépôt(s), $RETENTION_FAILED échec(s)."
 echo
 echo "Note : GitHub peut mettre plusieurs heures à actualiser le stockage affiché."
-echo "La consommation déjà cumulée pendant le cycle de facturation peut rester visible jusqu'au 1er septembre 2026."
+(( FAILED == 0 && RETENTION_FAILED == 0 && INVENTORY_FAILED == 0 )) || exit 1

@@ -10,7 +10,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -27,8 +27,47 @@ jobs:
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
       - name: Run functional bug checks
         run: ./gradlew functionalCheck --no-daemon --stacktrace
+      - name: Restore stable signing key
+        shell: bash
+        env:
+          SIGNING_KEYSTORE: ${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}
+          ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
+          ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SIGNING_KEYSTORE" || { echo 'Run scripts/configure-signing locally before a release build.' >&2; exit 1; }
+          test -n "$ANDROID_SIGNING_STORE_PASSWORD"
+          test -n "$ANDROID_SIGNING_KEY_ALIAS"
+          test -n "$ANDROID_SIGNING_KEY_PASSWORD"
+          umask 077
+          printf '%s' "$SIGNING_KEYSTORE" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          printf 'ANDROID_SIGNING_STORE_FILE=%s/release.jks\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Build release APK
+        env:
+          ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
+          ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
         run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+      - name: Run Compose device tests on Android 14
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo chmod 666 /dev/kvm
+          sdkmanager "emulator" "system-images;android-34;google_apis;x86_64"
+          echo no | avdmanager create avd -n tests -k "system-images;android-34;google_apis;x86_64" --force
+          "$ANDROID_HOME/emulator/emulator" -avd tests -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          emulator_pid=$!
+          trap 'kill "$emulator_pid" 2>/dev/null || true' EXIT
+          timeout 180 adb wait-for-device
+          booted=false
+          for attempt in $(seq 1 180); do
+            if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; then booted=true; break; fi
+            sleep 1
+          done
+          test "$booted" == true || { tail -n 100 "$RUNNER_TEMP/emulator.log"; exit 1; }
+          adb shell input keyevent 82
+          ./gradlew :app:connectedDebugAndroidTest --no-daemon --stacktrace
       - name: Verify, collect, and checksum exactly one APK
         shell: bash
         run: |
@@ -47,3 +86,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/release.jks"

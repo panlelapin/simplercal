@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Explicit one-time setup. Never invoked automatically by check-local or make-remote.
+set -Eeuo pipefail
+for command_name in git gh openssl base64 cp cmp mktemp date; do
+  command -v "$command_name" >/dev/null || { printf 'Missing command: %s\n' "$command_name" >&2; exit 1; }
+done
+SIGNING_KEYTOOL=$(command -v keytool || true)
+if [[ -z "$SIGNING_KEYTOOL" ]]; then
+  for signing_jdk in "${JAVA_HOME:-}" "${HOME:-}/.local/share/jdks/temurin-17" /usr/lib/jvm/java-17-openjdk-amd64; do
+    if [[ -n "$signing_jdk" && -x "$signing_jdk/bin/keytool" ]]; then
+      SIGNING_KEYTOOL="$signing_jdk/bin/keytool"
+      break
+    fi
+  done
+fi
+[[ -n "$SIGNING_KEYTOOL" ]] || { echo 'JDK keytool not found; set JAVA_HOME first.' >&2; exit 1; }
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT"
+REPOSITORY=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+printf 'Configure persistent release signing for %s. Keep a private backup of signing/.\n' "$REPOSITORY"
+read -r -p 'Continue and upload signing secrets to this repository? [y/N] ' answer
+[[ "$answer" == y || "$answer" == Y ]] || exit 0
+umask 077
+[[ ! -L signing && ! -L signing/release.jks && ! -L signing/credentials ]] || {
+  echo 'Signing paths must not be symbolic links.' >&2; exit 1;
+}
+mkdir -p signing
+chmod 700 signing
+if [[ -e signing/release.jks && ! -f signing/credentials ]]; then
+  echo 'Keystore exists without credentials; refusing to replace an existing signing identity.' >&2
+  exit 1
+fi
+if [[ ! -e signing/release.jks ]]; then
+  [[ ! -e signing/credentials ]] || { echo 'Credentials already exist; recover the matching keystore first.' >&2; exit 1; }
+  SIGNING_STORE_PASSWORD=$(openssl rand -hex 32)
+  SIGNING_KEY_PASSWORD=$SIGNING_STORE_PASSWORD
+  export SIGNING_STORE_PASSWORD SIGNING_KEY_PASSWORD
+  # Save credentials first so a successful key generation can always be recovered.
+  printf '%s\n' "$SIGNING_STORE_PASSWORD" > signing/credentials
+  "$SIGNING_KEYTOOL" -genkeypair -keystore signing/release.jks -storepass:env SIGNING_STORE_PASSWORD \
+    -keypass:env SIGNING_KEY_PASSWORD -alias simplercal -keyalg RSA -keysize 3072 \
+    -validity 10000 -dname 'CN=SimplerCal' -noprompt
+else
+  IFS= read -r SIGNING_STORE_PASSWORD < signing/credentials
+  SIGNING_KEY_PASSWORD=$SIGNING_STORE_PASSWORD
+fi
+export SIGNING_STORE_PASSWORD SIGNING_KEY_PASSWORD
+chmod 600 signing/release.jks signing/credentials
+"$SIGNING_KEYTOOL" -list -keystore signing/release.jks -storepass:env SIGNING_STORE_PASSWORD -alias simplercal >/dev/null
+
+# Back up both the key and its credentials before any remote mutation.
+SIGNING_BACKUP_ROOT=${SIGNING_BACKUP_ROOT:-${HOME:?HOME is required}/.local/share/simplercal/signing-backups}
+[[ "$SIGNING_BACKUP_ROOT" == /* && ! -L "$SIGNING_BACKUP_ROOT" ]] || {
+  echo 'Signing backup root must be an absolute, non-symlink directory.' >&2; exit 1;
+}
+mkdir -p "$SIGNING_BACKUP_ROOT"
+chmod 700 "$SIGNING_BACKUP_ROOT"
+SIGNING_BACKUP_DIR=$(mktemp -d "$SIGNING_BACKUP_ROOT/signing-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXXXX")
+cp -- signing/release.jks signing/credentials "$SIGNING_BACKUP_DIR/"
+chmod 600 "$SIGNING_BACKUP_DIR/release.jks" "$SIGNING_BACKUP_DIR/credentials"
+cmp -s signing/release.jks "$SIGNING_BACKUP_DIR/release.jks"
+cmp -s signing/credentials "$SIGNING_BACKUP_DIR/credentials"
+printf 'Private signing backup verified: %s\n' "$SIGNING_BACKUP_DIR"
+
+base64 -w 0 signing/release.jks | gh secret set ANDROID_SIGNING_KEYSTORE_BASE64 --repo "$REPOSITORY"
+printf '%s' "$SIGNING_STORE_PASSWORD" | gh secret set ANDROID_SIGNING_STORE_PASSWORD --repo "$REPOSITORY"
+printf '%s' "$SIGNING_KEY_PASSWORD" | gh secret set ANDROID_SIGNING_KEY_PASSWORD --repo "$REPOSITORY"
+printf simplercal | gh secret set ANDROID_SIGNING_KEY_ALIAS --repo "$REPOSITORY"
+printf 'Stable signing configured. Existing debug-signed installs require a one-time explicit migration.\n'

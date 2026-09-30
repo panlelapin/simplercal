@@ -2,6 +2,8 @@ package com.github.panlelapin.simplercal
 
 import android.Manifest
 import android.content.Intent
+import android.content.ActivityNotFoundException
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -187,7 +189,7 @@ private fun SettingsContent(
         )
         Spacer(Modifier.height(32.dp))
         Text(
-            text = stringResource(R.string.release_version, BuildConfig.OFFICIAL_RELEASE_VERSION),
+            text = stringResource(R.string.release_version, stringResource(R.string.official_release_version)),
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
@@ -199,8 +201,10 @@ private fun SettingsContent(
                     .fillMaxWidth()
                     .clickable {
                         val intent = Intent(Intent.ACTION_VIEW, GITHUB_URL.toUri())
-                        if (intent.resolveActivity(context.packageManager) != null) {
+                        try {
                             context.startActivity(intent)
+                        } catch (_: ActivityNotFoundException) {
+                            Toast.makeText(context, R.string.browser_unavailable, Toast.LENGTH_SHORT).show()
                         }
                     },
             style = MaterialTheme.typography.bodySmall,
@@ -420,5 +424,7 @@ private fun calendarFailureMessage(reason: CalendarFailureReason?): String? =
             stringResource(R.string.calendar_error_permission)
         CalendarFailureReason.PROVIDER_UNAVAILABLE ->
             stringResource(R.string.calendar_error_provider)
+        CalendarFailureReason.CALENDAR_UNAVAILABLE ->
+            stringResource(R.string.calendar_error_missing)
         null -> null
     }

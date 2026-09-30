@@ -1,215 +1,206 @@
-## Android application requirements
+# SimplerCal — working contract
 
-- This repository contains an Android application with one launcher `MainActivity`.
-- The application ID is `com.github.panlelapin.simplercal` and the user-facing name is
-  `SimplerCal`.
-- The interface must be entirely in English and use Material 3.
-- Use a persisted `Theme` preference with `Light`, `Dark`, and `System` options; `System` is
-  the default and follows the Android light/dark setting.
-- Build the default theme with `dynamicLightColorScheme` / `dynamicDarkColorScheme`. Every UI
-  element must consume Material `ColorScheme` roles and their matching `on*` pairs, never a
-  raw palette value. The only allowed raw values are the explicit user-selected accent palette
-  in the theme factory, which must derive the Material roles used everywhere else.
-- Keep the Android status bar and navigation bar visible. The activity must not be
-  immersive or fullscreen.
-- Handle system insets explicitly. App-bar controls and clickable content must never
-  overlap system bars or gesture-navigation areas.
+## Scope and workflow
 
-## Main screen
+- Android application: one launcher MainActivity, application ID
+  com.github.panlelapin.simplercal, English UI, user-facing name SimplerCal.
+- Read this file before changes. Preserve unrelated user changes.
+- Codex may edit and inspect source/diffs. Unless explicitly requested in the current
+  user message, Codex must NOT run scripts/check-local,
+  scripts/make-remote, local compilation/tests, commit/push, Actions dispatch,
+  APK retrieval, or device installation. The user runs the tracked scripts.
+- A code change is IMPLEMENTED, not runtime-verified, until the relevant checks
+  actually pass. Never equate an audit, a test definition, or an APK install with
+  a verified UI behavior. PB1.md and PB2.md must reflect this distinction.
 
-- Use a Material 3 `Scaffold` and `CenterAlignedTopAppBar`.
-- Define an `update` action group. Run it when the app first becomes visible, whenever the
-  activity resumes after returning to the foreground, and whenever the displayed week changes.
-  The first update action recomputes the app-bar title from the Monday of the displayed week:
-  `S<ISO week number> - <Monday day of month><first three uppercase letters of the English
-  month name>`. The `S`, ` - `, and month use a significantly smaller small-caps treatment than
-  the normal-sized numbers. For example, a Monday in June is rendered as `S23 - 31JUN`, with
-  the `S`, ` - `, and `JUN` visibly smaller.
-- The top bar contains:
-  - a monochrome classic gear settings icon on the left;
-  - a monochrome left-arrow icon between the settings icon and title, which changes the
-    displayed week to the preceding week;
-  - the dynamically calculated `update` title in the center;
-  - a monochrome right-arrow icon between the title and today icon, which changes the displayed
-    week to the following week;
-  - a monochrome today icon on the right. It returns to the current calendar week and selects
-    the current day, applying the normal two-expanded-day rule.
-- Do not force the app-bar height. Use the standard Material top-app-bar measurement and its
-  status-bar inset so the week surface always starts below the complete visible top bar, with
-  no overlap or clipped lower edge.
-- Below the top bar, display the current calendar week as seven full-width horizontal
-  containers arranged vertically from Monday through Sunday.
-- Each day container contains two full-height inner containers arranged horizontally. Their
-  widths are the same in all seven day containers:
-  - the left inner container width is automatically calculated from the widest complete
-    day/date label among all seven days; every day uses that same width. It contains the two-letter
-    day abbreviation in small caps matching the title's reduced text size, followed on the same
-    line by the numeric day of the month in a slightly smaller title size. This day/date block is
-    right-aligned, vertically centered when compact, and aligned at the top when expanded, without
-    a separator between the abbreviation and number.
-  - the right inner container takes the remaining width and contains the day content.
-- Only the right inner container has an accent line. It is inside that inner container along its
-  left edge, immediately before the content, never on the day-container boundary or between two
-  parent day containers. The line is 3 dp wide, has square ends, uses `ColorScheme.secondary` for
-  days before the current day and `ColorScheme.primary` for the current day and following days.
-- The current day in the current displayed week has a border in the
-  `MaterialTheme.colorScheme.primary` role around the combined pair of inner containers. This
-  highlight is recalculated by the `update` action group. Other inner-container borders continue
-  to use the configured Debug1 border color. Only for the highlighted day, the left inner
-  container has no right corner radii and the right inner container has no left corner radii, so
-  the two highlighted halves join continuously. Reserve the highlight border thickness inside
-  the parent day container so this combined border remains fully visible.
-- In Simulation, `isHolidays` is true only from Monday through Thursday, while the combined
-  `isWEorBankH` flag is true only on Monday, Saturday, and Sunday; Monday therefore has both
-  states. Holiday days use a `secondary` vertical bar when past and a `primary` vertical bar
-  when current or future. The current day alone has the global
-  `primary` contour. Current/future days that are not `isWEorBankH` use `onSurface` over white
-  in light theme and black in dark theme; past days that are not `isWEorBankH` use
-  `onSurfaceVariant` over `surfaceContainer`; every `isWEorBankH` day uses `onSurface` over
-  `surface`. For validation,
-  Monday and Tuesday are holidays and Tuesday is also the bank holiday represented by
-  `isWEorBankH`.
-- There is no vertical peripheral gap or horizontal delimiter between Saturday and Sunday; their
-  vertical side borders and other inner-container borders remain visible.
-- There is no outer delimiter above the first day container or below the last day container.
-- Compute the current calendar week with Monday as its first day.
-- The right inner container displays `dolor sit amet bla bla truc bigoudi plan plan
-  proutcul` on nine successive lines when expanded and one line when compact, using a
-  body-medium text size. Each line starts with its one-based line number followed
-  by one space and the phrase. The content is vertically centered and left-aligned. Each
-  line is single-line only and is clipped at the right edge without wrapping or an ellipsis.
-- Initially, Monday and Tuesday are expanded. When Monday through Friday is selected, the
-  selected day and the following day are expanded and all other containers are compact.
-  When Saturday or Sunday is selected, Saturday and Sunday are both expanded.
-- On the initial arrival in the app, invoke the same action as the `Today` button so the current
-  calendar day is selected automatically.
-- Persist a `Simulation mode` setting, defaulting to `Off`. When `Simulation` is selected, ignore
-  real calendar state for the displayed week: Wednesday is today, Monday is a bank holiday, and
-  Monday through Thursday are holidays. The simulation also uses the combined `isWEorBankH`
-  state for Monday, Saturday, and Sunday.
-- Distribute the available safe height according to the current states:
-  - every compact container occupies 6.5 percent;
-  - the two expanded containers share the remaining height equally.
-- The complete visible surface of every day container is clickable. Clicking a day selects
-  it and applies the matching expanded-container rule above.
-- For a group change caused by a simple tap, animate all affected container heights
-  together over exactly 0.5 seconds of elapsed frame time, using one shared linear progression
-  that is independent of the system animator duration scale. The top and bottom separators
-  must move with their containers as the new two-day group expands and the former group
-  compacts.
-- When a compact container becomes expanded, update its right-side content before the
-  height animation starts. When an expanded container becomes compact, keep its expanded
-  content during the height animation and reduce it to one line only after the animation
-  completes.
-- A simple tap remains available on every compact or expanded day container regardless of the
-  selected scroll mode. Persist a `Scroll mode` setting with `Discrete` as its default:
-  - `Discrete` starts a vertical drag only when the initial touch is on an expanded container.
-    A new day becomes active only after the finger crosses the current container's halfway
-    point.
-  - `Linear` starts a vertical drag anywhere in the week area, including compact containers,
-    the right-side strip, and the bottom strip. It starts from the currently expanded group,
-    not from the touch-down container. In both scroll modes, preserve a simple tap until the
-    pointer has crossed Android's device-specific `LocalViewConfiguration.touchSlop`; only then
-    start a drag. After that threshold, Linear must not wait for the pointer to reach any
-    particular container position.
-    Transfer that exact pixel delta from the expanded container at the leading edge of the
-    drag to the compact container entering at the opposite edge. The shared expanded
-    container keeps its height, so its boundaries move by exactly the same number of pixels
-    as the finger. Cross consecutive groups one after another as drag distance accumulates;
-    one complete group transition equals the expanded-height minus compact-height difference.
-  While dragging, interpolate neighboring expanded layouts directly from the accumulated
-  pixel distance. Do not use a timed animation: the growth and compaction speed follows the
-  finger. Settle immediately on the nearest group when the finger is released, producing a
-  dock-style magnification movement without scaling content.
-- Define `app bar background` as the `surfaceContainer` role used explicitly by the top app
-  bars. Use that same color for every left inner container and all peripheral areas around the
-  day containers, including the bottom and right gesture strips. Each day-row parent has 10 dp
-  corner radii, except that Saturday has square bottom corners and Sunday has square top corners.
-  The two inner containers have default square corners and do not carry the row-level rounding.
-  In the current displayed week, both inner-container backgrounds of days before the current day
-  use `ColorScheme.surfaceContainer` as the background with `ColorScheme.onSurfaceVariant` as
-  the foreground; current/future non-`isWEorBankH` days use a white background in light theme
-  and a black background in dark theme with `ColorScheme.onSurface`; every `isWEorBankH` day
-  uses `ColorScheme.surface` with `ColorScheme.onSurface`.
-- The Sunday container must stop immediately above a bottom band equal to 72 percent of
-  the raw mandatory system-gesture inset. Its bottom separator marks the boundary with the
-  system-inset area, while the app-bar-background color continues underneath to the
-  bottom edge.
-- Reserve a right-side strip after the day containers whose width is 22.5 percent of the
-  greater of the raw mandatory system-gesture inset and 24 dp. This visible strip uses the
-  app-bar-background color.
-- Reserve a left-side strip before the day containers with exactly the same width as the
-  right-side strip. It also uses the app-bar-background color.
-- Keep every full click target above the system inset, use Material interaction feedback,
-  and expose each day container as one accessible semantic element.
+## Theme and windows
 
-## Calendar data synchronization
+- Use Material 3 and dynamicLightColorScheme/dynamicDarkColorScheme by default.
+  System follows Android; Light and Dark are persisted overrides.
+- Custom accent seeds are confined to ThemeModels.kt. Derive the complete
+  HCT SchemeTonalSpot ColorScheme, including matching on* roles. Cache schemes
+  across recompositions, invalidating on seed, mode, and Android configuration.
+- Components use ColorScheme roles and Material defaults. Explicit product
+  exception: current/future non-isWEorBankH days have white backgrounds in Light
+  and black backgrounds in Dark, with onSurface text. Do not generalize this
+  exception to other components or introduce new raw UI colors.
+- App-bar background means surfaceContainer. Peripheral strips use the same role.
+- Status/navigation bars stay visible. No immersive/fullscreen mode.
+- Use Scaffold and standard CenterAlignedTopAppBar measurement/insets, without
+  fixed height or overlapping week content.
+- Main Scaffold owns horizontal safeDrawing padding. Week gutters add only the
+  visual margin, not the same physical inset a second time.
 
-- When a calendar is selected and `READ_CALENDAR` permission is granted, load the selected
-  calendar's event instances for the displayed Monday-to-Sunday week from
-  `CalendarContract.Instances.CONTENT_URI`.
-- While the main composition is active and a calendar is selected, register a
-  `ContentObserver` on `CalendarContract.Events.CONTENT_URI` with descendant notifications
-  enabled. Unregister it when the composition is disposed or the selected calendar changes.
-- An observer callback means that calendar data changed; it must invoke the existing `update`
-  action group and reload the displayed week's events. This covers additions, modifications,
-  deletions, and recurrence changes without relying on a visible polling interval.
-- The Calendar Provider callback does not reliably identify whether the change was an addition
-  or deletion. Treat it as an invalidation, re-query the selected calendar, and replace the
-  current week's event lists with the query result. The existing resume and displayed-week
-  refreshes remain required as a fallback for changes received while the app was not visible.
+## update, date and navigation
 
-## Settings screen
+- AppViewModel owns the displayed Monday, selection, settings visibility,
+  reference date, calendar results and persistent preferences. Restore navigation
+  through SavedStateHandle. Save transient UI state with rememberSaveable.
+- Run update on first arrival, resume, displayed-week changes, calendar
+  invalidations, date/time/time-zone changes, and foreground local midnight.
+- First update action: compute Monday's ISO week title:
+  S<week> - <Monday day><three-letter uppercase English month>.
+  S, spaced hyphen, and month use 12sp small caps; numbers use normal title size.
+- Left controls: gear, previous-week arrow. Right: next-week arrow, Today.
+  Arrows move exactly one week. Today returns to the real current week and
+  selects today, or Wednesday in Simulation. First arrival invokes Today.
+- Past/current/future derives from complete LocalDate, never just a day index.
+- Foreground midnight timer and provider work stop on ON_STOP; resume refreshes.
+- Settings replaces the main composition; hidden days must not retain touch
+  handlers or accessibility nodes. Preserve each screen's saveable state.
 
-- Show the settings screen over the main screen with a Material 3 top bar and back action.
-- The first section selects the Android calendar to use:
-  - without calendar permission, show a button requesting permission;
-  - after permission is granted, replace it with the calendar-selection button;
-  - persist the selected calendar.
-- The `Schedules` section contains exactly five rows in a two-column layout. The first
-  column labels them `Case 1` through `Case 5`; the second column contains a Material 3
-  time selector for each row. Persist each selected time independently.
-- The next section is `Theme`, with persisted `Light`, `Dark`, and `System` options; `System`
-  is the default. Display all three choices side by side as a single-choice Material segmented
-  control, not in a menu.
-- The next section is `Accent color`. Persist the selection and use it to derive the complete
-  Material `ColorScheme`, so it is reflected throughout the app. Its first option is `System`,
-  which leaves the dynamic Android scheme intact. The remaining options are `Royal blue`
-  (`#005AC1`), `Indigo` (`#3F51B5`), `Teal` (`#006B5F`), `Material violet` (`#6750A4`),
-  `Plum` (`#7D3C98`), `Raspberry` (`#A7355C`), `Mandarin` (`#F57C00`), `Emerald green`
-  (`#2E7D32`), and a second `Teal` (`#006B5F`). The selector therefore contains ten rows:
-  `System` plus the nine remaining colour entries. Its list must scroll so every row remains
-  reachable on compact screens.
-- The next section selects the persisted `Scroll mode`. Display the `Discrete` and `Linear`
-  choices side by side as a single-choice Material segmented control, not in a menu.
-- The next section selects the persisted `Simulation mode`. Display `Off` and `Simulation`
-  side by side as a single-choice Material segmented control, with `Off` as the default.
-- The next section is `Debug1`. Persist its two side-by-side Material segmented choices:
-  `App bar background` is the default and maps to the shared app-bar-background color; `Black`
-  maps to `ColorScheme.onSurface`. Apply the selection immediately to every day-parent and
-  inner-container border/separator.
-- The final section is smaller and horizontally centered. It displays:
-  - `SimplerCal v<release version>`;
-  - the GitHub project URL as a clickable web link.
-- If the installed build is not an official GitHub release, display `---` as the release
-  version.
+## Week layout and interactions
 
-## Validation and remote build policy
+- Seven horizontal day rows, Monday to Sunday, each with two full-height,
+  square-cornered inner containers. Only the parent row carries rounding:
+  10dp normally; Saturday bottom corners square; Sunday top corners square.
+- Left: two-letter uppercase day abbreviation at 12sp, immediately followed by
+  day number, no dot/space/bold. Number is titleLarge minus 2sp.
+  Measure the widest complete label of the displayed week; use that width in
+  every row. Right side fills the rest.
+- Left labels are right-aligned, vertically centered compact, top-aligned expanded.
+- Exactly two expanded days: selected and next for Monday–Friday; Saturday and
+  Sunday for either weekend selection. Preserve Sunday's selected identity.
+- Compact rows occupy 6.5% each; expanded rows split the remainder (33.75% each).
+- When safe height cannot support compact 48dp targets or expanded text at the
+  user's font scale, use a vertically scrollable week with a sufficient virtual
+  height. Preserve proportions, tap behavior and selection; ordinary scrolling
+  replaces the magnification gesture in this accessibility fallback.
+- Right containers show real selected-calendar event titles, clipped single-line,
+  left-aligned and vertically centered. Expanded: up to nine rows; compact: one.
+  Beyond nine events, show eight plus an All events button opening the full list.
+  Long-press any day also opens that list, including complete titles and times.
+- Entire day surface has Material interaction feedback and one merged semantic
+  node with full English date, selected/expanded state and event count.
+- Simple taps work on every day in either scroll mode. Only the child handles
+  taps; the parent arbitrates drags. Crossing device touchSlop cancels taps even
+  where a Discrete drag is not allowed.
+- Tap group change: one shared linear withFrameNanos progression, exactly 500ms
+  of elapsed frame time, independent of animator duration scale.
+  Expanding content changes before animation; collapsing content stays expanded
+  until completion. ViewModel selection feedback must not replay the tap.
+- Discrete: drag can start only on an initially expanded day and waits for that
+  touched row's halfway point, in addition to touchSlop.
+- Linear: drag can start anywhere in the week, including peripheral strips;
+  after touchSlop, it starts immediately from the current expanded group.
+  Upward page-like motion advances groups; downward motion reverses them.
+- Drag uses pixel distance and actual current weights, including an interrupted
+  animation. No timed drag animation. Discard overscroll so reversal responds
+  immediately. Include final up-event displacement. Release settles immediately
+  to the nearest group; cancellation safely leaves drag state.
+- In a settled layout, one group transition equals expanded minus compact height.
+  The shared expanded row retains height; boundaries follow the pixel movement.
+- Left/right visual strips have equal width: 22.5% of max(24dp, mandatory right
+  gesture inset), outside the day rows and inside Scaffold's safe horizontal area.
+- Bottom band is max(72% of raw mandatory gesture inset, navigation-bar bottom,
+  safeDrawing bottom). Safety takes precedence over the requested decorative
+  percentage: Sunday and all click targets stop above this band.
+- One draw owner on the parent row handles rounded contours after children draw;
+  reserve stroke thickness inside its bounds. Current day has one combined primary
+  contour. Ordinary borders use Debug1, and seams have a single owner.
+  No outer horizontal delimiter above Monday/below Sunday and no Saturday/Sunday
+  ordinary horizontal seam. A current-day contour remains complete even on the
+  weekend. Square inner containers have no independent outlines.
 
-- Codex must not run `scripts/check-local` or `scripts/make-remote`. The user runs both
-  scripts manually.
-- Codex may inspect files and diffs but must leave local validation, commit, push, GitHub
-  Actions dispatch, APK retrieval, and device installation to the user-owned scripts.
-- The local-check freshness digest must represent current file paths, contents, executable
-  modes, and symbolic-link targets. It must remain unchanged when identical content is
-  staged or committed so `make-remote` can safely resume after a partial failure.
-- The normal local and GitHub Actions gate runs `functionalCheck` only.
-- Detekt runs with type resolution and only the `potential-bugs` rule set enabled. Convention,
-  naming, complexity, formatting, and style findings are not part of the normal validation.
-- KtLint, Android Lint, the optional `qualityCheck` task, and the ShellCheck helper remain
-  available for explicit manual use but are bypassed by `check-local` and GitHub Actions.
-- Cosmetic formatting, naming, complexity, style, and lint findings must not block the normal
-  workflow; real compilation and bug-detection failures still do.
-- GitHub Actions remains manually dispatched with `workflow_dispatch`. It runs
-  `functionalCheck`, builds the release APK, verifies it, and publishes the APK with its
-  SHA-256 checksum.
+## Special-day rules
+
+- isWEorBankH combines weekend and a date-specific bank-holiday marker.
+  isHolidays is a separate vacation marker, never inferred from event title.
+- In normal mode, long-press a day to edit persisted Vacation/Bank holiday markers
+  for that exact ISO date. Weekends are automatically isWEorBankH. Do not invent
+  bank holidays or vacations from a locale, region, or calendar name.
+- Simulation is persisted, default Off. In every displayed simulated week:
+  Wednesday is today; Monday/Saturday/Sunday are isWEorBankH; Monday–Thursday
+  only are isHolidays. Real markers are ignored, and edits are disabled.
+- Only isHolidays days show the 3dp square-ended vertical line inside the LEFT
+  edge of the RIGHT inner container. Past: secondary; today/future: primary.
+- Current day alone has a combined primary outline, recomputed by update.
+- isWEorBankH: surface/onSurface, with right-side text in true font Italic
+  (FontSynthesis.Style allowed; no extra geometric skew).
+- Other past days: surfaceContainer/onSurfaceVariant.
+- Other current/future days: explicit white/black product background, onSurface.
+- These rules apply to both inner backgrounds. There are no weekend outer stripes.
+
+## Calendar provider and persistence
+
+- Selected calendar + READ_CALENDAR: query CalendarContract.Instances for the
+  displayed Monday–Sunday week on Dispatchers.IO, with one captured time zone.
+  Preserve stable event/instance IDs, sort by begin/end/event ID, and split
+  multi-day events correctly. All-day dates use UTC and exclusive end dates.
+- Null cursor is a provider FAILURE, never a successful empty result. Preserve
+  prior successful data on transient failure, and do not display one week's
+  events in a different week or from a different selected calendar.
+- Validate calendar existence independently of VISIBLE. A hidden calendar can
+  stay selected; a removed/inaccessible calendar shows an explicit error and
+  lets the user reselect, without silently deleting preferences.
+- Superseded/debounced reads cancel through CancellationSignal, including cursor
+  iteration. Reject stale responses by revision, calendar, Monday and zone.
+- Permission denial/revocation updates hasCalendarPermission=false and cancels
+  pending work. Do not swallow CancellationException.
+- Observe Events and Calendars URIs with descendant notifications only while
+  composition is started and permission/selection are valid. Invalidation calls
+  update and reloads calendars/events. Unregister on disposal/stop/selection change.
+  Retry transient registration failure with bounded backoff and surface an error.
+- Keep selected numeric calendar ID in device-local calendar_device preferences,
+  excluded from cloud backup/device transfer. Migrate existing same-device values.
+  AppBackupAgent also removes legacy restored IDs after restoration: another
+  installation must explicitly select its own calendar. Other settings are backed up.
+
+## Settings
+
+- One Material settings screen, scrollable, with back action.
+- Ordered sections: Calendar, Schedules, Theme, Accent color, Scroll mode,
+  Simulation mode, Debug1, version/project link.
+- Calendar: request permission first; then select from a scrollable list with
+  account/owner details. Persist selection.
+- Schedules: exactly five rows, Case 1–Case 5 and Material time selector;
+  independently persisted minutes in 0..1439, or unset. Validate stored values.
+- Theme segmented control: System (default), Light, Dark.
+- Accent list is defined once by AccentTheme.entries: System (default), Royal blue,
+  Indigo, Teal, Material violet, Plum, Raspberry, Mandarin, Emerald green, second
+  Teal. Preserve this supplied current specification; the old conversation's larger
+  Seed color list is not the current contract. Scroll the full list.
+- Scroll segmented control: Discrete (default), Linear.
+- Simulation segmented control: Off (default), Simulation.
+- Debug1 segmented control: App bar background (default, surfaceContainer) and
+  Black (onSurface, not a literal RGB black). No Debug2.
+- Footer: SimplerCal v<official release version>, or --- for unofficial builds;
+  clickable project link. Try ACTION_VIEW directly and report missing browser
+  rather than using resolveActivity as a package-visibility preflight.
+
+## Local validation, CI and installation
+
+- User-owned scripts/check-local runs shell parsing, toolchain discovery,
+  functionalCheck, XML/YAML and project/script contract checks. Detekt enables
+  only potential-bugs with type resolution; functionalCheck ALSO runs all release
+  JVM unit tests. KtLint, Android Lint, qualityCheck and ShellCheck stay optional.
+- check-local must propagate every failed contract assertion, flush its tee log
+  before exit, and reject changes made during the check.
+- Freshness digest represents actual file paths, contents, executable modes and
+  symlink targets, not staging/commit identity. Deletion must have the same digest
+  before and after staging. Successful digest is checked by make-remote.
+- Four reusable scripts remain byte-identical between scripts/ and the tracked
+  skill/make_android_app/scripts snapshot.
+- CI: workflow_dispatch only; functionalCheck, stable-signed arm64 release build,
+  Compose device tests on Android 14 x86_64, APK verification, SHA-256 and upload.
+  Device tests must pass before artifact publication.
+- Stable signing: user manually runs scripts/configure-signing once, approving
+  creation/reuse of private ignored signing/ material and four repository secrets.
+  Codex may run this setup and backup when explicitly requested by the user.
+  The script verifies a private key/credentials backup outside Git before uploading
+  secrets. Default backup root: ~/.local/share/simplercal/signing-backups/.
+  A same-machine copy is not an off-device disaster-recovery backup.
+  No debug signing fallback for release.
+  Never log secret passwords or check signing material into Git.
+- make-remote performs ADB preflight; missing/unauthorized device is reported.
+  Installation is adb install -r, NEVER automatic uninstall. Signing mismatch
+  stops with data-preservation guidance; any one-time debug-to-release migration
+  needs explicit user action and backup.
+- --resume requires clean source and matching successful run SHA; do not claim
+  an old APK represents a changed worktree.
+- Cleanup is separate and manual: artifact deletion and retention edits each
+  require explicit confirmation; failed inventory/deletion/retention returns failure.
+- Codex leaves all validation/signing setup/build/deployment operations above
+  to the user, except operations explicitly delegated in the current request.
+  Updating the tracked skill snapshot does not update the globally
+  installed skill outside this repository.

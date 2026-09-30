@@ -2,19 +2,32 @@ package com.github.panlelapin.simplercal
 
 import android.content.Context
 import androidx.core.content.edit
+import java.time.LocalDate
 
 internal class AppPreferences(context: Context) {
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    private val devicePreferences = context.getSharedPreferences("calendar_device", Context.MODE_PRIVATE)
+
+    init {
+        // Forward migration; device-local identifiers are excluded from future backups.
+        if (preferences.contains(SELECTED_CALENDAR_KEY)) {
+            val legacyId = preferences.getLong(SELECTED_CALENDAR_KEY, NO_CALENDAR_ID)
+            if (!devicePreferences.contains(SELECTED_CALENDAR_KEY)) {
+                devicePreferences.edit { putLong(SELECTED_CALENDAR_KEY, legacyId) }
+            }
+            preferences.edit { remove(SELECTED_CALENDAR_KEY) }
+        }
+    }
 
     fun selectedCalendarId(): Long =
-        preferences.getLong(SELECTED_CALENDAR_KEY, NO_CALENDAR_ID)
+        devicePreferences.getLong(SELECTED_CALENDAR_KEY, NO_CALENDAR_ID)
 
     fun setSelectedCalendarId(calendarId: Long) {
-        preferences.edit { putLong(SELECTED_CALENDAR_KEY, calendarId) }
+        devicePreferences.edit { putLong(SELECTED_CALENDAR_KEY, calendarId) }
     }
 
     fun clearSelectedCalendar() {
-        preferences.edit { remove(SELECTED_CALENDAR_KEY) }
+        devicePreferences.edit { remove(SELECTED_CALENDAR_KEY) }
     }
 
     fun accentTheme(): AccentTheme =
@@ -89,5 +102,25 @@ internal class AppPreferences(context: Context) {
         }
         preferences.edit { putInt(scheduleTimeKey(slotIndex), minutes) }
         return true
+    }
+
+    fun dayMarkers(monday: LocalDate): Map<LocalDate, DayMarkers> {
+        val holidays = preferences.getStringSet("holiday_dates", emptySet()).orEmpty()
+        val bankHolidays = preferences.getStringSet("bank_holiday_dates", emptySet()).orEmpty()
+        return (0 until WEEK_DAY_COUNT).associate { index ->
+            val date = monday.plusDays(index.toLong())
+            date to DayMarkers(date.toString() in holidays, date.toString() in bankHolidays)
+        }
+    }
+
+    fun setDayMarkers(date: LocalDate, markers: DayMarkers) {
+        fun updated(key: String, enabled: Boolean): Set<String> =
+            preferences.getStringSet(key, emptySet()).orEmpty().toMutableSet().apply {
+                if (enabled) add(date.toString()) else remove(date.toString())
+            }
+        preferences.edit {
+            putStringSet("holiday_dates", updated("holiday_dates", markers.isHolidays))
+            putStringSet("bank_holiday_dates", updated("bank_holiday_dates", markers.isBankHoliday))
+        }
     }
 }

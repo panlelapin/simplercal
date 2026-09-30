@@ -46,6 +46,7 @@ internal class WeekInteraction(
     }
 
     fun selectDay(dayIndex: Int) {
+        if (isDragging) cancelDrag()
         val boundedDay = dayIndex.coerceIn(0, WEEK_DAY_COUNT - 1)
         val oldGroup = selectedGroupIndex
         if (boundedDay >= WEEKEND_START_INDEX) selectedWeekendDay = boundedDay
@@ -56,7 +57,9 @@ internal class WeekInteraction(
             contentExpandedDays = contentExpandedDays + expandedDayIndices(boundedDay)
             animationRequest += 1
         } else {
-            contentExpandedDays = expandedDayIndices(boundedDay)
+            if (animatedDayWeights == dayWeightsFor(newGroup)) {
+                contentExpandedDays = expandedDayIndices(boundedDay)
+            }
         }
     }
 
@@ -71,6 +74,7 @@ internal class WeekInteraction(
     }
 
     fun dragToFocus(focusPosition: Float) {
+        if (!isDragging) return
         val boundedFocus =
             focusPosition.coerceIn(
                 minimumValue = MIN_FRACTION,
@@ -92,6 +96,7 @@ internal class WeekInteraction(
     }
 
     fun endDrag() {
+        if (!isDragging) return
         val settledGroup =
             dragFocusPosition.roundToInt().coerceIn(
                 minimumValue = 0,
@@ -147,7 +152,7 @@ internal fun rememberWeekInteraction(
             WeekInteraction(requestedDayIndex) { dayIndex -> currentListener.value(dayIndex) }
         }
     interaction.updateSelectionListener { dayIndex -> currentListener.value(dayIndex) }
-    LaunchedEffect(selectionRequest, requestedDayIndex) {
+    LaunchedEffect(selectionRequest) {
         if (selectionRequest > 1) interaction.selectDay(requestedDayIndex)
     }
     return interaction
@@ -179,12 +184,8 @@ internal fun rememberWeekInsets(): WeekInsets {
             MINIMUM_RIGHT_GESTURE_GUTTER,
             mandatory.calculateRightPadding(layoutDirection),
         ) * RIGHT_GESTURE_GUTTER_FRACTION
-    val right =
-        maxOf(
-            requestedSide,
-            navigation.calculateRightPadding(layoutDirection),
-            safeDrawing.calculateRightPadding(layoutDirection),
-        )
+    // Scaffold owns horizontal safeDrawing insets; these are visual gutters only.
+    val right = requestedSide
     val density = LocalDensity.current
     return WeekInsets(
         bottom = bottom,

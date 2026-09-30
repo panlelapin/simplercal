@@ -22,9 +22,20 @@
     <string name="section_debug1">Debug1</string>
 
     <string name="calendar_permission_explanation">Allow access to choose an Android calendar.</string>
-    <string name="calendar_none_available">No visible calendars available.</string>
+    <string name="calendar_none_available">No calendars available.</string>
     <string name="calendar_error_permission">Calendar permission is no longer available.</string>
     <string name="calendar_error_provider">The Android Calendar Provider could not be read.</string>
+    <string name="calendar_error_missing">The selected calendar is unavailable. Choose a calendar in Settings.</string>
+    <string name="browser_unavailable">No app can open this web link.</string>
+    <string name="action_day_details">Show day details and markers</string>
+    <string name="action_all_events">All %1$d events</string>
+    <string name="action_close">Close</string>
+    <string name="marker_vacation">Vacation</string>
+    <string name="marker_bank_holiday">Bank holiday</string>
+    <string name="simulation_markers_explanation">Simulation controls the vacation and bank holiday markers.</string>
+    <string name="no_events">No events</string>
+    <string name="event_all_day">All day</string>
+    <string name="week_accessibility_description">Calendar week. Long press a day for details and markers.</string>
     <string name="calendar_unnamed">Unnamed calendar</string>
     <string name="calendar_event_untitled">Untitled event</string>
     <string name="day_accessibility_description">%1$s, %2$s</string>

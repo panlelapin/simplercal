@@ -1,4 +1,5 @@
 import dev.detekt.gradle.extensions.FailOnSeverity
+import com.android.build.api.variant.HostTestBuilder
 
 plugins {
     id("com.android.application")
@@ -50,6 +51,13 @@ android {
         checkReleaseBuilds = true
         lintConfig = file("lint.xml")
         warningsAsErrors = true
+    }
+}
+
+// AGP 9 enables host tests only for the tested build type by default.
+androidComponents {
+    beforeVariants(selector().withBuildType("release")) { builder ->
+        builder.hostTests.getValue(HostTestBuilder.UNIT_TEST_TYPE).enable = true
     }
 }
 

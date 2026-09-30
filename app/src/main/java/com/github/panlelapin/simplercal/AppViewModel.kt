@@ -9,8 +9,8 @@ import androidx.compose.runtime.setValue
 import java.time.Duration
 import java.time.LocalDate
 import java.time.ZonedDateTime
+import java.time.ZoneId
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -21,7 +21,9 @@ internal class AppViewModel(
 ) : AndroidViewModel(application) {
     private val preferences = AppPreferences(application.applicationContext)
     private val calendarRepository = CalendarRepository(application.applicationContext)
-    private val calendarRefreshes = Channel<Unit>(Channel.CONFLATED)
+    private var calendarRefreshJob: Job? = null
+    private var refreshRevision = 0L
+    private var isForeground = false
     private val hasRestoredNavigation = savedStateHandle.contains(STATE_DISPLAYED_MONDAY)
     private var calendarListJob: Job? = null
     private var midnightJob: Job? = null
@@ -30,18 +32,7 @@ internal class AppViewModel(
         private set
 
     init {
-        viewModelScope.launch {
-            for (ignored in calendarRefreshes) {
-                delay(CALENDAR_REFRESH_DEBOUNCE_MILLIS)
-                while (calendarRefreshes.tryReceive().isSuccess) {
-                    // Collapse a provider burst into one query of the newest state.
-                }
-                loadDisplayedWeek()
-            }
-        }
-        restartMidnightTimer()
         if (hasRestoredNavigation) update() else selectToday()
-        refreshCalendars()
     }
 
     fun update() {
@@ -54,18 +45,40 @@ internal class AppViewModel(
                 referenceDate = referenceDate,
                 highlightedDayIndex = highlightedIndex,
                 hasCalendarPermission = calendarRepository.hasPermission(),
+                dayMarkers = preferences.dayMarkers(monday),
             )
         requestCalendarRefresh()
     }
 
     fun onResume() {
+        isForeground = true
+        restartMidnightTimer()
         update()
-        if (uiState.isSettingsVisible) refreshCalendars()
+        refreshCalendars()
+    }
+
+    fun onStop() {
+        isForeground = false
+        midnightJob?.cancel()
+        calendarRefreshJob?.cancel()
+        calendarListJob?.cancel()
+        uiState = uiState.copy(isCalendarLoading = false, isCalendarListLoading = false)
+    }
+
+    fun onCalendarObservationFailed(failed: Boolean) {
+        uiState = uiState.copy(hasCalendarObserverFailure = failed)
+    }
+
+    fun setDayMarkers(date: LocalDate, markers: DayMarkers) {
+        preferences.setDayMarkers(date, markers)
+        update()
     }
 
     fun onTimeContextChanged() {
-        restartMidnightTimer()
-        update()
+        if (isForeground) {
+            restartMidnightTimer()
+            update()
+        }
     }
 
     fun showSettings() {
@@ -84,12 +97,13 @@ internal class AppViewModel(
     fun showNextWeek() = setDisplayedMonday(uiState.displayedMonday.plusWeeks(1))
 
     fun selectToday() {
-        val monday = currentWeekMonday()
+        val today = LocalDate.now()
+        val monday = currentWeekMonday(today)
         val selectedIndex =
             if (uiState.simulationMode == SimulationMode.SIMULATION) {
                 SIMULATION_TODAY_INDEX
             } else {
-                LocalDate.now().dayOfWeek.value - 1
+                today.dayOfWeek.value - 1
             }
         savedStateHandle[STATE_DISPLAYED_MONDAY] = monday.toEpochDay()
         savedStateHandle[STATE_SELECTED_DAY] = selectedIndex
@@ -111,6 +125,7 @@ internal class AppViewModel(
     }
 
     fun onCalendarProviderChanged() {
+        refreshCalendars()
         update()
     }
 
@@ -123,6 +138,13 @@ internal class AppViewModel(
             )
         refreshCalendars()
         update()
+        if (!granted) {
+            calendarRefreshJob?.cancel()
+            calendarListJob?.cancel()
+            uiState = uiState.copy(hasCalendarPermission = false,
+                isCalendarLoading = false, isCalendarListLoading = false,
+                calendarFailure = CalendarFailureReason.PERMISSION_REVOKED)
+        }
     }
 
     fun selectCalendar(calendarId: Long) {
@@ -137,6 +159,7 @@ internal class AppViewModel(
 
     fun refreshCalendars() {
         calendarListJob?.cancel()
+        if (!isForeground) return
         if (!calendarRepository.hasPermission()) {
             uiState =
                 uiState.copy(
@@ -171,6 +194,7 @@ internal class AppViewModel(
                             uiState.copy(
                                 isCalendarListLoading = false,
                                 calendarListFailure = result.reason,
+                                hasCalendarPermission = result.reason != CalendarFailureReason.PERMISSION_REVOKED,
                             )
                     }
                 }
@@ -253,6 +277,7 @@ internal class AppViewModel(
             simulationMode = simulationMode,
             debug1OutlineColor = preferences.debug1OutlineColor(),
             scheduleTimes = preferences.scheduleTimes(),
+            dayMarkers = preferences.dayMarkers(restoredMonday),
         )
     }
 
@@ -263,12 +288,20 @@ internal class AppViewModel(
     }
 
     private fun requestCalendarRefresh() {
-        calendarRefreshes.trySend(Unit)
+        refreshRevision += 1
+        calendarRefreshJob?.cancel()
+        if (!isForeground) return
+        val revision = refreshRevision
+        calendarRefreshJob = viewModelScope.launch {
+            delay(CALENDAR_REFRESH_DEBOUNCE_MILLIS)
+            loadDisplayedWeek(revision)
+        }
     }
 
-    private suspend fun loadDisplayedWeek() {
+    private suspend fun loadDisplayedWeek(revision: Long) {
         val requestedMonday = uiState.displayedMonday
         val requestedCalendarId = uiState.selectedCalendarId
+        val requestedZone = ZoneId.systemDefault()
         if (requestedCalendarId < 0L) {
             uiState =
                 uiState.copy(
@@ -281,10 +314,11 @@ internal class AppViewModel(
             return
         }
         uiState = uiState.copy(isCalendarLoading = true, calendarFailure = null)
-        val result = calendarRepository.loadWeek(requestedCalendarId, requestedMonday)
+        val result = calendarRepository.loadWeek(requestedCalendarId, requestedMonday, requestedZone)
         if (
             requestedMonday != uiState.displayedMonday ||
-                requestedCalendarId != uiState.selectedCalendarId
+                requestedCalendarId != uiState.selectedCalendarId ||
+                revision != refreshRevision || requestedZone != ZoneId.systemDefault()
         ) {
             requestCalendarRefresh()
             return
@@ -315,6 +349,7 @@ internal class AppViewModel(
                     uiState.copy(
                         isCalendarLoading = false,
                         calendarFailure = result.reason,
+                        hasCalendarPermission = result.reason != CalendarFailureReason.PERMISSION_REVOKED,
                     )
             }
         }
@@ -323,14 +358,9 @@ internal class AppViewModel(
     private fun applyCalendarChoices(calendars: List<CalendarChoice>) {
         val selectedStillExists = calendars.any { it.id == uiState.selectedCalendarId }
         if (uiState.selectedCalendarId >= 0L && !selectedStillExists) {
-            preferences.clearSelectedCalendar()
             uiState =
                 uiState.copy(
-                    selectedCalendarId = NO_CALENDAR_ID,
-                    eventsByDay = emptyEventDays(),
-                    loadedEventsMonday = null,
-                    loadedEventsCalendarId = NO_CALENDAR_ID,
-                    calendarFailure = null,
+                    calendarFailure = CalendarFailureReason.CALENDAR_UNAVAILABLE,
                 )
         }
         uiState =

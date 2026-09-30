@@ -192,14 +192,14 @@ install_on_adb_device() {
   installed_path=$(adb -s "$device" shell pm path "$EXPECTED_PACKAGE" 2>/dev/null |
     sed -n 's/^package://p' | sed -n '1p')
   if [[ -n "$installed_path" ]]; then
-    printf 'Uninstalling previous %s from ADB device %s.\n' "$EXPECTED_PACKAGE" "$device"
-    adb -s "$device" uninstall "$EXPECTED_PACKAGE"
+    printf 'Updating previous %s on ADB device %s without deleting app data.\n' "$EXPECTED_PACKAGE" "$device"
   else
     printf 'No previous %s installation found on ADB device %s.\n' "$EXPECTED_PACKAGE" "$device"
   fi
 
   printf 'Installing %s on ADB device %s.\n' "$APK" "$device"
-  adb -s "$device" install "$APK"
+  adb -s "$device" install -r "$APK" || die \
+    "installation failed; the previous app and its data were kept. For incompatible signing, explicitly back up your data before any manual uninstall"
 
   expected_version_code=$(
     "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$APK"
@@ -287,8 +287,9 @@ require_local_check() {
 
 current_source_digest() {
   git ls-files --cached --others --exclude-standard -z |
-    sort -z |
+    sort -zu |
     while IFS= read -r -d '' path; do
+      [[ -L "$path" || -f "$path" ]] || continue
       printf 'path:%s\0' "$path"
       if [[ -L "$path" ]]; then
         printf 'mode:120000\0target:%s\0' "$(readlink -- "$path")"
@@ -362,6 +363,9 @@ require_local_check
 
 HEAD_SHA=''
 if [[ -n "$RESUME_RUN_ID" ]]; then
+  git diff --quiet && git diff --cached --quiet && \
+    [[ -z "$(git ls-files --others --exclude-standard)" ]] || \
+    die "--resume requires a clean source worktree: commit/build local changes first"
   HEAD_SHA=$(git rev-parse HEAD)
   RUN_ID=$RESUME_RUN_ID
   IFS=$'\t' read -r STATUS CONCLUSION RUN_HEAD_SHA < <(

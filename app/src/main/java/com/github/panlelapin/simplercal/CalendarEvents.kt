@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.provider.CalendarContract
+import android.os.CancellationSignal
 import android.util.Log
 import androidx.core.content.ContextCompat
 import java.time.Instant
@@ -15,6 +16,9 @@ import java.time.ZoneOffset
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 internal data class CalendarEvent(
     val eventId: Long,
@@ -52,6 +56,7 @@ internal sealed interface CalendarChoicesResult {
 internal enum class CalendarFailureReason {
     PERMISSION_REVOKED,
     PROVIDER_UNAVAILABLE,
+    CALENDAR_UNAVAILABLE,
 }
 
 internal class CalendarRepository(
@@ -64,22 +69,27 @@ internal class CalendarRepository(
     suspend fun loadWeek(
         calendarId: Long,
         monday: LocalDate,
+        zoneId: ZoneId = ZoneId.systemDefault(),
     ): CalendarWeekResult =
         withContext(Dispatchers.IO) {
             if (calendarId < 0L) return@withContext CalendarWeekResult.Success(emptyEventDays())
             if (!hasPermission()) return@withContext CalendarWeekResult.PermissionRequired
             try {
-                val zoneId = ZoneId.systemDefault()
                 val weekStart = monday.atStartOfDay(zoneId)
                 val weekEnd = monday.plusDays(WEEK_DAY_COUNT.toLong()).atStartOfDay(zoneId)
-                val instances =
+                val instances = cancellableProviderRead { cancellation ->
+                    if (!calendarExists(context.contentResolver, calendarId, cancellation)) {
+                        return@cancellableProviderRead null
+                    }
                     readCalendarInstances(
                         resolver = context.contentResolver,
                         calendarId = calendarId,
                         beginMillis = weekStart.toInstant().toEpochMilli(),
                         endMillis = weekEnd.toInstant().toEpochMilli(),
                         untitledEventName = context.getString(R.string.calendar_event_untitled),
+                        cancellation = cancellation,
                     )
+                } ?: return@withContext CalendarWeekResult.Failure(CalendarFailureReason.CALENDAR_UNAVAILABLE)
                 CalendarWeekResult.Success(
                     groupEventsByDay(instances, monday, zoneId),
                 )
@@ -99,10 +109,11 @@ internal class CalendarRepository(
             if (!hasPermission()) return@withContext CalendarChoicesResult.PermissionRequired
             try {
                 CalendarChoicesResult.Success(
-                    readCalendars(
+                    cancellableProviderRead { cancellation -> readCalendars(
                         resolver = context.contentResolver,
                         unnamedCalendarName = context.getString(R.string.calendar_unnamed),
-                    ),
+                        cancellation = cancellation,
+                    ) },
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -116,12 +127,40 @@ internal class CalendarRepository(
         }
 }
 
+// Register cancellation before entering a blocking provider call on Dispatchers.IO.
+private suspend fun <T> cancellableProviderRead(read: (CancellationSignal) -> T): T =
+    suspendCancellableCoroutine { continuation ->
+        val cancellation = CancellationSignal()
+        continuation.invokeOnCancellation { cancellation.cancel() }
+        try {
+            continuation.resume(read(cancellation))
+        } catch (error: Exception) {
+            if (continuation.isActive) continuation.resumeWithException(error)
+        }
+    }
+
+internal fun requireCalendarCursor(cursor: Cursor?): Cursor =
+    checkNotNull(cursor) { "Calendar Provider returned no cursor" }
+
+private fun calendarExists(resolver: ContentResolver, id: Long, cancellation: CancellationSignal): Boolean =
+    resolver.query(
+        CalendarContract.Calendars.CONTENT_URI,
+        arrayOf(CalendarContract.Calendars._ID),
+        "${CalendarContract.Calendars._ID} = ?",
+        arrayOf(id.toString()),
+        null,
+        cancellation,
+    ).use { cursor ->
+        requireCalendarCursor(cursor).moveToFirst()
+    }
+
 private fun readCalendarInstances(
     resolver: ContentResolver,
     calendarId: Long,
     beginMillis: Long,
     endMillis: Long,
     untitledEventName: String,
+    cancellation: CancellationSignal,
 ): List<CalendarEvent> {
     val uri =
         CalendarContract.Instances.CONTENT_URI
@@ -148,14 +187,16 @@ private fun readCalendarInstances(
         selection,
         arrayOf(calendarId.toString()),
         sortOrder,
+        cancellation,
     ).use { cursor ->
-        if (cursor == null) emptyList() else cursor.readEvents(untitledEventName)
+        requireCalendarCursor(cursor).readEvents(untitledEventName, cancellation)
     }
 }
 
-private fun Cursor.readEvents(untitledEventName: String): List<CalendarEvent> =
+private fun Cursor.readEvents(untitledEventName: String, cancellation: CancellationSignal): List<CalendarEvent> =
     buildList {
         while (moveToNext()) {
+            cancellation.throwIfCanceled()
             val eventId = getLong(0)
             val title = getString(1)?.trim().orEmpty().ifEmpty { untitledEventName }
             val begin = getLong(2)
@@ -176,6 +217,7 @@ private fun Cursor.readEvents(untitledEventName: String): List<CalendarEvent> =
 private fun readCalendars(
     resolver: ContentResolver,
     unnamedCalendarName: String,
+    cancellation: CancellationSignal,
 ): List<CalendarChoice> {
     val projection =
         arrayOf(
@@ -184,34 +226,29 @@ private fun readCalendars(
             CalendarContract.Calendars.ACCOUNT_NAME,
             CalendarContract.Calendars.OWNER_ACCOUNT,
         )
-    val selection = "${CalendarContract.Calendars.VISIBLE} = 1"
     val sortOrder =
         "${CalendarContract.Calendars.CALENDAR_DISPLAY_NAME} COLLATE NOCASE ASC, " +
             "${CalendarContract.Calendars.ACCOUNT_NAME} COLLATE NOCASE ASC"
     return resolver.query(
         CalendarContract.Calendars.CONTENT_URI,
         projection,
-        selection,
+        null,
         null,
         sortOrder,
+        cancellation,
     ).use { cursor ->
-        if (cursor == null) {
-            emptyList()
-        } else {
-            buildList {
-                while (cursor.moveToNext()) {
-                    add(
-                        CalendarChoice(
-                            id = cursor.getLong(0),
-                            name =
-                                cursor.getString(1)?.trim().orEmpty().ifEmpty {
-                                    unnamedCalendarName
-                                },
-                            accountName = cursor.getString(2)?.trim().orEmpty(),
-                            ownerAccount = cursor.getString(3)?.trim().orEmpty(),
-                        ),
-                    )
-                }
+        val readableCursor = requireCalendarCursor(cursor)
+        buildList {
+            while (readableCursor.moveToNext()) {
+                cancellation.throwIfCanceled()
+                add(
+                    CalendarChoice(
+                        id = readableCursor.getLong(0),
+                        name = readableCursor.getString(1)?.trim().orEmpty().ifEmpty { unnamedCalendarName },
+                        accountName = readableCursor.getString(2)?.trim().orEmpty(),
+                        ownerAccount = readableCursor.getString(3)?.trim().orEmpty(),
+                    ),
+                )
             }
         }
     }

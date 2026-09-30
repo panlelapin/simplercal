@@ -35,12 +35,19 @@ The starter must expose exactly one launcher activity named `MainActivity`.
 
 ## Quality and permissions
 
+First honor repository-specific ownership rules in AGENTS.md. In SimplerCal, the user
+owns local validation, signing setup, commits, CI dispatch and deployment: Codex must
+only edit/inspect files, and must not run these operations or reproduce them manually.
+The remaining default procedure applies only when AGENTS.md permits it.
+
 Run `scripts/check-local` after changes to Kotlin, resources, manifests, or Gradle files,
 and before `scripts/make-remote`. If source was created or changed because of `AGENTS.md`,
 ask before launching that check. Never use a baseline, lenient dependency verification,
 `ignoreFailures`, broad suppressions, or local APK assembly to turn failures into success.
-`functionalCheck` is the local/CI Kotlin gate. It runs only Detekt's `potential-bugs`
-rules with type resolution; all convention-oriented Detekt rule sets are disabled.
+`functionalCheck` is the local/CI Kotlin gate. It runs Detekt's `potential-bugs`
+rules with type resolution and the release JVM unit tests; all convention-oriented
+Detekt rule sets are disabled. For SimplerCal, CI also runs the Compose device tests
+before publishing an APK. Never call a test definition or static review a passing test.
 
 Keep KtLint, Android Lint, the optional `qualityCheck` task, and the ShellCheck helper
 available for explicit manual use, but do not invoke them from `scripts/check-local`,
@@ -58,6 +65,8 @@ Make the `check-local` worktree attestation depend only on current file paths, c
 executable modes, and symbolic-link targets. Never include `HEAD`, index state, or commit
 identity in that digest: `make-remote` must accept the same validated content after it has
 staged or committed it, including when resuming after a partial remote-build failure.
+Deleted files must not change the digest merely because their deletion is staged.
+Require a clean source worktree for --resume, and flush the check-local log before exit.
 
 Keep `gradle/verification-metadata.xml`, the Gradle wrapper, the functional Detekt
 configuration, minSdk 34, targetSdk 36, release shrinking, and non-debuggable development
@@ -143,6 +152,14 @@ continue the remote build but skip or defer device installation as appropriate. 
 APK is downloaded, install it on the selected device and verify package, version metadata,
 and the pulled APK SHA-256 against the remote artifact. Never report device validation when
 the preflight or the post-install hash check did not succeed.
+
+Install with adb install -r; never silently uninstall an existing app to bypass a
+signature mismatch. Preserve user data and explain the required explicit migration.
+SimplerCal releases use persistent signing secrets, not a fresh runner's debug key.
+The user owns the one-time scripts/configure-signing setup and private key backup.
+An explicit user request may delegate that setup to Codex without authorizing a
+build or installation. In SimplerCal, configure-signing verifies a private backup
+outside the repository before uploading the four GitHub secrets.
 
 ## Keep this skill synchronized
 

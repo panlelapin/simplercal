@@ -39,6 +39,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -81,13 +83,17 @@ private fun SimplerCalApp(viewModel: AppViewModel) {
             ThemeMode.DARK -> true
             ThemeMode.SYSTEM -> isSystemInDarkTheme()
         }
-    val dynamicColorScheme =
+    val configuration = LocalConfiguration.current
+    val dynamicColorScheme = remember(context, isDarkTheme, configuration) {
         if (isDarkTheme) {
             dynamicDarkColorScheme(context)
         } else {
             dynamicLightColorScheme(context)
         }
-    val colorScheme = state.accentTheme.applyTo(dynamicColorScheme, isDarkTheme)
+    }
+    val colorScheme = remember(state.accentTheme, dynamicColorScheme, isDarkTheme) {
+        state.accentTheme.applyTo(dynamicColorScheme, isDarkTheme)
+    }
 
     CalendarChangesEffect(
         context = context,
@@ -95,6 +101,8 @@ private fun SimplerCalApp(viewModel: AppViewModel) {
         hasPermission = state.hasCalendarPermission,
         onCalendarChanged = viewModel::onCalendarProviderChanged,
         onPermissionRevoked = { viewModel.onCalendarPermissionResult(false) },
+        lifecycle = activity?.lifecycle,
+        onObservationFailed = viewModel::onCalendarObservationFailed,
     )
     AppLifecycleEffects(activity, context, viewModel)
     SideEffect { activity?.let { updateSystemBars(it, isDarkTheme) } }
@@ -122,6 +130,7 @@ private fun AppLifecycleEffects(
             val observer =
                 LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME) viewModel.onResume()
+                    if (event == Lifecycle.Event.ON_STOP) viewModel.onStop()
                 }
             lifecycle.addObserver(observer)
             onDispose { lifecycle.removeObserver(observer) }
@@ -170,7 +179,9 @@ private fun AppSurface(
     viewModel: AppViewModel,
 ) {
     if (state.isSettingsVisible) BackHandler(onBack = viewModel::hideSettings)
+    val screenStates = rememberSaveableStateHolder()
     Box(modifier = Modifier.fillMaxSize()) {
+        if (!state.isSettingsVisible) screenStates.SaveableStateProvider("week") {
         MainScreen(
             state = state,
             isDarkTheme = isDarkTheme,
@@ -182,8 +193,11 @@ private fun AppSurface(
                     onToday = viewModel::selectToday,
                 ),
             onDaySelected = viewModel::onDaySelected,
+            onDayMarkersChange = viewModel::setDayMarkers,
         )
+        }
         if (state.isSettingsVisible) {
+            screenStates.SaveableStateProvider("settings") {
             SettingsScreen(
                 state = state,
                 actions =
@@ -200,6 +214,7 @@ private fun AppSurface(
                         onBack = viewModel::hideSettings,
                     ),
             )
+            }
         }
     }
 }
@@ -211,10 +226,13 @@ private fun MainScreen(
     isDarkTheme: Boolean,
     actions: MainScreenActions,
     onDaySelected: (Int) -> Unit,
+    onDayMarkersChange: (java.time.LocalDate, DayMarkers) -> Unit,
 ) {
     val appBarBackground = MaterialTheme.colorScheme.surfaceContainer
     val snackbarHostState = remember { SnackbarHostState() }
-    val calendarError = calendarFailureMessage(state.calendarFailure)
+    val calendarError = calendarFailureMessage(
+        state.calendarFailure ?: if (state.hasCalendarObserverFailure) CalendarFailureReason.PROVIDER_UNAVAILABLE else null,
+    )
     LaunchedEffect(calendarError) {
         if (calendarError != null) snackbarHostState.showSnackbar(calendarError)
     }
@@ -251,6 +269,8 @@ private fun MainScreen(
                             requestedDayIndex = state.selectedDayIndex,
                             selectionRequest = state.selectionRequest,
                             onSelectionChanged = onDaySelected,
+                            dayMarkers = state.dayMarkers,
+                            onDayMarkersChange = onDayMarkersChange,
                         ),
                 )
                 if (state.isCalendarLoading) {
@@ -313,5 +333,7 @@ private fun calendarFailureMessage(reason: CalendarFailureReason?): String? =
             stringResource(R.string.calendar_error_permission)
         CalendarFailureReason.PROVIDER_UNAVAILABLE ->
             stringResource(R.string.calendar_error_provider)
+        CalendarFailureReason.CALENDAR_UNAVAILABLE ->
+            stringResource(R.string.calendar_error_missing)
         null -> null
     }

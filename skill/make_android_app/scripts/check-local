@@ -18,8 +18,9 @@ need() {
 
 current_source_digest() {
     git ls-files --cached --others --exclude-standard -z |
-        sort -z |
+        sort -zu |
         while IFS= read -r -d '' path; do
+            [[ -L "$path" || -f "$path" ]] || continue
             printf 'path:%s\0' "$path"
             if [[ -L "$path" ]]; then
                 printf 'mode:120000\0target:%s\0' "$(readlink -- "$path")"
@@ -142,12 +143,20 @@ run_check() {
 
 # shellcheck disable=SC2317
 check_shell_syntax() {
-    bash -n scripts/check-github-stuff scripts/check-local scripts/make-remote scripts/verify-apk gradlew
+    local script
+    for script in scripts/check-github-stuff scripts/check-local scripts/make-remote scripts/verify-apk gradlew scripts/configure-signing scripts/cleanup-github-actions.sh; do
+        [[ -f "$script" ]] || continue
+        bash -n "$script" || return 1
+    done
 }
 
 # shellcheck disable=SC2317
 check_shellcheck() {
-    shellcheck scripts/check-github-stuff scripts/check-local scripts/make-remote scripts/verify-apk gradlew
+    local script
+    for script in scripts/check-github-stuff scripts/check-local scripts/make-remote scripts/verify-apk gradlew scripts/configure-signing scripts/cleanup-github-actions.sh; do
+        [[ -f "$script" ]] || continue
+        shellcheck "$script" || return 1
+    done
 }
 
 # shellcheck disable=SC2317
@@ -185,26 +194,26 @@ PY
 
 # shellcheck disable=SC2317
 check_project_contract() {
-    [[ -x gradlew ]]
-    [[ -f gradle/wrapper/gradle-wrapper.jar ]]
-    grep -Eq '^distributionSha256Sum=' gradle/wrapper/gradle-wrapper.properties
-    rg -q 'minSdk = 34' app/build.gradle.kts
+    [[ -x gradlew ]] || return 1
+    [[ -f gradle/wrapper/gradle-wrapper.jar ]] || return 1
+    grep -Eq '^distributionSha256Sum=' gradle/wrapper/gradle-wrapper.properties || return 1
+    rg -q 'minSdk = 34' app/build.gradle.kts || return 1
     if rg -q 'com\.example\.app' . --glob '!**/build/**' --glob '!skill/make_android_app/**'; then
         return 1
     fi
-    git check-ignore -q --no-index build/
-    git check-ignore -q --no-index check-local.log
+    git check-ignore -q --no-index build/ || return 1
+    git check-ignore -q --no-index check-local.log || return 1
     if git check-ignore -q --no-index skill/make_android_app/; then
         return 1
     fi
-    [[ ! -L build ]]
-    [[ -x scripts/check-github-stuff && -x scripts/check-local && -x scripts/make-remote && -x scripts/verify-apk ]]
-    [[ -f skill/make_android_app/SKILL.md ]]
-    [[ -f skill/make_android_app/agents/openai.yaml ]]
-    [[ -d skill/make_android_app/assets && -d skill/make_android_app/references ]]
+    [[ ! -L build ]] || return 1
+    [[ -x scripts/check-github-stuff && -x scripts/check-local && -x scripts/make-remote && -x scripts/verify-apk ]] || return 1
+    [[ -f skill/make_android_app/SKILL.md ]] || return 1
+    [[ -f skill/make_android_app/agents/openai.yaml ]] || return 1
+    [[ -d skill/make_android_app/assets && -d skill/make_android_app/references ]] || return 1
     for script in check-github-stuff check-local make-remote verify-apk; do
-        [[ -x "skill/make_android_app/scripts/$script" ]]
-        cmp -s "scripts/$script" "skill/make_android_app/scripts/$script"
+        [[ -x "skill/make_android_app/scripts/$script" ]] || return 1
+        cmp -s "scripts/$script" "skill/make_android_app/scripts/$script" || return 1
     done
 }
 
@@ -217,6 +226,7 @@ need rg
 need sha256sum
 need sed
 need sort
+need tee
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || die "run this check inside a Git worktree"
 cd "$ROOT"
@@ -225,6 +235,15 @@ WORKFLOW_FILE=${WORKFLOW_FILE:-.github/workflows/android-app.yml}
 
 mkdir -p "$(dirname "$LOG_FILE")"
 exec > >(tee "$LOG_FILE") 2>&1
+log_tee_pid=$!
+finish_logging() {
+    local exit_status=$?
+    trap - EXIT
+    exec 1>&- 2>&-
+    wait "$log_tee_pid" || exit_status=1
+    exit "$exit_status"
+}
+trap finish_logging EXIT
 
 printf 'Starting complete local validation for %s.\n' "$ROOT"
 source_digest=$(current_source_digest)
@@ -236,6 +255,10 @@ run_check "Gradle functionalCheck" ./gradlew functionalCheck --no-daemon --stack
 run_check "Android XML parsing" check_xml
 run_check "workflow YAML and CI assertions" check_workflow
 run_check "project and script contract" check_project_contract
+if [[ "$(current_source_digest)" != "$source_digest" ]]; then
+    printf 'FAIL: source files changed during validation; run check-local again.\n' >&2
+    failures=$((failures + 1))
+fi
 
 if [[ "$failures" -eq 0 ]]; then
     printf 'CHECK_LOCAL_RESULT=PASS\n'

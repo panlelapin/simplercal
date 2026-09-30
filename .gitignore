@@ -11,3 +11,4 @@ check-local.log
 \#*\#
 *.swp
 *.swo
+/signing/

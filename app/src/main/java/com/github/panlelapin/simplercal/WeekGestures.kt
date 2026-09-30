@@ -21,6 +21,7 @@ internal fun Modifier.weekGestureInput(state: WeekGestureState): Modifier =
         state.scrollMode,
         state.bottomGestureInsetPx,
         state.rightGestureInsetPx,
+        state.leftGestureInsetPx,
         state.touchSlopPx,
     ) {
         handleWeekGesture(state)
@@ -30,8 +31,6 @@ private suspend fun PointerInputScope.handleWeekGesture(state: WeekGestureState)
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
         val dayAreaHeight = (size.height - state.bottomGestureInsetPx).coerceAtLeast(1f)
-        val anchorFocus = groupIndexFor(state.selectedDayIndex()).toFloat()
-        val transitionDistance = dayGroupTransitionDistance(dayAreaHeight).coerceAtLeast(1f)
         val isTouchInDayArea =
             isInsideDayArea(
                 position = down.position,
@@ -52,7 +51,12 @@ private suspend fun PointerInputScope.handleWeekGesture(state: WeekGestureState)
         val isDragAllowed =
             state.scrollMode == WeekScrollMode.LINEAR ||
                 touchDayIndex in expandedDayIndices(state.selectedDayIndex())
-        val progress = WeekDragProgress(initialY = down.position.y)
+        val progress = WeekDragProgress(
+            initialY = down.position.y,
+            dayAreaHeight = dayAreaHeight,
+            touchDayIndex = touchDayIndex,
+            downWeights = state.animatedDayWeights(),
+        )
         var completedNormally = false
         try {
             consumeWeekDrag(
@@ -62,8 +66,6 @@ private suspend fun PointerInputScope.handleWeekGesture(state: WeekGestureState)
                     WeekDragState(
                         pointerId = down.id,
                         initialY = down.position.y,
-                        anchorFocus = anchorFocus,
-                        transitionDistance = transitionDistance,
                         isDragAllowed = isDragAllowed,
                     ),
             )
@@ -77,6 +79,9 @@ private suspend fun PointerInputScope.handleWeekGesture(state: WeekGestureState)
 
 private class WeekDragProgress(
     initialY: Float,
+    private val dayAreaHeight: Float,
+    private val touchDayIndex: Int,
+    private val downWeights: List<Float>,
 ) {
     var hasStartedDrag = false
         private set
@@ -84,37 +89,51 @@ private class WeekDragProgress(
     private var accumulatedDrag = 0f
     private var previousY = initialY
     private var hasExceededTouchSlop = false
+    private var path: WeekDragPath? = null
 
     fun process(
         change: PointerInputChange,
         state: WeekGestureState,
         drag: WeekDragState,
     ) {
+        if (!change.pressed && !hasStartedDrag) return
         val dragAmount = change.position.y - previousY
         previousY = change.position.y
         val displacementFromDown = change.position.y - drag.initialY
+        if (change.isConsumed && change.pressed) return
         if (!hasExceededTouchSlop && abs(displacementFromDown) > state.touchSlopPx) {
             hasExceededTouchSlop = true
+        }
+        if (hasExceededTouchSlop && !hasStartedDrag) {
+            // Cancel the child's tap even when Discrete disallows starting a drag here.
+            change.consume()
             if (drag.isDragAllowed) {
-                val direction = if (displacementFromDown < MIN_FRACTION) -1f else 1f
-                accumulatedDrag = displacementFromDown - direction * state.touchSlopPx
+                val direction = if (displacementFromDown < 0f) -1f else 1f
+                val threshold = if (state.scrollMode == WeekScrollMode.DISCRETE) {
+                    discreteDragThreshold(drag.initialY, touchDayIndex, downWeights,
+                        dayAreaHeight, direction, state.touchSlopPx)
+                } else state.touchSlopPx
+                if (abs(displacementFromDown) <= threshold) return
                 state.startDrag()
+                path = WeekDragPath(groupIndexFor(state.selectedDayIndex()), state.animatedDayWeights(), dayAreaHeight)
                 hasStartedDrag = true
-                updateDrag(state = state, drag = drag)
-                change.consume()
+                accumulatedDrag = mapDirection(state, displacementFromDown - direction * threshold)
+                updateDrag(state)
             }
         } else if (hasStartedDrag && dragAmount != MIN_FRACTION) {
-            accumulatedDrag += dragAmount
-            updateDrag(state = state, drag = drag)
+            accumulatedDrag += mapDirection(state, dragAmount)
+            updateDrag(state)
             change.consume()
         }
     }
 
-    private fun updateDrag(
-        state: WeekGestureState,
-        drag: WeekDragState,
-    ) {
-        state.dragToFocus(drag.anchorFocus - accumulatedDrag / drag.transitionDistance)
+    private fun mapDirection(state: WeekGestureState, pixels: Float): Float =
+        if (state.scrollMode == WeekScrollMode.LINEAR) -pixels else pixels
+
+    private fun updateDrag(state: WeekGestureState) {
+        val currentPath = path ?: return
+        accumulatedDrag = currentPath.bound(accumulatedDrag)
+        state.dragToFocus(currentPath.focusAt(accumulatedDrag))
     }
 }
 
@@ -126,13 +145,14 @@ private suspend fun AwaitPointerEventScope.consumeWeekDrag(
     while (true) {
         val change = awaitActivePointerChange(drag.pointerId) ?: break
         progress.process(change = change, state = state, drag = drag)
+        if (!change.pressed) break
     }
 }
 
 private suspend fun AwaitPointerEventScope.awaitActivePointerChange(
     pointerId: PointerId,
 ): PointerInputChange? =
-    awaitPointerEvent().changes.firstOrNull { change -> change.id == pointerId && change.pressed }
+    awaitPointerEvent().changes.firstOrNull { change -> change.id == pointerId }
 
 private fun isInsideDayArea(
     position: Offset,
