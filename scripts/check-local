@@ -23,7 +23,8 @@ current_source_digest() {
             [[ -L "$path" || -f "$path" ]] || continue
             printf 'path:%s\0' "$path"
             if [[ -L "$path" ]]; then
-                printf 'mode:120000\0target:%s\0' "$(readlink -- "$path")"
+                printf 'mode:120000\0target:'
+                readlink -z -- "$path"
             elif [[ -f "$path" ]]; then
                 if [[ -x "$path" ]]; then
                     printf 'mode:100755\0'
@@ -211,7 +212,7 @@ check_project_contract() {
     [[ -f skill/make_android_app/SKILL.md ]] || return 1
     [[ -f skill/make_android_app/agents/openai.yaml ]] || return 1
     [[ -d skill/make_android_app/assets && -d skill/make_android_app/references ]] || return 1
-    for script in check-github-stuff check-local make-remote verify-apk; do
+    for script in check-github-stuff check-local make-remote verify-apk configure-signing; do
         [[ -x "skill/make_android_app/scripts/$script" ]] || return 1
         cmp -s "scripts/$script" "skill/make_android_app/scripts/$script" || return 1
     done

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Explicit one-time setup. Never invoked automatically by check-local or make-remote.
 set -Eeuo pipefail
-for command_name in git gh openssl base64 cp cmp mktemp date; do
+for command_name in git gh openssl base64 cp cmp mktemp date realpath; do
   command -v "$command_name" >/dev/null || { printf 'Missing command: %s\n' "$command_name" >&2; exit 1; }
 done
 SIGNING_KEYTOOL=$(command -v keytool || true)
@@ -16,6 +16,9 @@ fi
 [[ -n "$SIGNING_KEYTOOL" ]] || { echo 'JDK keytool not found; set JAVA_HOME first.' >&2; exit 1; }
 ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT"
+ROOT=$(pwd -P)
+git check-ignore -q --no-index signing/release.jks || { echo 'signing/ must be ignored by Git.' >&2; exit 1; }
+[[ -z "$(git ls-files -- signing/)" ]] || { echo 'Signing files must not be tracked.' >&2; exit 1; }
 REPOSITORY=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
 printf 'Configure persistent release signing for %s. Keep a private backup of signing/.\n' "$REPOSITORY"
 read -r -p 'Continue and upload signing secrets to this repository? [y/N] ' answer
@@ -53,6 +56,11 @@ SIGNING_BACKUP_ROOT=${SIGNING_BACKUP_ROOT:-${HOME:?HOME is required}/.local/shar
 [[ "$SIGNING_BACKUP_ROOT" == /* && ! -L "$SIGNING_BACKUP_ROOT" ]] || {
   echo 'Signing backup root must be an absolute, non-symlink directory.' >&2; exit 1;
 }
+# Resolve existing symlink ancestors and .. before creating anything or copying secrets.
+SIGNING_BACKUP_ROOT=$(realpath -m -- "$SIGNING_BACKUP_ROOT")
+case "$SIGNING_BACKUP_ROOT/" in
+  "$ROOT/"*) echo 'Signing backup must be outside the repository.' >&2; exit 1 ;;
+esac
 mkdir -p "$SIGNING_BACKUP_ROOT"
 chmod 700 "$SIGNING_BACKUP_ROOT"
 SIGNING_BACKUP_DIR=$(mktemp -d "$SIGNING_BACKUP_ROOT/signing-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXXXX")

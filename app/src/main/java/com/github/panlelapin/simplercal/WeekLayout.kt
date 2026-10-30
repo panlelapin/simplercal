@@ -170,12 +170,15 @@ internal fun WeekView(state: WeekViewState) {
         val safeHeight = (maxHeight - insets.bottom).coerceAtLeast(0.dp)
         val needsScroll = safeHeight < minimumWeekHeight
         val weekHeight = maxOf(safeHeight, minimumWeekHeight)
+        var previousSelection by rememberSaveable { mutableStateOf<Int?>(null) }
         LaunchedEffect(needsScroll, interaction.selectedDayIndex, weekHeight) {
-            if (needsScroll) {
+            // Restoring the screen must preserve its saved viewport. Only a new selection scrolls.
+            if (needsScroll && previousSelection != interaction.selectedDayIndex) {
                 val topWeight = dayWeightsFor(interaction.selectedDayIndex).take(interaction.selectedDayIndex).sum()
                 val targetTop = with(density) { weekHeight.toPx() } * topWeight / TOTAL_DAY_WEIGHT
                 fallbackScroll.scrollTo(targetTop.toInt())
             }
+            previousSelection = interaction.selectedDayIndex
         }
         val gestureModifier = if (needsScroll) Modifier else Modifier.weekGestureInput(
             WeekGestureState(

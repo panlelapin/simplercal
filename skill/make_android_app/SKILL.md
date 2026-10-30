@@ -27,10 +27,12 @@ quality check, remote build, checksum verification, and APK download. After acce
 do not ask again for routine steps.
 
 Use `assets/starter-project-base` for an empty project and copy exactly
-`assets/starter-app-with-activity/src/main` into `app/src/main`. Do not copy widget
+`assets/starter-app-with-activity/src/main` into `app/src/main`, and its
+`src/androidTest` into `app/src/androidTest` (including the package substitution). Do not copy widget
 receivers, Glance dependencies, app-widget metadata, or widget preview resources. Replace
 `com.example.app` in Kotlin, Gradle, workflow, and scripts; move Kotlin files into the
-matching package directory; set `app_name` and the activity text from the user's name.
+matching package directory; set `app_name` and the activity text from the user's name,
+and update the launcher test expectation to match that text.
 The starter must expose exactly one launcher activity named `MainActivity`.
 
 ## Quality and permissions
@@ -69,8 +71,8 @@ Deleted files must not change the digest merely because their deletion is staged
 Require a clean source worktree for --resume, and flush the check-local log before exit.
 
 Keep `gradle/verification-metadata.xml`, the Gradle wrapper, the functional Detekt
-configuration, minSdk 34, targetSdk 36, release shrinking, and non-debuggable development
-signing. Local validation may compile Kotlin for type resolution; it must not assemble,
+configuration, minSdk 34, targetSdk 36, release shrinking, and non-debuggable stable release
+signing. The starter must never fall back to a debug key for release. Local validation may compile Kotlin for type resolution; it must not assemble,
 sign, or claim an APK.
 
 ## Window and Material layout defaults
@@ -131,9 +133,9 @@ work and the canonical links for current component specifications, kits, and upd
 
 ## Remote build workflow
 
-Copy `scripts/check-github-stuff`, `scripts/check-local`, `scripts/make-remote`, and
-`scripts/verify-apk` unchanged except for documented application configuration, preserve
-executable bits, and copy `references/github-actions-template.yml` to
+Copy `scripts/check-github-stuff`, `scripts/check-local`, `scripts/make-remote`,
+`scripts/verify-apk`, and `scripts/configure-signing` unchanged except for documented
+application configuration, preserving executable bits. Copy `references/github-actions-template.yml` to
 `.github/workflows/android-app.yml`. The workflow must use only `workflow_dispatch`, run
 `functionalCheck`, then `:app:assembleRelease`, inspect one APK with `verify-apk`, and upload
 the APK plus its SHA-256 checksum.

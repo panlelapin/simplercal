@@ -71,7 +71,9 @@
   Beyond nine events, show eight plus an All events button opening the full list.
   Long-press any day also opens that list, including complete titles and times.
 - Entire day surface has Material interaction feedback and one merged semantic
-  node with full English date, selected/expanded state and event count.
+  node with full English date including year, selected/expanded state and event count.
+  All events keeps its touch action and is exposed as a custom accessibility action
+  on that day node, without a second clickable accessibility node.
 - Simple taps work on every day in either scroll mode. Only the child handles
   taps; the parent arbitrates drags. Crossing device touchSlop cancels taps even
   where a Discrete drag is not allowed.
@@ -155,6 +157,8 @@
   account/owner details. Persist selection.
 - Schedules: exactly five rows, Case 1–Case 5 and Material time selector;
   independently persisted minutes in 0..1439, or unset. Validate stored values.
+  These are stored values only; no alarm or notification is scheduled.
+  Use Material numeric time input in low windows and allow picker content to scroll.
 - Theme segmented control: System (default), Light, Dark.
 - Accent list is defined once by AccentTheme.entries: System (default), Royal blue,
   Indigo, Teal, Material violet, Plum, Raspberry, Mandarin, Emerald green, second

@@ -17,7 +17,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 internal class WeekInteraction(
     initialSelectedDayIndex: Int,
@@ -82,7 +81,7 @@ internal class WeekInteraction(
             )
         dragFocusPosition = boundedFocus
         animatedDayWeights = dragWeightsFromExactOrigin(boundedFocus)
-        val roundedGroup = boundedFocus.roundToInt().coerceIn(0, WEEKEND_START_INDEX)
+        val roundedGroup = nearestDayGroup(animatedDayWeights, selectedGroupIndex)
         selectedDayIndex =
             if (roundedGroup == WEEKEND_START_INDEX) {
                 if (selectedGroupIndex != WEEKEND_START_INDEX) {
@@ -92,16 +91,14 @@ internal class WeekInteraction(
             } else {
                 roundedGroup
             }
-        contentExpandedDays = expandedContentDaysForFocus(boundedFocus)
+        contentExpandedDays = animatedDayWeights.indices.filter {
+            animatedDayWeights[it] > COMPACT_DAY_WEIGHT
+        }.toSet()
     }
 
     fun endDrag() {
         if (!isDragging) return
-        val settledGroup =
-            dragFocusPosition.roundToInt().coerceIn(
-                minimumValue = 0,
-                maximumValue = WEEKEND_START_INDEX,
-            )
+        val settledGroup = nearestDayGroup(animatedDayWeights, selectedGroupIndex)
         selectedDayIndex =
             if (settledGroup == WEEKEND_START_INDEX) selectedWeekendDay else settledGroup
         animatedDayWeights = dayWeightsFor(settledGroup)
@@ -230,8 +227,15 @@ internal fun AnimateDayWeights(
     }
 }
 
-private fun expandedContentDaysForFocus(focusPosition: Float): Set<Int> {
-    val lowerGroup = focusPosition.toInt().coerceIn(0, WEEKEND_START_INDEX)
-    val upperGroup = (lowerGroup + 1).coerceAtMost(WEEKEND_START_INDEX)
-    return expandedDayIndices(lowerGroup) + expandedDayIndices(upperGroup)
-}
+/** Compare actual row boundaries, including layouts interrupted between non-adjacent groups. */
+internal fun nearestDayGroup(weights: List<Float>, preferredGroup: Int): Int =
+    (0..WEEKEND_START_INDEX).minWith(
+        compareBy<Int> { group ->
+            val target = dayWeightsFor(group)
+            var boundary = 0f
+            weights.indices.sumOf { index ->
+                boundary += weights[index] - target[index]
+                (boundary * boundary).toDouble()
+            }
+        }.thenBy { if (it == preferredGroup) 0 else 1 },
+    )

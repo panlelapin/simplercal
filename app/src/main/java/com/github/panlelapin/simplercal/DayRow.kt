@@ -29,6 +29,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -76,6 +79,7 @@ internal fun ColumnScope.DayRow(
             spokenDate,
             eventDescription,
         )
+    val allEventsLabel = androidx.compose.ui.res.stringResource(R.string.action_all_events, day.events.size)
     val appearance = dayAppearance(state)
     Surface(
         modifier =
@@ -89,6 +93,12 @@ internal fun ColumnScope.DayRow(
                     contentDescription = accessibilityDescription
                     stateDescription = expansionDescription
                     selected = state.isSelected
+                    if (day.events.size > EXPANDED_CONTENT_LINE_COUNT) {
+                        customActions = listOf(CustomAccessibilityAction(allEventsLabel) {
+                            onShowDetails()
+                            true
+                        })
+                    }
                 },
         shape = appearance.combinedShape,
         color = state.appBarBackground,
@@ -296,7 +306,7 @@ private fun DayContentContainer(state: DayContentState, onShowDetails: () -> Uni
                     )
                 }
                 if (state.isExpanded && state.events.size > EXPANDED_CONTENT_LINE_COUNT) {
-                    TextButton(onClick = onShowDetails) {
+                    TextButton(onClick = onShowDetails, modifier = Modifier.clearAndSetSemantics {}) {
                         Text(androidx.compose.ui.res.stringResource(R.string.action_all_events, state.events.size))
                     }
                 }
@@ -367,7 +377,7 @@ internal fun currentWeek(
 }
 
 private val DAY_ACCESSIBILITY_DATE_FORMAT =
-    DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.ENGLISH)
+    DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.ENGLISH)
 
 internal fun temporalStateFor(
     date: LocalDate,

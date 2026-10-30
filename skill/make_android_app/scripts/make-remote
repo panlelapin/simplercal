@@ -11,6 +11,7 @@ COMMIT_MESSAGE=${COMMIT_MESSAGE:-Build Android app remotely}
 POLL_SECONDS=${POLL_SECONDS:-10}
 RUN_DISCOVERY_ATTEMPTS=${RUN_DISCOVERY_ATTEMPTS:-60}
 ADB_SERIAL=${ADB_SERIAL:-}
+PREFLIGHT_DEVICE=''
 BOOTSTRAP=0
 RESUME_RUN_ID=''
 readonly BOOTSTRAP_FIRST_COMMIT='Batman, because he has no parent'
@@ -163,31 +164,13 @@ install_on_adb_device() {
   local expected_sha256
   local installed_sha256
   local installed_apk
-  local -a devices=()
-
-  if ! command -v adb >/dev/null 2>&1; then
-    printf 'ADB not found; skipping device installation.\n'
+  if [[ -z "$PREFLIGHT_DEVICE" ]]; then
+    printf 'No device selected at preflight; skipping device installation.\n'
     return 0
   fi
-
-  if [[ -n "$ADB_SERIAL" ]]; then
-    if [[ "$(adb -s "$ADB_SERIAL" get-state 2>/dev/null || true)" == device ]]; then
-      devices=("$ADB_SERIAL")
-    fi
-  else
-    mapfile -t devices < <(
-      adb devices 2>/dev/null |
-        sed -n 's/^\([^[:space:]]\+\)[[:space:]]\+device$/\1/p'
-    )
-  fi
-
-  if [[ "${#devices[@]}" -eq 0 ]]; then
-    printf 'No authorized ADB device connected; skipping device installation.\n'
-    return 0
-  fi
-  [[ "${#devices[@]}" -eq 1 ]] || \
-    die "multiple ADB devices connected; set ADB_SERIAL to select one"
-  device=${devices[0]}
+  device=$PREFLIGHT_DEVICE
+  [[ "$(adb -s "$device" get-state 2>/dev/null || true)" == device ]] ||
+    die "preflight device $device is no longer accessible; refusing to select another device"
 
   installed_path=$(adb -s "$device" shell pm path "$EXPECTED_PACKAGE" 2>/dev/null |
     sed -n 's/^package://p' | sed -n '1p')
@@ -260,6 +243,7 @@ preflight_adb() {
       printf 'No authorized ADB device accessible; remote build will continue without device installation.\n'
       ;;
     1)
+      PREFLIGHT_DEVICE=${devices[0]}
       printf 'ADB device accessible: %s. Device installation will be verified after the remote build.\n' \
         "${devices[0]}"
       ;;
@@ -292,7 +276,8 @@ current_source_digest() {
       [[ -L "$path" || -f "$path" ]] || continue
       printf 'path:%s\0' "$path"
       if [[ -L "$path" ]]; then
-        printf 'mode:120000\0target:%s\0' "$(readlink -- "$path")"
+        printf 'mode:120000\0target:'
+        readlink -z -- "$path"
       elif [[ -f "$path" ]]; then
         if [[ -x "$path" ]]; then
           printf 'mode:100755\0'
@@ -379,6 +364,8 @@ if [[ -n "$RESUME_RUN_ID" ]]; then
   printf 'Resuming successful run %s for current commit %s.\n' "$RUN_ID" "$HEAD_SHA"
 else
   stage_source_changes
+  require_local_check
+  git diff --quiet || die "source changed while staging; run check-local again"
   if [[ "$BOOTSTRAP" -eq 1 ]]; then
   BOOTSTRAP_STARTED=0
   BOOTSTRAP_FINISHED=0
@@ -401,6 +388,8 @@ else
     git commit -m "$COMMIT_MESSAGE"
   fi
 
+  require_local_check
+  git diff --quiet && git diff --cached --quiet || die "source changed during commit; run check-local again"
   git push origin "HEAD:refs/heads/$BRANCH"
   HEAD_SHA=$(git rev-parse HEAD)
   mapfile -t PREVIOUS_RUN_IDS < <(

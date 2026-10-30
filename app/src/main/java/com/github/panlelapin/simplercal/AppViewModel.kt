@@ -37,6 +37,7 @@ internal class AppViewModel(
 
     fun update() {
         val monday = uiState.displayedMonday
+        val zone = ZoneId.systemDefault()
         val referenceDate = referenceDateFor(monday, uiState.simulationMode)
         val highlightedIndex = dayIndexInWeek(referenceDate, monday)
         uiState =
@@ -46,8 +47,14 @@ internal class AppViewModel(
                 highlightedDayIndex = highlightedIndex,
                 hasCalendarPermission = calendarRepository.hasPermission(),
                 dayMarkers = preferences.dayMarkers(monday),
+                // Force invalidation even if the reference date did not change with the zone.
+                loadedEventsMonday = uiState.loadedEventsMonday.takeIf { uiState.loadedEventsZone == zone },
             )
-        requestCalendarRefresh()
+        if (uiState.hasCalendarPermission) {
+            requestCalendarRefresh()
+        } else {
+            handlePermissionRevoked(reportError = uiState.selectedCalendarId >= 0L)
+        }
     }
 
     fun onResume() {
@@ -130,21 +137,27 @@ internal class AppViewModel(
     }
 
     fun onCalendarPermissionResult(granted: Boolean) {
-        uiState =
-            uiState.copy(
-                hasCalendarPermission = granted && calendarRepository.hasPermission(),
-                calendarFailure = null,
-                calendarListFailure = null,
-            )
+        if (!granted || !calendarRepository.hasPermission()) {
+            handlePermissionRevoked()
+            return
+        }
+        uiState = uiState.copy(hasCalendarPermission = true, calendarFailure = null, calendarListFailure = null)
         refreshCalendars()
         update()
-        if (!granted) {
-            calendarRefreshJob?.cancel()
-            calendarListJob?.cancel()
-            uiState = uiState.copy(hasCalendarPermission = false,
-                isCalendarLoading = false, isCalendarListLoading = false,
-                calendarFailure = CalendarFailureReason.PERMISSION_REVOKED)
-        }
+    }
+
+    private fun handlePermissionRevoked(reportError: Boolean = true) {
+        refreshRevision += 1
+        calendarRefreshJob?.cancel()
+        calendarListJob?.cancel()
+        uiState = uiState.copy(
+            hasCalendarPermission = false,
+            calendars = emptyList(),
+            isCalendarLoading = false,
+            isCalendarListLoading = false,
+            calendarFailure = if (reportError) CalendarFailureReason.PERMISSION_REVOKED else null,
+            calendarListFailure = if (reportError) CalendarFailureReason.PERMISSION_REVOKED else null,
+        )
     }
 
     fun selectCalendar(calendarId: Long) {
@@ -161,13 +174,7 @@ internal class AppViewModel(
         calendarListJob?.cancel()
         if (!isForeground) return
         if (!calendarRepository.hasPermission()) {
-            uiState =
-                uiState.copy(
-                    hasCalendarPermission = false,
-                    calendars = emptyList(),
-                    isCalendarListLoading = false,
-                    calendarListFailure = null,
-                )
+            handlePermissionRevoked(reportError = uiState.selectedCalendarId >= 0L)
             return
         }
         uiState =
@@ -180,16 +187,13 @@ internal class AppViewModel(
             viewModelScope.launch {
                 when (val result = calendarRepository.loadCalendars()) {
                     is CalendarChoicesResult.Success -> applyCalendarChoices(result.calendars)
-                    CalendarChoicesResult.PermissionRequired -> {
-                        uiState =
-                            uiState.copy(
-                                hasCalendarPermission = false,
-                                calendars = emptyList(),
-                                isCalendarListLoading = false,
-                            )
-                    }
+                    CalendarChoicesResult.PermissionRequired -> handlePermissionRevoked()
 
                     is CalendarChoicesResult.Failure -> {
+                        if (result.reason == CalendarFailureReason.PERMISSION_REVOKED) {
+                            handlePermissionRevoked()
+                            return@launch
+                        }
                         uiState =
                             uiState.copy(
                                 isCalendarListLoading = false,
@@ -330,21 +334,19 @@ internal class AppViewModel(
                         eventsByDay = result.eventsByDay,
                         loadedEventsMonday = requestedMonday,
                         loadedEventsCalendarId = requestedCalendarId,
+                        loadedEventsZone = requestedZone,
                         isCalendarLoading = false,
                         calendarFailure = null,
                     )
             }
 
-            CalendarWeekResult.PermissionRequired -> {
-                uiState =
-                    uiState.copy(
-                        hasCalendarPermission = false,
-                        isCalendarLoading = false,
-                        calendarFailure = CalendarFailureReason.PERMISSION_REVOKED,
-                    )
-            }
+            CalendarWeekResult.PermissionRequired -> handlePermissionRevoked()
 
             is CalendarWeekResult.Failure -> {
+                if (result.reason == CalendarFailureReason.PERMISSION_REVOKED) {
+                    handlePermissionRevoked()
+                    return
+                }
                 uiState =
                     uiState.copy(
                         isCalendarLoading = false,

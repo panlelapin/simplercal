@@ -54,6 +54,7 @@ internal data class AppUiState(
     val simulationMode: SimulationMode,
     val debug1OutlineColor: Debug1OutlineColor,
     val scheduleTimes: List<Int>,
+    val loadedEventsZone: java.time.ZoneId? = null,
     val dayMarkers: Map<LocalDate, DayMarkers> = emptyMap(),
     val hasCalendarObserverFailure: Boolean = false,
 )

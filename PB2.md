@@ -45,7 +45,8 @@ de la compilation sont communiqués séparément ; cette note ne préjuge pas du
 - JVM : curseur nul, conservation du contenu pendant animation, overscroll/inversion, origine visuelle interrompue, seuil Discrete, marqueurs réels/simulation, événements all-day/fuseaux, limite d'année ISO, hauteur accessible.
 - Compose : vrais taps en Discrete/Linear, contenu compacté après 500ms, rejet du faux tap pendant drag Discrete interdit, déplacement final au relâchement. Le test de sémantique déjà présent reste inclus en CI.
 - Restent à vérifier sur appareil : changements provider/permission, calendrier masqué/supprimé, cycle arrière-plan/minuit/fuseau, restauration Android, contours et insets en paysage/navigation à boutons, grande police, liste de plus de neuf événements, fluidité des deux gestes.
-- Ces tests ne couvrent pas toutes les combinaisons de comportements et n'ont pas encore été exécutés. Ne pas annoncer « tout passe » à partir de ce document.
+- Les tests Compose listés ici ne disposent pas de résultat consigné dans ce document.
+  Le résultat historique des 17 tests JVM ci-dessus ne valide pas les modifications ultérieures. Ne pas annoncer « tout passe » à partir de ce document.
 
 ## Étapes manuelles
 
@@ -54,3 +55,63 @@ de la compilation sont communiqués séparément ; cette note ne préjuge pas du
 3. Si l'installation actuelle est signée avec l'ancienne clé debug, une migration initiale est nécessaire ; le script refuse de désinstaller/effacer les données à votre place.
 
 Les scripts réutilisables de `scripts/` et `skill/make_android_app/scripts/` ont reçu les mêmes changements. La skill installée hors du dépôt n'a pas été modifiée.
+
+
+## Corrections après audit du 30 octobre 2026
+
+Statut : **IMPLEMENTED — NOT VALIDATED**. Aucune compilation, aucun test ni script
+check-local/make-remote n'a été exécuté par Codex pour cette passe.
+
+- Gestes : annulation des taps sur distance 2D, arbitrage parent en passe Initial
+  avant les enfants, prise en compte du mouvement porté seulement par up, et
+  annulation du drag si le pointeur actif disparaît.
+- Drag interrompu : stabilisation par distance entre les limites réellement
+  affichées et celles des groupes au repos, avec préférence pour le groupe actuel
+  en cas d'égalité. Les contenus encore agrandis restent présents pendant le drag.
+- Calendrier : mémorisation du fuseau des résultats ; exclusion des données d'un
+  ancien fuseau ou sans permission ; annulation commune des deux lectures lors
+  d'une révocation. Le calendrier sélectionné et ses préférences sont conservés.
+- Réglages : erreur du calendrier sélectionné visible ; saisie Material numérique
+  dans les fenêtres basses, contenu du sélecteur horaire défilable.
+- Accessibilité : date avec année ; bouton All events toujours tactile, action
+  accessible portée par le jour unique plutôt qu'un second nœud cliquable.
+- Défilement accessible : position conservée au retour de l'écran ; une nouvelle
+  sélection peut la repositionner. Le seuil minimal de 48 / 0,065 = 738,46 dp de
+  hauteur utile est intentionnel : le réduire violerait les cibles de 48 dp.
+- Barres système : fond surfaceContainer et apparence des icônes liés au thème
+  choisi, notamment sur Android 14. Leur visibilité reste inchangée.
+- Signature : sauvegarde canonique hors dépôt, contrôle des ancêtres symboliques,
+  et refus de matériel de signature suivi par Git ou non ignoré.
+- Livraison : appareil fixé au préflight ; empreinte des cibles symboliques sans
+  perte des sauts de ligne terminaux ; contrôle de fraîcheur répété après staging
+  et commit, avec refus d'un worktree modifié.
+- Snapshot : scripts réutilisables synchronisés, assistant de signature inclus,
+  starter à signature stable et workflow avec tests Compose, métadonnées de
+  dépendances synchronisées, test de lancement
+  du starter fourni. La skill globale n'est pas modifiée.
+- MATERIAL.md est aligné sur AGENTS.md. Les cinq horaires restent uniquement
+  des valeurs enregistrées ; ils ne programment aucune alarme ou notification.
+
+Tests de régression ajoutés ou étendus (définis, non exécutés) : relâchement après
+interruption d'animation dans les deux directions ; annulation horizontale ;
+mouvement transmis uniquement par up ; nœud accessible unique avec dix événements ;
+WeekView réel dans la hauteur de repli et restauration de sa position.
+
+Vérifications restant nécessaires : scripts/check-local puis scripts/make-remote
+par l'utilisateur ; gestes sur appareil, changement de fuseau avec échec provider,
+révocation pendant deux lectures, restauration Android, sélecteur horaire en
+paysage/grande police, contours (dont weekend courant), insets navigation à boutons
+et contraste des barres sous Android 14 et versions ultérieures. Ni cet audit,
+ni la présence de ces tests ne constituent une preuve de fonctionnement à l'écran.
+
+
+## Exécution déléguée le 30 octobre 2026
+
+À la demande explicite « lance tout ça », Codex a exécuté scripts/check-local.
+Après correction des appels d'API dans les nouveaux tests Compose, le contrôle
+complet a réussi : 18 tests JVM, aucun échec ni test ignoré ; Detekt Release,
+compilation des tests Compose, parsing shell/XML/YAML et contrat des scripts réussis.
+La compilation des tests Compose ne prouve pas leur exécution ; celle-ci appartient
+à la CI Android 14. La livraison distante et les vérifications manuelles visuelles
+restent distinctes de ce résultat local. Les statuts non validés ci-dessus décrivent
+l'état avant cette exécution, et ne doivent pas être interprétés comme des résultats CI.

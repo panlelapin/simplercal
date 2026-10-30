@@ -53,6 +53,21 @@ class RegressionTest {
     }
 
     @Test
+    fun interruptedDragSettlesToTheNearestVisibleGroupInEitherDirection() {
+        listOf(-10f to 0, 10f to 1).forEach { (pixels, expected) ->
+            val origin = dayWeightsForFocus(0.5f)
+            val path = WeekDragPath(1, origin, 1000f)
+            val interaction = WeekInteraction(1) {}
+            interaction.animatedDayWeights = origin
+            interaction.startDrag()
+            interaction.dragToFocus(path.focusAt(pixels))
+            interaction.endDrag()
+            assertEquals(expected, interaction.selectedGroupIndex)
+            assertEquals(dayWeightsFor(expected), interaction.animatedDayWeights)
+        }
+    }
+
+    @Test
     fun discreteWaitsForTheTouchedContainersMidpoint() {
         val threshold = discreteDragThreshold(10f, 0, dayWeightsFor(0), 1000f, 1f, 8f)
         assertEquals(158.75f, threshold, 0.001f)

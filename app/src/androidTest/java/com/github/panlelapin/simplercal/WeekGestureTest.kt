@@ -34,7 +34,7 @@ class WeekGestureTest {
 
     @Test fun aDragOnACompactDiscreteDayDoesNotBecomeATap() {
         setWeek(WeekScrollMode.DISCRETE)
-        composeRule.onNodeWithContentDescription("Friday, August 7, 0 events").performTouchInput {
+        composeRule.onNodeWithContentDescription("Friday, August 7, 2026, 0 events").performTouchInput {
             down(center)
             moveBy(Offset(0f, touchSlop + 1f))
             up()
@@ -55,10 +55,51 @@ class WeekGestureTest {
         composeRule.runOnIdle { assertEquals(1, selected) }
     }
 
+    @Test fun horizontalMotionCancelsTheChildTapInLinear() {
+        setWeek(WeekScrollMode.LINEAR)
+        composeRule.onNodeWithContentDescription("Friday, August 7, 2026, 0 events").performTouchInput {
+            down(center)
+            moveBy(Offset(touchSlop + 2f, 0f))
+            up()
+        }
+        composeRule.runOnIdle { assertEquals(0, selected) }
+    }
+
+    @Test fun horizontalMotionCancelsTheChildTapInDiscrete() {
+        setWeek(WeekScrollMode.DISCRETE)
+        composeRule.onNodeWithContentDescription("Friday, August 7, 2026, 0 events").performTouchInput {
+            down(center)
+            moveBy(Offset(touchSlop + 2f, 0f))
+            up()
+        }
+        composeRule.runOnIdle { assertEquals(0, selected) }
+    }
+
+    @Test fun motionOnlyOnReleaseCancelsACompactDiscreteTap() {
+        setWeek(WeekScrollMode.DISCRETE)
+        composeRule.onNodeWithContentDescription("Friday, August 7, 2026, 0 events").performTouchInput {
+            down(center)
+            updatePointerBy(0, Offset(touchSlop + 2f, 0f))
+            up()
+        }
+        composeRule.runOnIdle { assertEquals(0, selected) }
+    }
+
+    @Test fun linearCanStartFromTheFinalReleaseDisplacement() {
+        setWeek(WeekScrollMode.LINEAR)
+        composeRule.onRoot().performTouchInput {
+            val step = dayGroupTransitionDistance(height.toFloat())
+            down(Offset(centerX, height * 0.9f))
+            updatePointerBy(0, Offset(0f, -touchSlop - step * 0.7f))
+            up()
+        }
+        composeRule.runOnIdle { assertEquals(1, selected) }
+    }
+
     private fun exerciseTap(mode: WeekScrollMode) {
         setWeek(mode)
         composeRule.mainClock.autoAdvance = false
-        composeRule.onNodeWithContentDescription("Friday, August 7, 0 events").performTouchInput { click() }
+        composeRule.onNodeWithContentDescription("Friday, August 7, 2026, 0 events").performTouchInput { click() }
         composeRule.mainClock.advanceTimeByFrame()
         composeRule.runOnIdle {
             assertEquals(4, selected)

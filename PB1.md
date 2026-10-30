@@ -34,3 +34,14 @@ Audit initial des fichiers Kotlin applicatifs de `app/src/main`. Les solutions o
 30. **IMPLEMENTED — NOT VALIDATED** — `WeekScrollMode.activationOffset` n'est jamais utilisé et les noms internes `SMOOTH`/`PER_DAY` contredisent `Discrete`/`Linear` ; supprimer le paramètre mort ou l'appliquer réellement et migrer vers des noms métier non ambigus.
 31. **IMPLEMENTED — NOT VALIDATED** — Les chaînes UI et descriptions d'accessibilité sont codées en dur dans Kotlin ; les déplacer dans les ressources afin de permettre tests, variantes et évolution sans modifier la logique.
 32. **IMPLEMENTED — NOT VALIDATED** — Aucun test Kotlin n'existe pour les dates ISO, changements de semaine, statuts spéciaux, regroupements, gestes, requêtes calendrier ou préférences ; ajouter des tests unitaires déterministes et des tests Compose ciblés sur les interactions critiques.
+
+
+Suivi du 30 octobre 2026 : les corrections complémentaires de gestes, fuseau,
+révocation, accessibilité, restauration du défilement et livraison sont décrites
+à la fin de PB2.md. Statut de cette nouvelle passe : **IMPLEMENTED — NOT VALIDATED**.
+Le résultat JVM historique du 30 septembre ne valide pas ces modifications.
+
+
+Validation locale déléguée le 30 octobre 2026 : scripts/check-local réussi après
+correction des tests Compose ; 18 tests JVM réussis et tests Compose compilés.
+Cela ne valide pas les comportements visuels manuels ; voir le suivi de PB2.md.

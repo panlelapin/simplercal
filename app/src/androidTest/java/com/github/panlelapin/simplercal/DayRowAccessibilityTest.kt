@@ -8,6 +8,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -21,6 +24,34 @@ import org.junit.Test
 class DayRowAccessibilityTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun overflowEventsKeepOneClickableNodeAndAnAccessibleDetailsAction() {
+        var detailsOpened = false
+        val date = LocalDate.of(2026, 8, 30)
+        composeRule.setContent {
+            MaterialTheme {
+                Column(Modifier.fillMaxSize()) {
+                    DayRow(
+                        DayRowState(
+                            6, 6, date, false,
+                            WeekDay(date, "Sun", true, false, List(10) {
+                                CalendarEvent(it.toLong(), "$it:0", "Event $it", 0, 1, true)
+                            }),
+                            true, true, true, 1f, 80.dp, Color.Gray, Color.LightGray,
+                        ),
+                        onClick = {},
+                        onShowDetails = { detailsOpened = true },
+                    )
+                }
+            }
+        }
+        composeRule.onAllNodes(hasClickAction()).assertCountEquals(1)
+        val actions = composeRule.onNodeWithContentDescription("Sunday, August 30, 2026, 10 events")
+            .fetchSemanticsNode().config[SemanticsActions.CustomActions]
+        composeRule.runOnIdle { assertTrue(actions.single().action()) }
+        composeRule.runOnIdle { assertTrue(detailsOpened) }
+    }
 
     @Test
     fun dayRowExposesOneCompleteClickableSemanticNode() {
@@ -69,7 +100,7 @@ class DayRowAccessibilityTest {
         }
 
         composeRule
-            .onNodeWithContentDescription("Sunday, August 30, 1 event")
+            .onNodeWithContentDescription("Sunday, August 30, 2026, 1 event")
             .assert(
                 SemanticsMatcher.expectValue(
                     SemanticsProperties.StateDescription,

@@ -4,7 +4,8 @@ Ce document décrit les rôles `ColorScheme` utilisés par Material 3 dans Jetpa
 
 ## Règles générales
 
-- Toujours utiliser `MaterialTheme.colorScheme.<role>` plutôt qu'une couleur fixe.
+- Utiliser `MaterialTheme.colorScheme.<role>`, sauf l’exception produit blanc/noir
+  des jours ordinaires courants/futurs définie dans AGENTS.md.
 - Un rôle `onX` est destiné au texte, aux icônes et aux contrôles placés sur la couleur `X`.
   Par exemple, du texte placé sur `secondaryContainer` utilise généralement
   `onSecondaryContainer`.
@@ -62,16 +63,18 @@ Ce document décrit les rôles `ColorScheme` utilisés par Material 3 dans Jetpa
 Dans SimplerCal, la correspondance actuelle est :
 
 - `app bar background` = `surfaceContainer` ;
-- jour de base = `surface` / `onSurface` ;
-- weekend et jour férié = `surfaceContainer` / `onSurface` ;
-- jour passé = `surfaceDim` / `onSurfaceVariant` ;
-- jour passé et weekend ou férié = `surfaceContainer` / `onSurface` ;
-- vacances : barre verticale `primary` ;
-- jour courant : liseré `primary`.
+- weekend et jour férié bancaire : `surface` / `onSurface` ;
+- autre jour passé : `surfaceContainer` / `onSurfaceVariant` ;
+- autre jour courant ou futur : blanc en thème clair, noir en thème sombre,
+  avec `onSurface` (exception produit explicite, limitée aux jours) ;
+- vacances : barre verticale `secondary` dans le passé, `primary` sinon ;
+- jour courant : contour combiné `primary`.
 
-Dans l'implémentation de test, lundi et mardi sont des jours fériés et mardi est aussi un jour
-férié bancaire (`isBankH`). Material 3 ne définit pas de rôle `onSurfaceContainer` : le rôle
-officiel de contenu pour `surfaceContainer` est `onSurface`.
+En mode normal, les vacances et jours fériés bancaires sont des marqueurs persistés
+par date. En simulation, mercredi représente aujourd'hui dans chaque semaine ;
+lundi/samedi/dimanche sont weekend ou férié bancaire et lundi à jeudi sont en vacances.
+Les marqueurs réels sont ignorés en simulation. AGENTS.md fait autorité.
+Material 3 ne définit pas de rôle `onSurfaceContainer`.
 
 ## Contours et effets
 

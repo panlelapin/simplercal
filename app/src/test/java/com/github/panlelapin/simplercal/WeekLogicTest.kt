@@ -52,7 +52,7 @@ class WeekLogicTest {
     fun interruptedDragKeepsItsExactVisualOriginAndSundayIdentity() {
         var reportedSelection = -1
         val interaction = WeekInteraction(6) { reportedSelection = it }
-        val interruptedWeights = dayWeightsFor(2).mapIndexed { index, weight -> weight + index / 10f }
+        val interruptedWeights = dayWeightsForFocus(4.5f)
         interaction.animatedDayWeights = interruptedWeights
 
         interaction.startDrag()

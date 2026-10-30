@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
@@ -52,14 +53,14 @@ private suspend fun PointerInputScope.handleWeekGesture(state: WeekGestureState)
             state.scrollMode == WeekScrollMode.LINEAR ||
                 touchDayIndex in expandedDayIndices(state.selectedDayIndex())
         val progress = WeekDragProgress(
-            initialY = down.position.y,
+            initialPosition = down.position,
             dayAreaHeight = dayAreaHeight,
             touchDayIndex = touchDayIndex,
             downWeights = state.animatedDayWeights(),
         )
         var completedNormally = false
         try {
-            consumeWeekDrag(
+            val released = consumeWeekDrag(
                 progress = progress,
                 state = state,
                 drag =
@@ -69,7 +70,9 @@ private suspend fun PointerInputScope.handleWeekGesture(state: WeekGestureState)
                         isDragAllowed = isDragAllowed,
                     ),
             )
-            if (progress.hasStartedDrag) state.endDrag()
+            if (progress.hasStartedDrag) {
+                if (released) state.endDrag() else state.cancelDrag()
+            }
             completedNormally = true
         } finally {
             if (!completedNormally && progress.hasStartedDrag) state.cancelDrag()
@@ -78,7 +81,7 @@ private suspend fun PointerInputScope.handleWeekGesture(state: WeekGestureState)
 }
 
 private class WeekDragProgress(
-    initialY: Float,
+    private val initialPosition: Offset,
     private val dayAreaHeight: Float,
     private val touchDayIndex: Int,
     private val downWeights: List<Float>,
@@ -87,7 +90,7 @@ private class WeekDragProgress(
         private set
 
     private var accumulatedDrag = 0f
-    private var previousY = initialY
+    private var previousY = initialPosition.y
     private var hasExceededTouchSlop = false
     private var path: WeekDragPath? = null
 
@@ -96,12 +99,11 @@ private class WeekDragProgress(
         state: WeekGestureState,
         drag: WeekDragState,
     ) {
-        if (!change.pressed && !hasStartedDrag) return
         val dragAmount = change.position.y - previousY
         previousY = change.position.y
         val displacementFromDown = change.position.y - drag.initialY
         if (change.isConsumed && change.pressed) return
-        if (!hasExceededTouchSlop && abs(displacementFromDown) > state.touchSlopPx) {
+        if (!hasExceededTouchSlop && (change.position - initialPosition).getDistance() > state.touchSlopPx) {
             hasExceededTouchSlop = true
         }
         if (hasExceededTouchSlop && !hasStartedDrag) {
@@ -141,18 +143,18 @@ private suspend fun AwaitPointerEventScope.consumeWeekDrag(
     progress: WeekDragProgress,
     state: WeekGestureState,
     drag: WeekDragState,
-) {
+): Boolean {
     while (true) {
-        val change = awaitActivePointerChange(drag.pointerId) ?: break
+        val change = awaitActivePointerChange(drag.pointerId) ?: return false
         progress.process(change = change, state = state, drag = drag)
-        if (!change.pressed) break
+        if (!change.pressed) return true
     }
 }
 
 private suspend fun AwaitPointerEventScope.awaitActivePointerChange(
     pointerId: PointerId,
 ): PointerInputChange? =
-    awaitPointerEvent().changes.firstOrNull { change -> change.id == pointerId }
+    awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { change -> change.id == pointerId }
 
 private fun isInsideDayArea(
     position: Offset,

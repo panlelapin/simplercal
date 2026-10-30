@@ -43,6 +43,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -105,7 +106,7 @@ private fun SimplerCalApp(viewModel: AppViewModel) {
         onObservationFailed = viewModel::onCalendarObservationFailed,
     )
     AppLifecycleEffects(activity, context, viewModel)
-    SideEffect { activity?.let { updateSystemBars(it, isDarkTheme) } }
+    SideEffect { activity?.let { updateSystemBars(it, isDarkTheme, colorScheme.surfaceContainer) } }
 
     MaterialTheme(colorScheme = colorScheme) {
         AppSurface(
@@ -162,10 +163,15 @@ private fun AppLifecycleEffects(
     }
 }
 
+@Suppress("DEPRECATION") // Android 14 still uses explicit system-bar backgrounds.
 private fun updateSystemBars(
     activity: ComponentActivity,
     isDarkTheme: Boolean,
+    background: Color,
 ) {
+    activity.window.statusBarColor = background.toArgb()
+    activity.window.navigationBarColor = background.toArgb()
+    activity.window.isNavigationBarContrastEnforced = false
     WindowCompat.getInsetsController(activity.window, activity.window.decorView).apply {
         isAppearanceLightStatusBars = !isDarkTheme
         isAppearanceLightNavigationBars = !isDarkTheme
@@ -254,7 +260,9 @@ private fun MainScreen(
                             eventsByDay =
                                 if (
                                     state.loadedEventsMonday == state.displayedMonday &&
-                                        state.loadedEventsCalendarId == state.selectedCalendarId
+                                        state.loadedEventsCalendarId == state.selectedCalendarId &&
+                                        state.loadedEventsZone == java.time.ZoneId.systemDefault() &&
+                                        state.hasCalendarPermission
                                 ) {
                                     state.eventsByDay
                                 } else {

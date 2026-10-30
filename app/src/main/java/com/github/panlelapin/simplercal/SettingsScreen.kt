@@ -6,6 +6,8 @@ import android.content.ActivityNotFoundException
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +37,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTimePickerState
@@ -240,7 +243,7 @@ private fun CalendarSection(
         } else if (state.calendars.isEmpty() && state.calendarListFailure == null) {
             Text(stringResource(R.string.calendar_none_available))
         }
-        calendarFailureMessage(state.calendarListFailure)?.let { Text(it) }
+        calendarFailureMessage(state.calendarListFailure ?: state.calendarFailure)?.let { Text(it) }
     }
     Spacer(Modifier.height(24.dp))
 }
@@ -397,7 +400,18 @@ private fun ScheduleTimePickerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.action_choose_time)) },
-        text = { TimePicker(state = timePickerState) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                // Numeric input fits low landscape windows; retain the Material clock elsewhere.
+                Box(Modifier.horizontalScroll(rememberScrollState())) {
+                    if (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp < 600) {
+                        TimeInput(state = timePickerState)
+                    } else {
+                        TimePicker(state = timePickerState)
+                    }
+                }
+            }
+        },
         confirmButton = {
             TextButton(onClick = { onConfirm(timePickerState.hour * 60 + timePickerState.minute) }) {
                 Text(stringResource(R.string.action_ok))
