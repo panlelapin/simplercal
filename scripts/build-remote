@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# One entrypoint after cloning: validate locally, then use the canonical remote pipeline.
+set -Eeuo pipefail
+
+usage() {
+  printf 'Usage: %s [--resume <successful-run-id>]\n' "${0##*/}"
+  printf 'Requires the toolchain and GitHub access described in codex/DEVELOPMENT.md.\n'
+  printf 'Runs check-local, then make-remote (commit/push, CI, APK verification, optional ADB update).\n'
+}
+
+case "${1:-}" in
+  '') [[ $# -eq 0 ]] || { usage >&2; exit 2; } ;;
+  --resume)
+    [[ $# -eq 2 && "$2" =~ ^[0-9]+$ ]] || { usage >&2; exit 2; }
+    ;;
+  --help|-h) [[ $# -eq 1 ]] || { usage >&2; exit 2; }; usage; exit 0 ;;
+  *) usage >&2; exit 2 ;;
+esac
+
+PROJECT_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+cd "$PROJECT_ROOT"
+for executable in scripts/check-local scripts/make-remote; do
+  [[ -x "$executable" ]] || { printf 'Missing executable: %s\n' "$executable" >&2; exit 1; }
+done
+# Fail before validation if dispatch permissions/authentication are unavailable.
+command -v gh >/dev/null 2>&1 || { printf 'Install GitHub CLI, then run gh auth login.\n' >&2; exit 1; }
+gh auth status >/dev/null 2>&1 || { printf 'Authenticate GitHub CLI with gh auth login.\n' >&2; exit 1; }
+scripts/check-local
+exec scripts/make-remote "$@"
