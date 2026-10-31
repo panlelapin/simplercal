@@ -55,10 +55,10 @@
   All events et son action accessible restent le moyen d'ouvrir la liste complète.
 
 Implémentation du 31 octobre 2026 : trois sources, désactivation indépendante,
-iCalendar manuel, copies atomiques et dates bornées sont codés, sans compilation
-ni validation en exécution. Les anciens marqueurs manuels ne sont plus lus pour
-l'affichage ; leurs valeurs ne sont pas effacées. Aucun test n'a été ajouté ni lancé,
-conformément à la décision de différer le chantier de TESTS.md.
+iCalendar manuel, copies atomiques et dates bornées. Les anciens marqueurs manuels
+ne sont plus lus pour l'affichage ; leurs valeurs ne sont pas effacées. La suite
+de tests a ensuite été ajoutée et exécutée sur délégation explicite ; les preuves
+datées sont dans TESTS.md et VALIDATION.md.
 Les limites de l'importeur sont explicites dans CONTRACT.md et ARCHITECTURE.md.
 
 ## Créneaux quotidiens confirmés
@@ -76,5 +76,6 @@ Les limites de l'importeur sont explicites dans CONTRACT.md et ARCHITECTURE.md.
   notamment si les horaires sont incomplets ou si un événement ne touche aucune plage.
 - Projection asynchrone annulable, sans nouvelle lecture des sources ; données
   métier originales conservées et anciens résultats de projection rejetés.
-- Statut : implémenté, sans compilation ni tests exécutés pour cette évolution.
-  SCHEDULES.md et VALIDATION.md contiennent les règles et les limites actuelles.
+- Statut : implémenté, contrôle local réussi le 1er novembre 2026 ; compilation
+  des tests Android distincte de leur exécution. SCHEDULES.md et VALIDATION.md
+  contiennent les règles, preuves datées et limites actuelles.

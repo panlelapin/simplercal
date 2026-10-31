@@ -1,13 +1,14 @@
 # Audit des panneaux Compose — 31 octobre 2026
 
 > Évolution ultérieure : les cinq horaires pilotent désormais cinq lignes fixes
-> de créneaux. Voir [SCHEDULES.md](SCHEDULES.md). Cette évolution n'a pas encore
-> été compilée ou testée ; les preuves historiques des panneaux ci-dessous
-> ne la valident pas.
+> de créneaux. Voir [SCHEDULES.md](SCHEDULES.md). Le contrôle local commun aux
+> panneaux et créneaux a réussi le 1er novembre 2026 : 110 tests JVM, 18 Python,
+> Detekt, compilation des 55 tests Android et contrats du projet. L'exécution
+> Android, la CI et l'APK sont consignés dans [VALIDATION.md](VALIDATION.md).
 
 > Les constats ci-dessous décrivent la révision auditée. Une reprise applicative
 > a ensuite été implémentée ; son statut et ses preuves sont consignés dans
-> [VALIDATION.md](VALIDATION.md). L’ancien APK et la CI antérieure ne la valident pas.
+> [VALIDATION.md](VALIDATION.md). Les sections d'audit suivantes restent historiques.
 
 Révision inspectée : `f6c1c77c86321bc64991c48e41403e00e0fc5970`.
 Audit statique du code et des tests, confronté aux sources officielles AndroidX.
@@ -434,9 +435,12 @@ pendant un même drag. 30 tests ajoutés couvrent les nouvelles frontières et l
 interruptions. Leur définition, leur compilation et leur exécution restent séparées
 dans TESTS.md et VALIDATION.md. Aucun résultat de fluidité physique n’est revendiqué.
 
-Contrôle local de cette reprise réussi : 87 tests JVM et 18 tests Python sans
-échec, compilation des 48 tests Android, Detekt et contrats du projet réussis.
+Le premier contrôle local de cette reprise avait réussi avec 87 tests JVM,
+18 Python et compilation de 48 tests Android. Le contrôle commun ultérieur aux
+panneaux et aux créneaux réussit avec 110 JVM, 18 Python et compilation des
+55 tests Android ; voir VALIDATION.md pour les preuves locales/distantes datées.
 Le trait ordinaire est un chemin ouvert, sans masque supprimant les côtés à la
 jointure du weekend ; le contour courant suit exactement le rayon extérieur.
-Les tests d’image et de gestes intégrés Android restent à exécuter. Le protocole
-de mesure physique est documenté dans PERFORMANCE.md, sans résultat inventé.
+Les résultats des tests d'image et de gestes intégrés Android sont consignés dans
+VALIDATION.md. Le protocole de mesure physique est documenté dans PERFORMANCE.md,
+sans résultat inventé.

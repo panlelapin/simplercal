@@ -7,8 +7,10 @@ et désactivable séparément. Refresh iCalendar manuel avec date de dernière r
 thèmes Material You et gestes Discrete/Linear. Vue limitée à l'année réelle en cours
 et à la suivante, sans appui long.
 
-L'évolution trois sources est implémentée mais pas encore compilée/testée ; les
-résultats de validation antérieurs ne valident pas ces modifications.
+Chaque journée développée contient cinq créneaux définis dans les réglages :
+premier jusqu'à l'heure choisie depuis 00:01, puis quatre heures de début.
+Les résultats datés des contrôles et leurs limites sont dans
+[codex/VALIDATION.md](codex/VALIDATION.md).
 Android 14 minimum ; identifiant `com.github.panlelapin.simplercal`.
 
 ## Cloner et construire à distance

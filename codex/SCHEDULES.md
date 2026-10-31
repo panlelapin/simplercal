@@ -95,5 +95,6 @@ leurs dates et les dates voisines ; aucune boucle sur les années de sa durée.
 La projection publiée porte son entrée (semaine, données, heures, fuseau), qui doit
 toujours correspondre à l'entrée courante avant affichage.
 
-État : implémenté, non compilé et non testé dans cette passe. Voir TESTS.md et
-VALIDATION.md ; les contrôles précédents des panneaux ne valident pas ce changement.
+Contrôle local des panneaux et des créneaux réussi le 1er novembre 2026 :
+110 tests JVM et 18 Python, Detekt et compilation des 55 tests Android.
+L'exécution Android et l'APK sont consignés séparément dans VALIDATION.md.

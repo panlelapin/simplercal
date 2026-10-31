@@ -222,8 +222,8 @@ entières ; les dates extérieures sont grisées sans titres, marqueurs ou actio
 Le ViewModel et le parent de gestes empêchent leur sélection ; les distances de drag
 sont bornées aux groupes valides pour ne pas accumuler d'overscroll aux limites.
 
-Statut de cette évolution : IMPLEMENTED — NOT VALIDATED. Aucun test/compilation/CI
-n'a été exécuté pour ces nouvelles sources. Le plan TESTS.md reste différé.
+Les trois sources sont couvertes par les suites décrites dans TESTS.md ; les
+résultats locaux et distants datés figurent dans VALIDATION.md.
 
 
 ## Frontières de test — ajout du 31 octobre 2026
@@ -295,5 +295,7 @@ Le bouton et l'action accessible All events sont disponibles pour tout jour ayan
 des événements, même en configuration incomplète ou pour un événement hors plage.
 Le détail reste fondé sur les instances originales du jour et reçoit referenceZone.
 
-Statut de cette évolution : IMPLEMENTED — NOT VALIDATED. Aucun contrôle ni test
-exécuté dans cette passe ; voir VALIDATION.md.
+Contrôle local des panneaux et des créneaux réussi le 1er novembre 2026 :
+110 tests JVM et 18 Python, Detekt et compilation des 55 tests Android.
+L'exécution sur Android, l'APK et les limites physiques restent des preuves
+distinctes consignées dans VALIDATION.md.

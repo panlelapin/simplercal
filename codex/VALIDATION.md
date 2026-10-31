@@ -1,5 +1,21 @@
 # Validation et passage de relais
 
+## Première exécution Android des panneaux et créneaux — 1er novembre 2026
+
+Le [run 41251213290](https://github.com/panlelapin/simplercal/actions/runs/41251213290),
+révision 3b4279a5df492f2633884c45d4f7d86551909957, passe la préparation système,
+functionalCheck et les constructions Release/smoke. Android 14 exécute les 55 tests :
+54 réussis, un échec, zéro ignoré. Android 16 et smoke ne sont pas exécutés ; aucun
+APK n'est publié.
+
+Le test de redimensionnement demandait 1000 puis 900 dp à une densité de 0,75 sur
+l'écran CI de 640 pixels de haut : les deux demandes étaient contraintes à la même
+hauteur réelle. Le geste n'était donc pas annulé et sa validation sélectionnait
+normalement le jour suivant. La fixture réduit maintenant la hauteur depuis les
+pixels réellement mesurés et exige qu'elle ait changé avant de relâcher le pointeur.
+L'assertion de retour au jour initial et celle du maintien hors repli sont conservées.
+Le comportement applicatif n'est pas modifié. Une nouvelle exécution reste requise.
+
 ## Contrôle local et première tentative distante — 1er novembre 2026
 
 La demande « go tests et compil » délègue le pipeline scripts/build-remote.

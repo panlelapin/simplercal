@@ -4,19 +4,11 @@ La suite contient **110 tests JVM, 55 tests Android/Compose et 18 tests Python**
 soit 183 méthodes définies. L'évolution des créneaux ajoute 30 tests : 22 de
 projection, un de préférences/ViewModel, six d'interface et un parcours de réglages.
 
-**Créneaux : IMPLEMENTED — NOT VALIDATED.** Aucun contrôle, compilation ou test
-n'a été exécuté dans cette passe. Les 55 tests Android ne sont pas annoncés comme
-compilés ni réussis pour ces nouvelles sources.
-
-Le dernier contrôle local, antérieur aux créneaux, avait réussi avec 87 tests JVM,
-18 Python, Detekt et compilation de 48 tests Android. Ces preuves concernent la
-refonte précédente des panneaux, pas le branchement des horaires décrit ici.
-
-La dernière preuve CI antérieure à cette refonte concerne 71 tests JVM et 18 tests
-Python, 34 tests Android par API 34/36 et deux démarrages smoke R8 : révision
-ec9adf3806f4b0790b99cb13a9b4f50808f7ae60,
-[run 41181942792](https://github.com/panlelapin/simplercal/actions/runs/41181942792).
-Cet ancien APK ne représente pas les panneaux modifiés. Voir VALIDATION.md.
+**Contrôle local réussi le 1er novembre 2026** : 110 tests JVM et 18 tests Python,
+zéro échec/erreur/ignoré ; Detekt potential-bugs, compilation des 55 tests Android
+et contrats shell/XML/YAML/projet réussis via scripts/build-remote.
+Ces résultats couvrent les panneaux et les créneaux. L'exécution Android et l'APK
+de la nouvelle CI restent en cours ; voir VALIDATION.md pour les preuves datées.
 
 ## Inventaire défini dans les sources
 
@@ -114,13 +106,13 @@ Les tests à BroadcastFrameClock prouvent la durée et la protection des génér
 avec MotionDurationScale injecté, sans modifier les réglages Android. Le test de
 phase mesure une modification réelle des limites et compte les compositions du
 contenu. Le test d’image attend que l’indication soit effectivement visible avant
-de comparer les coins et le contour ; l’horloge native Android peut différer de
-l’horloge Compose. Ces nouveaux tests Android restent à exécuter en CI.
+de comparer les coins et le contour ; l'horloge native Android peut différer de
+l'horloge Compose. Le résultat de leur exécution CI figure dans VALIDATION.md.
 
 Le protocole d’appareil et de traces est dans [PERFORMANCE.md](PERFORMANCE.md).
 Aucun chiffre de cadence n’est déduit des tests fonctionnels ni d’un émulateur.
 
-## Évolution des créneaux — définitions non exécutées
+## Évolution des créneaux
 
 ScheduleSlotsTest contient les exemples confirmés, les limites temporelles et les
 changements d'heure. AppViewModelTest ajoute la mise à jour/restauration des cinq
@@ -131,6 +123,6 @@ cent événements conserve son assertion sur le dernier titre complet.
 
 Les tests Compose attendent une projection précise avec waitUntil, puisque le
 calcul s'effectue en arrière-plan, sans délai arbitraire. Le parcours de réglages
-ne change pas le sélecteur Material ni la persistance. Aucune assertion n'est
-supprimée pour masquer un échec d'exécution : aucun de ces nouveaux tests n'a été
-exécuté dans cette passe. Voir SCHEDULES.md pour la spécification complète.
+ne change pas le sélecteur Material ni la persistance. Les 22 tests de projection
+et le test de préférences/ViewModel passent localement. Voir SCHEDULES.md pour la
+spécification complète et VALIDATION.md pour l'exécution Android.

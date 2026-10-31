@@ -71,11 +71,17 @@ class WeekPanelIntegrationTest {
     @Test fun resizingDuringADragCancelsItsOldPixelScale() {
         setWeek(WeekScrollMode.LINEAR)
         val viewport = rule.onNodeWithTag("week-viewport")
+        val originalHeight = viewport.fetchSemanticsNode().boundsInRoot.height
         viewport.performTouchInput {
             down(Offset(centerX, height * .9f))
             moveBy(Offset(0f, -dayGroupTransitionDistance((height - BOTTOM_PIXELS).toFloat()) * .8f - 30f))
         }
-        rule.runOnIdle { height = 900 }
+        // Both 1000 dp and 900 dp exceed the small CI display: the parent clamps
+        // them to the same size. Resize from the measured pixels instead, keeping
+        // this case in the non-scrolling branch (the fallback has its own test).
+        rule.runOnIdle { height = (originalHeight / TEST_DENSITY).toInt() - 8 }
+        assertTrue("The viewport must actually shrink before releasing the pointer",
+            viewport.fetchSemanticsNode().boundsInRoot.height < originalHeight)
         viewport.performTouchInput { up() }
         rule.waitForIdle()
         rule.runOnIdle { assertEquals(0, selected) }
@@ -168,7 +174,7 @@ class WeekPanelIntegrationTest {
         }
         rule.setContent {
             // Keep a genuinely non-scrolling branch available even on small CI displays.
-            CompositionLocalProvider(LocalDensity provides Density(.75f, fontScale),
+            CompositionLocalProvider(LocalDensity provides Density(TEST_DENSITY, fontScale),
                 LocalWeekWindowInsets provides WeekWindowInsets(WindowInsets(0, 0, 40, BOTTOM_PIXELS),
                     WindowInsets(0, 0, 0, BOTTOM_PIXELS), WindowInsets(0, 0, 0, BOTTOM_PIXELS))) {
                 MaterialTheme {
@@ -186,5 +192,8 @@ class WeekPanelIntegrationTest {
         }
     }
 
-    companion object { private const val BOTTOM_PIXELS = 24 }
+    companion object {
+        private const val BOTTOM_PIXELS = 24
+        private const val TEST_DENSITY = .75f
+    }
 }

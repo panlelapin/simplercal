@@ -1,17 +1,11 @@
 # PB2 — Suivi des trente corrections
 
-> Évolution suivante : cinq créneaux quotidiens reliés aux horaires des réglages,
-> 30 tests supplémentaires définis. IMPLEMENTED — NOT VALIDATED : aucun contrôle,
-> compilation, test ou build lancé pour cette évolution. Les preuves des panneaux
-> ci-dessous ne la valident pas. Voir [SCHEDULES.md](codex/SCHEDULES.md) et
-> [VALIDATION.md](codex/VALIDATION.md).
-
-> Reprise des panneaux du 31 octobre 2026 : corrections ciblées implémentées et
-> 30 tests ajoutés. scripts/check-local réussi : 87 JVM et 18 Python sans échec,
-> Detekt et contrôles du projet réussis. Les 48 tests Android sont compilés,
-> pas exécutés. Aucun APK de cette refonte ni validation physique. Voir
-> [l’état détaillé](codex/VALIDATION.md) et [l’audit ciblé](codex/AUDIT_PANNEAUX_COMPOSE.md).
-> Les entrées ci-dessous décrivent l’historique antérieur.
+> Panneaux et cinq créneaux : implémentés. Contrôle local réussi le 1er novembre
+> 2026 : 110 tests JVM et 18 Python, zéro échec/erreur/ignoré ; Detekt, compilation
+> des 55 tests Android et contrats du projet réussis. Voir
+> [SCHEDULES.md](codex/SCHEDULES.md), [l’audit ciblé](codex/AUDIT_PANNEAUX_COMPOSE.md)
+> et [VALIDATION.md](codex/VALIDATION.md) pour les résultats Android, CI, APK
+> et les limites physiques. Les entrées ci-dessous sont des états historiques.
 
 Statut commun : **IMPLEMENTED — NOT VALIDATED**. Le code, les scripts et les tests ont été modifiés ; Codex n'a lancé ni compilation, ni tests, ni check-local, ni make-remote. Aucun point ci-dessous n'est présenté comme vérifié sur appareil. La configuration de signature a ensuite été explicitement déléguée à Codex et effectuée le 30 septembre 2026 ; voir ci-dessous.
 
