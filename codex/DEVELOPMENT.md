@@ -4,7 +4,8 @@
 
 Le chemin maintenu est un poste Linux avec Bash et outils GNU. Il faut installer
 Git, GitHub CLI (`gh`), Python 3 avec PyYAML (`import yaml`), ripgrep (`rg`), coreutils
-(notamment sha256sum, readlink avec -z, realpath, sort, tee, cmp), find et sed.
+(notamment sha256sum, readlink avec -z, realpath, sort, tee, cmp, timeout),
+setsid (util-linux), find et sed.
 JDK 17 et SDK Android sont requis localement pour les contrôles, même si l'APK est
 assemblé exclusivement dans GitHub Actions. Android Studio n'est pas obligatoire.
 
@@ -100,8 +101,11 @@ explicitement par l'utilisateur.
 Cette variante refait le contrôle local, puis délègue à make-remote --resume. Le
 worktree doit être propre et HEAD identique au SHA du run réussi. Elle ne déclenche
 pas une compilation nouvelle : elle récupère et vérifie l'artefact existant, tant
-qu'il est conservé (rétention actuelle 14 jours). Un artefact expiré exige un nouveau
-run normal. Ne pas présenter un ancien APK comme celui de nouvelles sources.
+qu'il est conservé. Un artefact expiré exige un nouveau run normal. GitHub applique
+actuellement une limite d'un jour malgré les quatorze jours demandés dans le
+workflow (journaux du 1er novembre 2026) ; vérifier la date d'expiration de l'artefact.
+Aucune configuration de rétention n'a été changée. Ne pas présenter un ancien APK
+comme celui de nouvelles sources.
 
 En cas d'échec : lire check-local.log ou les logs du run, corriger la cause et
 relancer le même point d'entrée. Ne pas baisser les checks, réécrire les checksums
@@ -127,8 +131,19 @@ scripts/ci-device-tests 34 et 36 sur des émulateurs distincts. Ce script est r�
 au runner Actions ; l'utilisateur continue à utiliser les points d'entrée habituels.
 Il force la réexécution des tests Android sur chaque API et vérifie que l'interface
 smoke réduite affiche Settings et Today. L'artefact android-test-reports conserve
-les rapports JVM/Android et build/ci-diagnostics même en échec. La rétention de
-l'APK existant reste de 14 jours ; le rapport utilise aussi 14 jours.
+les rapports JVM/Android et build/ci-diagnostics même en échec. Les deux artefacts
+demandent 14 jours de rétention ; la limite GitHub existante réduit actuellement
+cette durée à un jour. Consulter expires_at plutôt que supposer les quatorze jours
+effectifs.
+
+Chaque AVD de test utilise une partition userdata de 2048 Mio et un groupe de
+processus dédié. FATAL/PANIC et la mort du lanceur arrêtent le boot ; ses sondes ADB
+et son délai global sont bornés. La sortie nettoie uniquement l'AVD et l'image SDK
+temporaires de l'API courante sur ce runner jetable, pour garder de la place pour
+l'API suivante. Aucun adb uninstall. Les étapes Android ont un plafond de vingt
+minutes et conservent les diagnostics même en échec.
+Voir les [options officielles de l'émulateur](https://developer.android.com/studio/run/emulator-commandline)
+pour -partition-size et -no-metrics.
 
 Validation locale et distante réussie le 31 octobre 2026 : scripts/check-local,
 71 tests JVM et 18 tests Python, 34 tests Android par API (34 et 36), constructions

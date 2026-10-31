@@ -1,18 +1,19 @@
 # Tests de SimplerCal
 
-La suite contient **110 tests JVM, 55 tests Android/Compose et 18 tests Python**,
-soit 183 méthodes définies. L'évolution des créneaux ajoute 30 tests : 22 de
+La suite contient **110 tests JVM, 55 tests Android/Compose et 19 tests Python**,
+soit 184 méthodes définies. L'évolution des créneaux ajoute 30 tests : 22 de
 projection, un de préférences/ViewModel, six d'interface et un parcours de réglages.
 
 **Contrôle local réussi le 1er novembre 2026** : 110 tests JVM et 18 tests Python,
 zéro échec/erreur/ignoré ; Detekt potential-bugs, compilation des 55 tests Android
 et contrats shell/XML/YAML/projet réussis via scripts/build-remote.
-Ces résultats couvrent les panneaux et les créneaux. L'exécution Android et l'APK
+Ces résultats couvrent les panneaux et les créneaux ; le 19e test Python, ajouté
+après l'incident de démarrage émulateur, reste à exécuter. L'exécution Android et l'APK
 de la nouvelle CI restent en cours ; voir VALIDATION.md pour les preuves datées.
 
 ## Inventaire défini dans les sources
 
-110 tests JVM, 55 tests Android/Compose et 18 tests Python : 183 méthodes définies.
+110 tests JVM, 55 tests Android/Compose et 19 tests Python : 184 méthodes définies.
 Les deux démarrages smoke CI sont supplémentaires. Définitions, compilation des
 sources Android, exécution sur Android et mesure physique sont des preuves distinctes.
 
@@ -41,6 +42,7 @@ sources Android, exécution sur Android et mesure physique sont des preuves dist
 | WeekGestureTest (Compose) | 8 | Taps, transition 500 ms, seuils et position finale ; suite préexistante |
 | tests/scripts/test_pipeline.py | 15 | Empreintes, suppression avant/après staging, modes/symlinks, fraîcheur avant/après commit, propagation d'échecs et mutation pendant contrôle, flush du log, wrapper, reprise SHA/run/worktree, appareil ADB fixé et absence d'uninstall, sauvegarde de signature hors dépôt et secrets non journalisés |
 | tests/scripts/test_project_contracts.py | 3 | Exclusions de sauvegarde, identité des scripts/snapshot, ordre des vérifications CI avant publication et rapports conservés en échec |
+| tests/scripts/test_ci_device_tests.py | 1 | Émulateur fatal restant vivant et ADB bloqué : échec borné, aucun lancement des tests Android, ressources temporaires libérées |
 
 Les chemins Kotlin sont sous app/src/test/java/com/github/panlelapin/simplercal/
 et app/src/androidTest/java/com/github/panlelapin/simplercal/. Les données de test
@@ -55,7 +57,7 @@ L'utilisateur lance les scripts suivis selon CONTRACT.md. Aucun de ces ajouts
 n'accorde une autorisation permanente à Codex pour exécuter les contrôles.
 
 - scripts/check-local appelle functionalCheck : Detekt potential-bugs, les 110 tests
-  JVM Release, les 18 tests Python via pipelineTests et la compilation des sources
+  JVM Release, les 19 tests Python via pipelineTests et la compilation des sources
   de tests Android. Cela n'exécute pas les 55 tests Android sur le poste.
 - Le workflow manuel rejoue functionalCheck sur le commit envoyé, construit Release
   et smoke, puis lance les tests Android sur les émulateurs Android 14/API 34 et

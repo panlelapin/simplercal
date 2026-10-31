@@ -76,8 +76,10 @@ jobs:
       - name: Build minified emulator smoke fixture
         run: ./gradlew :app:assembleSmoke --no-daemon --stacktrace
       - name: Run Compose and minified smoke tests on Android 14
+        timeout-minutes: 20
         run: ./scripts/ci-device-tests 34
       - name: Run Compose and minified smoke tests on Android 16
+        timeout-minutes: 20
         run: ./scripts/ci-device-tests 36
       - name: Verify, collect, and checksum exactly one APK
         shell: bash

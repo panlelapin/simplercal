@@ -1,5 +1,27 @@
 # Validation et passage de relais
 
+## Incident de démarrage émulateur — 1er novembre 2026
+
+Le [run 41252284692](https://github.com/panlelapin/simplercal/actions/runs/41252284692),
+révision 8fcf1935aa29c8474c363d60d0cd6e53afd3955b, passe functionalCheck et les
+constructions Release/smoke. L'émulateur API 34 affiche FATAL avant son démarrage :
+6630,55 Mo disponibles, 7372,80 Mo demandés pour userdata. Aucun test Android
+n'est lancé. Une commande adb getprop non bornée immobilise ensuite la boucle
+d'attente ; la tentative est annulée pour obtenir le journal, sans APK publié.
+
+Le script CI fixe maintenant la partition à 2048 Mio, détecte FATAL/PANIC, borne
+chaque sonde ADB et la durée totale du boot, et arrête le groupe de processus de
+l'émulateur. Son AVD et son image SDK temporaires sont libérés après chaque API,
+en conservant rapports/diagnostics/APK. Les deux étapes Android ont un plafond
+de vingt minutes. Aucun adb uninstall ni modification d'un appareil physique.
+Un test Python isolé reproduit un lanceur fatal restant vivant et une sonde ADB
+bloquée ; il exige un échec borné, sans lancement de Gradle, avec nettoyage.
+Cette correction doit encore passer le contrôle local et la CI.
+
+Les journaux révèlent aussi une limite GitHub existante à **un jour** pour les
+artefacts : le workflow demande quatorze jours mais GitHub réduit cette durée.
+Aucune rétention ni configuration du dépôt n'a été modifiée.
+
 ## Première exécution Android des panneaux et créneaux — 1er novembre 2026
 
 Le [run 41251213290](https://github.com/panlelapin/simplercal/actions/runs/41251213290),
