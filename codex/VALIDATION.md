@@ -1,5 +1,26 @@
 # Validation et passage de relais
 
+## Contrôle local et première tentative distante — 1er novembre 2026
+
+La demande « go tests et compil » délègue le pipeline scripts/build-remote.
+Le contrôle local du contenu publié dans d366b87ac2fdbbce0a901b55681236817fecc537
+a réussi : **110 tests JVM et 18 tests Python**, zéro échec/erreur/ignoré ;
+Detekt potential-bugs, compilation des sources des **55 tests Android** et
+contrôles shell/XML/YAML/contrats réussis. Empreinte attestée :
+`add19db9856bccdae336dd814bf9b9a151b47ab3718e08fc2c0e5c1ef4f87fd5`.
+
+Le [run 41250203264](https://github.com/panlelapin/simplercal/actions/runs/41250203264)
+a été annulé après plus de onze minutes sans progrès dans la préparation APT du
+runner, avant functionalCheck distant. Le journal s'arrête sur apt-get update ;
+il ne permet pas d'identifier le miroir en cause. Aucun test Android ni APK de
+cette tentative. La préparation utilise désormais les seuls dépôts Ubuntu,
+avec délais réseau bornés, tentatives limitées, échec explicite et sortie visible ;
+la prochaine exécution doit encore confirmer la CI et l'APK.
+
+Aucun appareil ADB autorisé au préflight : aucune installation physique.
+Les sections « non validé » ci-dessous décrivent les états antérieurs à cette
+exécution ; elles ne remplacent pas cette preuve locale datée.
+
 ## Créneaux quotidiens — implémentés, non validés
 
 La vue calendrier est reliée aux cinq horaires persistés : première ligne depuis

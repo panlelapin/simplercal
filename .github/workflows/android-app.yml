@@ -29,12 +29,24 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
       - name: Prepare Python tests and emulator host
+        timeout-minutes: 8
         shell: bash
         run: |
           set -Eeuo pipefail
           sudo chmod 666 /dev/kvm
-          sudo apt-get update -qq
-          sudo apt-get install -y python3-yaml ripgrep libpulse0 libasound2t64 libxcb-cursor0
+          # All required packages belong to Ubuntu; unrelated runner repositories
+          # must not hold up preparation. Keep network waits bounded and visible.
+          apt_options=(
+            -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources
+            -o Dir::Etc::sourceparts=-
+            -o Acquire::Retries=2
+            -o Acquire::http::Timeout=30
+            -o Acquire::https::Timeout=30
+            -o APT::Update::Error-Mode=any
+          )
+          sudo apt-get "${apt_options[@]}" update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" install \
+            --no-install-recommends -y python3-yaml ripgrep libpulse0 libasound2t64 libxcb-cursor0
       - name: Create diagnostics directory
         run: mkdir -p build/ci-diagnostics
       - name: Run functional bug checks
