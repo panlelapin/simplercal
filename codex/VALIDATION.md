@@ -1,6 +1,35 @@
 # Validation et passage de relais
 
-## État courant — validation locale du 31 octobre 2026
+## État courant — CI réussie le 31 octobre 2026
+
+Révision applicative **ec9adf3806f4b0790b99cb13a9b4f50808f7ae60**, [run 41181942792](https://github.com/panlelapin/simplercal/actions/runs/41181942792)
+terminé avec success après correction des prérequis du runner et de referenceZone.
+Les changements suivants de documentation ne modifient pas cette révision applicative.
+
+- functionalCheck réussi localement et sur le runner propre : 71 tests JVM Release,
+  18 tests Python de scripts, Detekt potential-bugs et compilation des tests Android.
+- Rapports Android 14/API 34 et Android 16/API 36 : **34 tests par API**, zéro échec,
+  erreur ou test ignoré ; soit 68 exécutions Android réussies. Les deux parcours
+  All events conservent leurs assertions de titre complet et passent.
+- Release de production signée, réduite par R8 et non débogable construite ; variante
+  smoke réduite construite et démarrée à froid sur les deux API. Status: ok et
+  présence des commandes Settings/Today vérifiée dans la hiérarchie UI.
+- Publication de l'APK après ces contrôles, puis récupération et vérification par
+  scripts/build-remote → scripts/make-remote → scripts/verify-apk : package
+  com.github.panlelapin.simplercal, minSdk 34, targetSdk 36, debuggable=false.
+- APK local : build/android-app-arm64-v8a.apk ; SHA-256 de ce run :
+  `07d93391ad84afac93c3791d67b701c0d44ae85e5eea6e5d0ad63801ec2d8640`.
+- Rapports et diagnostics conservés dans l'artefact android-test-reports du run,
+  avec résultats séparés api-34/api-36, journaux émulateur et smoke-start.log/UI XML.
+
+Aucun appareil ADB autorisé au préflight : **aucune installation physique**.
+Ces tests vérifient les parcours automatisés avec données contrôlées, pas les
+comptes personnels, le transfert réel d'une sauvegarde, une vraie mort du processus,
+les droits du sélecteur Documents, le réseau HTTPS réel ou tous les rendus/insets
+sur appareil. Les vérifications manuelles ci-dessous restent nécessaires.
+Les preuves plus anciennes restent historiques et ne remplacent pas celles-ci.
+
+## Contrôle local initial — 31 octobre 2026
 
 **scripts/check-local réussi** après corrections, sur la demande « valide ».
 71 tests JVM Release et 18 tests Python réussis ; zéro échec, erreur ou test ignoré.

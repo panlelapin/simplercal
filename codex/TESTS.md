@@ -1,12 +1,13 @@
 # Tests de SimplerCal
 
 Le plan demandé le 30 octobre 2026 est repris et implémenté le 31 octobre 2026.
-**Validation locale réussie le 31 octobre 2026**, sur demande « valide » :
-scripts/check-local passe avec 71 tests JVM et 18 tests Python, sans échec ni test
-ignoré. Les sources des 34 tests Android compilent ; leur exécution sur émulateur,
-la construction R8/smoke et les vérifications manuelles restent non effectuées.
-Voir VALIDATION.md pour les preuves et corrections. Les résultats antérieurs
-concernent un état plus ancien du projet.
+**Validation locale et CI réussies le 31 octobre 2026** : 71 tests JVM et 18 tests
+Python réussis ; 34 tests Android/Compose exécutés avec succès sur chacune des
+API 34 et 36, sans échec, erreur ni test ignoré. Les deux démarrages smoke R8
+réussissent aussi. Révision applicative ec9adf3806f4b0790b99cb13a9b4f50808f7ae60 ;
+[preuves du run 41181942792](https://github.com/panlelapin/simplercal/actions/runs/41181942792).
+APK signé récupéré et vérifié. Aucun appareil ADB autorisé : aucune installation
+physique ni vérification visuelle manuelle. Voir VALIDATION.md pour les limites.
 
 ## Inventaire défini dans les sources
 

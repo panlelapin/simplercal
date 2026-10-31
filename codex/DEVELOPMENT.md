@@ -130,8 +130,10 @@ smoke réduite affiche Settings et Today. L'artefact android-test-reports conser
 les rapports JVM/Android et build/ci-diagnostics même en échec. La rétention de
 l'APK existant reste de 14 jours ; le rapport utilise aussi 14 jours.
 
-Validation locale demandée et réussie le 31 octobre 2026 : scripts/check-local,
-71 tests JVM, 18 tests Python et compilation des sources des 34 tests Android.
-La CI, les démarrages R8/smoke et l'exécution des tests Android restent non exécutés
-pour ce nouvel état ; voir VALIDATION.md. Ces résultats locaux ne constituent pas
-une validation visuelle de l'application ni une livraison.
+Validation locale et distante réussie le 31 octobre 2026 : scripts/check-local,
+71 tests JVM et 18 tests Python, 34 tests Android par API (34 et 36), constructions
+Release/smoke réduites et démarrage smoke sur les deux API.
+[Run 41181942792](https://github.com/panlelapin/simplercal/actions/runs/41181942792),
+révision applicative ec9adf3806f4b0790b99cb13a9b4f50808f7ae60. APK récupéré et vérifié par
+les scripts. Aucun appareil ADB autorisé, donc aucune installation physique.
+Ces preuves ne constituent pas une validation visuelle manuelle ; voir VALIDATION.md.

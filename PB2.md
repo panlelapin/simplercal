@@ -185,3 +185,15 @@ réussis ; les deux parcours All events détectent un mélange entre fuseau inje
 du ViewModel et fuseau global relu par la vue. referenceZone est désormais transmis
 par l'état du ViewModel et utilisé dans la garde d'affichage. Assertions conservées,
 validation des deux API et smoke à refaire. Aucun APK publié par ce run.
+
+
+Validation distante réussie le 31 octobre 2026 — révision applicative ec9adf3806f4b0790b99cb13a9b4f50808f7ae60,
+run https://github.com/panlelapin/simplercal/actions/runs/41181942792 :
+71 tests JVM et 18 tests Python réussis ; 34/34 tests Android sur API 34 et 34/34
+sur API 36, sans échec/erreur/ignoré ; démarrage à froid smoke R8 et présence
+Settings/Today vérifiés sur les deux API. Release stable signée et non débogable
+construite, publiée, récupérée et vérifiée par la chaîne suivie.
+SHA-256 : 07d93391ad84afac93c3791d67b701c0d44ae85e5eea6e5d0ad63801ec2d8640.
+Les deux échecs précédents et leurs corrections sont décrits dans codex/VALIDATION.md.
+Aucun appareil ADB autorisé : aucune installation physique. Les parcours système
+réels et vérifications visuelles manuelles restent non validés.
