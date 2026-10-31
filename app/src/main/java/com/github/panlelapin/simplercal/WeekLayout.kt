@@ -1,34 +1,28 @@
 package com.github.panlelapin.simplercal
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -41,6 +35,10 @@ import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 
 internal fun dayRowShape(dayIndex: Int): RoundedCornerShape =
     when (dayIndex) {
@@ -87,31 +85,33 @@ internal fun weekTitle(monday: LocalDate): AnnotatedString {
 }
 
 @Composable
-internal fun ColumnScope.WeekRows(
+internal fun WeekRows(
     state: WeekRowsState,
     onSelectDay: (Int) -> Unit,
     onShowDetails: (LocalDate) -> Unit,
 ) {
+    val expanded = expandedDayIndices(state.selectedDayIndex)
     state.days.forEachIndexed { index, day ->
-        DayRow(
-            state =
-                DayRowState(
-                    dayIndex = index,
-                    highlightedDayIndex = state.highlightedDayIndex,
-                    referenceDate = state.referenceDate,
-                    isDarkTheme = state.isDarkTheme,
-                    day = day,
-                    isSelected = index == state.selectedDayIndex,
-                    isExpanded = index in expandedDayIndices(state.selectedDayIndex),
-                    isContentExpanded = index in state.contentExpandedDays,
-                    weight = state.animatedDayWeights[index],
-                    dayLabelColumnWidth = state.dayLabelColumnWidth,
-                    separatorColor = state.separatorColor,
-                    appBarBackground = state.appBarBackground,
-                ),
-            onClick = { onSelectDay(index) },
-            onShowDetails = { onShowDetails(day.date) },
-        )
+        key(day.date) {
+            DayRow(
+                state =
+                    DayRowState(
+                        dayIndex = index,
+                        highlightedDayIndex = state.highlightedDayIndex,
+                        referenceDate = state.referenceDate,
+                        isDarkTheme = state.isDarkTheme,
+                        day = day,
+                        isSelected = index == state.selectedDayIndex,
+                        isExpanded = index in expanded,
+                        isContentExpanded = index in state.contentExpandedDays,
+                        dayLabelColumnWidth = state.dayLabelColumnWidth,
+                        separatorColor = state.separatorColor,
+                        schedule = state.schedules[index],
+                    ),
+                onClick = { onSelectDay(index) },
+                onShowDetails = { onShowDetails(day.date) },
+            )
+        }
     }
 }
 
@@ -134,131 +134,104 @@ internal fun WeekView(state: WeekViewState) {
                 allowedYear = state.allowedYear,
             )
         }
-    val interaction =
-        rememberWeekInteraction(
-            requestedDayIndex = state.requestedDayIndex,
-            selectionRequest = state.selectionRequest,
-            onSelectionChanged = { index ->
-                if (days[index].isEnabled) state.onSelectionChanged(index)
-            },
-        )
-    LaunchedEffect(interaction.selectedDayIndex, state.weekMonday, state.allowedYear) {
-        if (!days[interaction.selectedDayIndex].isEnabled) {
-            val valid = days.indices.filter { days[it].isEnabled }.minBy { kotlin.math.abs(it - interaction.selectedDayIndex) }
-            interaction.selectDay(valid)
-        }
+    val enabled = remember(days) { days.indices.filter { days[it].isEnabled }.toSet() }
+    val scheduleInput = remember(days, state.scheduleTimes, state.referenceZone) {
+        WeekScheduleInput(state.weekMonday, days.map { it.events }, state.scheduleTimes.toList(), state.referenceZone)
     }
-    val currentAnimatedDayWeights = rememberUpdatedState(interaction.animatedDayWeights)
-    val currentSelectedDayIndex = rememberUpdatedState(interaction.selectedDayIndex)
-    val currentStartDrag = rememberUpdatedState(interaction::startDrag)
-    val currentDragToFocus = rememberUpdatedState(interaction::dragToFocus)
-    val currentEndDrag = rememberUpdatedState(interaction::endDrag)
-    val dayLabelColumnWidth = dayLabelColumnWidth(days)
-    val separatorColor =
-        state.debug1OutlineColor.resolve(MaterialTheme.colorScheme, state.appBarBackground)
-    val insets = rememberWeekInsets()
-    var detailEpochDay by rememberSaveable { mutableStateOf<Long?>(null) }
-    val detailDay = days.firstOrNull { it.isEnabled && it.date.toEpochDay() == detailEpochDay }
-    detailDay?.let { day ->
-        DayDetailsDialog(
-            day = day,
-            onDismiss = { detailEpochDay = null },
-        )
-    }
-    val density = LocalDensity.current
-    val bodyLineHeight = MaterialTheme.typography.bodyMedium.lineHeight
-    val minimumWeekHeight = with(density) {
-        minimumWeekHeightDp(bodyLineHeight.toDp().value).dp
-    }
-    val weekDescription = stringResource(R.string.week_accessibility_description)
-    val fallbackScroll = rememberScrollState()
-    AnimateDayWeights(interaction, days.size)
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val safeHeight = (maxHeight - insets.bottom).coerceAtLeast(0.dp)
-        val needsScroll = safeHeight < minimumWeekHeight
-        val weekHeight = maxOf(safeHeight, minimumWeekHeight)
-        var previousSelection by rememberSaveable { mutableStateOf<Int?>(null) }
-        LaunchedEffect(needsScroll, interaction.selectedDayIndex, weekHeight) {
-            // Restoring the screen must preserve its saved viewport. Only a new selection scrolls.
-            if (needsScroll && previousSelection != interaction.selectedDayIndex) {
-                val topWeight = dayWeightsFor(interaction.selectedDayIndex).take(interaction.selectedDayIndex).sum()
-                val targetTop = with(density) { weekHeight.toPx() } * topWeight / TOTAL_DAY_WEIGHT
-                fallbackScroll.scrollTo(targetTop.toInt())
+    val projection by produceState<WeekScheduleProjection?>(null, scheduleInput) {
+        value = withContext(Dispatchers.Default) {
+            val context = currentCoroutineContext()
+            val projector = ScheduleProjector(scheduleInput.times, scheduleInput.zone) { context.ensureActive() }
+            val projected = scheduleInput.days.mapIndexed { index, events ->
+                context.ensureActive()
+                projector.day(scheduleInput.monday.plusDays(index.toLong()), events)
             }
-            previousSelection = interaction.selectedDayIndex
+            WeekScheduleProjection(scheduleInput, projected)
         }
-        val gestureModifier = if (needsScroll) Modifier else Modifier.weekGestureInput(
+    }
+    // A cancelled/superseded projection must not display another week, source, zone or schedule.
+    val schedules = projection?.takeIf { it.input == scheduleInput }?.days
+        ?: remember(scheduleInput) { List(WEEK_DAY_COUNT) { DaySchedule.empty(scheduleInput.times) } }
+    val groups = remember(enabled) { enabled.map(::groupIndexFor) }
+    val initialSelection = if (state.requestedDayIndex in enabled) state.requestedDayIndex else
+        enabled.minBy { kotlin.math.abs(it - state.requestedDayIndex) }
+    val scroll = rememberScrollState()
+    val coordinator = remember(scroll, state.weekMonday) { WeekScrollCoordinator(scroll, initialSelection) }
+    val interaction = rememberWeekInteraction(
+        requestedDayIndex = initialSelection,
+        selectionRequest = state.selectionRequest,
+        contextKey = state.weekMonday,
+        onSelectionChanged = { index ->
+            if (index in enabled) {
+                coordinator.select(index)
+                state.onSelectionChanged(index)
+            }
+        },
+    )
+    LaunchedEffect(interaction, enabled) {
+        if (interaction.selectedDayIndex !in enabled) {
+            interaction.selectDay(enabled.minBy { kotlin.math.abs(it - interaction.selectedDayIndex) })
+        }
+    }
+    val label = rememberDayLabelMetrics(days)
+    val separatorColor = state.debug1OutlineColor.resolve(MaterialTheme.colorScheme, state.appBarBackground)
+    var detailEpochDay by rememberSaveable { mutableStateOf<Long?>(null) }
+    days.firstOrNull { it.isEnabled && it.date.toEpochDay() == detailEpochDay }?.let { day ->
+        DayDetailsDialog(day = day, onDismiss = { detailEpochDay = null }, zone = state.referenceZone)
+    }
+    AnimateDayWeights(interaction, days.size,
+        onFrame = { weights, fraction ->
+            Snapshot.withMutableSnapshot {
+                coordinator.follow(weights, fraction)
+                interaction.animatedDayWeights = weights
+            }
+        },
+        onFinished = coordinator::finish,
+    )
+    val description = stringResource(R.string.week_accessibility_description)
+    val touchSlop = LocalViewConfiguration.current.touchSlop
+    val density = LocalDensity.current
+    WeekViewport(weekWindowInsets(), label, days.maxOf { it.events.size }, coordinator, Modifier.fillMaxSize()) { geometry ->
+        val gestures = if (geometry.needsScroll) Modifier else Modifier.weekGestureInput(
             WeekGestureState(
                 scrollMode = state.scrollMode,
-                bottomGestureInsetPx = insets.bottomPx,
-                rightGestureInsetPx = insets.rightPx,
-                leftGestureInsetPx = insets.rightPx,
-                touchSlopPx = LocalViewConfiguration.current.touchSlop,
-                selectedDayIndex = { currentSelectedDayIndex.value },
-                animatedDayWeights = { currentAnimatedDayWeights.value },
-                startDrag = { currentStartDrag.value() },
-                dragToFocus = { focus ->
-                    val validGroups = days.indices.filter { days[it].isEnabled }.map(::groupIndexFor)
-                    currentDragToFocus.value(focus.coerceIn(validGroups.min().toFloat(), validGroups.max().toFloat()))
-                },
+                geometry = geometry,
+                rowBounds = { coordinator.bounds ?: weekRowBounds(geometry.contentHeight, interaction.animatedDayWeights) },
+                contextKey = state.weekMonday,
+                touchSlopPx = touchSlop,
+                selectedDayIndex = { interaction.selectedDayIndex },
+                animatedDayWeights = { interaction.animatedDayWeights },
+                startDrag = interaction::startDrag,
+                dragToFocus = { interaction.dragToFocus(it.coerceIn(groups.min().toFloat(), groups.max().toFloat())) },
                 endDrag = {
-                    currentEndDrag.value()
-                    if (!days[interaction.selectedDayIndex].isEnabled) {
-                        interaction.selectDay(days.indices.first { days[it].isEnabled })
+                    interaction.endDrag()
+                    if (interaction.selectedDayIndex !in enabled) {
+                        interaction.selectDay(enabled.minBy { kotlin.math.abs(it - interaction.selectedDayIndex) })
                     }
                 },
                 cancelDrag = interaction::cancelDrag,
-                enabledDayIndices = days.indices.filter { days[it].isEnabled }.toSet(),
-                minimumGroup = days.indices.filter { days[it].isEnabled }.minOf(::groupIndexFor),
-                maximumGroup = days.indices.filter { days[it].isEnabled }.maxOf(::groupIndexFor),
+                enabledDayIndices = enabled,
+                minimumGroup = groups.min(),
+                maximumGroup = groups.max(),
             ),
         )
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .then(gestureModifier)
-                    .semantics { contentDescription = weekDescription },
-        ) {
-            Spacer(modifier = Modifier.fillMaxHeight().width(insets.right))
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxHeight()
-                        .weight(1f)
-                        .padding(bottom = insets.bottom),
-            ) {
-                val scrollModifier = if (needsScroll) Modifier.verticalScroll(fallbackScroll) else Modifier
-                Column(Modifier.fillMaxSize().then(scrollModifier).height(weekHeight)) {
-                    WeekRows(
-                        state =
-                            WeekRowsState(
-                                days = days,
-                                selectedDayIndex = interaction.selectedDayIndex,
-                                contentExpandedDays = interaction.contentExpandedDays,
-                                animatedDayWeights = interaction.animatedDayWeights,
-                                highlightedDayIndex = state.highlightedDayIndex,
-                                referenceDate = state.referenceDate,
-                                isDarkTheme = state.isDarkTheme,
-                                dayLabelColumnWidth = dayLabelColumnWidth,
-                                separatorColor = separatorColor,
-                                appBarBackground = state.appBarBackground,
-                            ),
-                        onSelectDay = { index -> if (days[index].isEnabled) interaction.selectDay(index) },
-                        onShowDetails = { detailEpochDay = it.toEpochDay() },
-                    )
-                }
+        Box(Modifier.fillMaxSize().then(gestures).testTag("week-viewport")
+            .semantics { contentDescription = description }) {
+            val side = with(density) { geometry.side.toDp() }
+            val bottom = with(density) { geometry.bottom.toDp() }
+            WeekDayLayout(geometry, { interaction.animatedDayWeights }, coordinator,
+                Modifier.fillMaxSize().padding(start = side, end = side, bottom = bottom)) {
+                WeekRows(
+                    WeekRowsState(days, interaction.selectedDayIndex, interaction.contentExpandedDays,
+                        state.highlightedDayIndex, state.referenceDate, state.isDarkTheme, label.width,
+                        separatorColor, schedules),
+                    onSelectDay = { if (it in enabled) interaction.selectDay(it) },
+                    onShowDetails = { detailEpochDay = it.toEpochDay() },
+                )
             }
-            Spacer(modifier = Modifier.fillMaxHeight().width(insets.right))
         }
     }
 }
-
-internal fun minimumWeekHeightDp(lineHeight: Float): Float = maxOf(
-    48f * TOTAL_DAY_WEIGHT / COMPACT_DAY_WEIGHT,
-    maxOf(lineHeight * EXPANDED_CONTENT_LINE_COUNT + 4f, lineHeight * (EXPANDED_CONTENT_LINE_COUNT - 1) + 52f) *
-        TOTAL_DAY_WEIGHT / dayWeightsFor(0).first(),
-)
 
 internal fun dayWeightsFor(selectedDayIndex: Int): List<Float> {
     val expandedDays = expandedDayIndices(selectedDayIndex)
@@ -307,23 +280,3 @@ internal fun interpolateWeight(
     fraction: Float,
 ): Float = start + (end - start) * fraction
 
-internal fun dayIndexAtPosition(
-    y: Float,
-    height: Int,
-    weights: List<Float>,
-): Int {
-    if (height <= 0 || weights.isEmpty()) return 0
-    val boundedY =
-        y.coerceIn(
-            minimumValue = MIN_FRACTION,
-            maximumValue = height.toFloat(),
-        )
-    val totalWeight = weights.sum()
-    var bottom = 0f
-    val matchingDayIndex =
-        weights.indices.firstOrNull { dayIndex ->
-            bottom += height * weights[dayIndex] / totalWeight
-            boundedY < bottom
-        }
-    return matchingDayIndex ?: weights.lastIndex
-}

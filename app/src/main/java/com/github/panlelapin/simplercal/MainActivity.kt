@@ -1,5 +1,7 @@
 package com.github.panlelapin.simplercal
 
+import androidx.compose.foundation.layout.consumeWindowInsets
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -255,7 +257,7 @@ private fun MainScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Surface(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier.fillMaxSize().padding(innerPadding).consumeWindowInsets(innerPadding),
             color = appBarBackground,
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -284,6 +286,8 @@ private fun MainScreen(
                             onSelectionChanged = onDaySelected,
                             dayMarkers = state.dayMarkers,
                             allowedYear = state.allowedYear,
+                            scheduleTimes = state.scheduleTimes,
+                            referenceZone = state.referenceZone,
                         ),
                 )
                 if (state.isCalendarLoading) {

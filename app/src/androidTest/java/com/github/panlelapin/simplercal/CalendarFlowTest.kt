@@ -147,4 +147,17 @@ class CalendarFlowTest {
         rule.runOnIdle { assertEquals(0, reads.get()) }
     }
 
+    @Test fun scheduleSettingsUseUntilForTheFirstSlotAndFromForTheOtherFour() {
+        launch()
+        val times = listOf(480, 480, 720, 840, 1080)
+        rule.runOnIdle { times.forEachIndexed { index, minutes -> model.setScheduleTime(index, minutes) } }
+        rule.onNodeWithContentDescription("Settings").performClick()
+        rule.onNodeWithContentDescription("Slot 1 — until: 08:00").performScrollTo().performClick()
+        rule.onNodeWithText("Choose time").assertIsDisplayed()
+        rule.onNodeWithText("Cancel").performClick()
+        rule.onNodeWithContentDescription("Slot 2 — from: 08:00").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithContentDescription("Slot 5 — from: 18:00").performScrollTo().assertIsDisplayed()
+        rule.runOnIdle { assertEquals(times, model.uiState.scheduleTimes) }
+    }
+
 }

@@ -60,3 +60,21 @@ ni validation en exécution. Les anciens marqueurs manuels ne sont plus lus pour
 l'affichage ; leurs valeurs ne sont pas effacées. Aucun test n'a été ajouté ni lancé,
 conformément à la décision de différer le chantier de TESTS.md.
 Les limites de l'importeur sont explicites dans CONTRACT.md et ARCHITECTURE.md.
+
+## Créneaux quotidiens confirmés
+
+- Cinq positions fixes dans chaque jour développé, configurées par les cinq
+  préférences existantes : première heure = Until depuis 00:01 ; autres = From.
+- Les plages intermédiaires finissent au début suivant, la dernière à minuit.
+  Les valeurs restent indépendantes et doivent former un ensemble chronologique.
+- Un événement sur un seul créneau reste là. Dès qu'il touche plusieurs créneaux,
+  afficher tous les créneaux touchés sauf le dernier, sur la durée globale.
+  La confirmation sur quatre créneaux est : 1, 2 et 3, sans le 4.
+- Les positions vides sont conservées ; plusieurs événements d'un même créneau
+  sont résumés par le premier titre et un compteur, sans supprimer les autres.
+- L'accès au détail complet est conservé dès qu'un jour a des événements,
+  notamment si les horaires sont incomplets ou si un événement ne touche aucune plage.
+- Projection asynchrone annulable, sans nouvelle lecture des sources ; données
+  métier originales conservées et anciens résultats de projection rejetés.
+- Statut : implémenté, sans compilation ni tests exécutés pour cette évolution.
+  SCHEDULES.md et VALIDATION.md contiennent les règles et les limites actuelles.

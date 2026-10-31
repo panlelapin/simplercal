@@ -1,6 +1,57 @@
 # Validation et passage de relais
 
-## État courant — CI réussie le 31 octobre 2026
+## Créneaux quotidiens — implémentés, non validés
+
+La vue calendrier est reliée aux cinq horaires persistés : première ligne depuis
+00:01 jusqu'à sa valeur Until, quatre lignes réglées par leur début From, dernière
+jusqu'à minuit. L'événement sur plusieurs créneaux est repris partout sauf dans
+son dernier créneau, sur sa durée globale. Cinq positions conservées, résumé des
+collisions, détail complet pour tous les jours non vides et zone du ViewModel
+partagée par la projection et le détail. Voir SCHEDULES.md.
+
+Projection hors thread UI, annulable et protégée par son contexte complet.
+Préférences existantes préservées, configuration incomplète/non chronologique
+signalée et aucune nouvelle lecture externe de calendrier.
+
+30 tests ajoutés pour cette évolution : 23 JVM et 7 Android/Compose. Totaux définis :
+110 JVM, 55 Android et 18 Python. **Aucun contrôle, compilation ou test exécuté pour
+ces nouvelles sources.** Aucune CI, aucun commit/push ni APK de cette évolution.
+Les résultats ci-dessous décrivent des sources antérieures ; ils ne prouvent pas
+la compilation ni l'exécution des créneaux.
+
+
+## Dernier contrôle local avant les créneaux — panneaux du 31 octobre 2026
+
+Corrections de l’audit AUDIT_PANNEAUX_COMPOSE.md implémentées : géométrie partagée,
+insets lus en mesure, hauteur minimale mesurée, scroll ancré pendant le tap,
+Surface cliquable et contour unique, conteneurs simplifiés, annulation/reprise
+et garde de génération. L’identité de dimanche est aussi conservée après une
+sortie puis un retour au groupe weekend pendant le même drag.
+
+30 tests ajoutés : 16 JVM et 14 Android/Compose. Totaux définis : 87 JVM,
+48 Android et 18 Python. **scripts/check-local réussi le 31 octobre 2026** :
+87 tests JVM Release, zéro échec/erreur/ignoré ; 18 tests Python réussis ;
+Detekt potential-bugs, compilation des 48 tests Android et contrôles XML/YAML/contrat
+réussis. BUILD SUCCESSFUL en 38 s pour le dernier passage. Empreinte attestée :
+`09b923c91799372fef62555ce1accb68ecb1227a2c998b8d7c951625f1f3a793`.
+Après ce contrôle des panneaux, des comptes rendus ont été mis à jour, puis
+le code des créneaux a été modifié. L’empreinte ci-dessus ne valide donc pas les
+sources actuelles ; un nouveau contrôle complet reste nécessaire.
+
+Un passage précédent avait trouvé un ancien argument de couleur dans un test
+d’accessibilité après simplification du modèle : corrigé puis contrôle complet
+rejoué avec succès, sans assouplissement des vérifications.
+
+Aucun test Android de cette refonte exécuté, aucune nouvelle CI, aucune installation
+ou vérification manuelle des panneaux. Aucun profil ni chiffre de cadence physique.
+Le dernier APK téléchargé correspond aux anciennes sources.
+
+Ces changements sont dans le worktree basé sur f6c1c77c86321bc64991c48e41403e00e0fc5970,
+sans commit/push ni build distant dans cette passe. Les preuves ci-dessous restent
+historiques ; [PERFORMANCE.md](PERFORMANCE.md) décrit les mesures encore nécessaires.
+
+
+## Dernière CI avant la refonte des panneaux — 31 octobre 2026
 
 Révision applicative **ec9adf3806f4b0790b99cb13a9b4f50808f7ae60**, [run 41181942792](https://github.com/panlelapin/simplercal/actions/runs/41181942792)
 terminé avec success après correction des prérequis du runner et de referenceZone.

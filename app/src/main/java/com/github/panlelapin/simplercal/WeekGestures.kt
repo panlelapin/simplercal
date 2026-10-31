@@ -20,9 +20,8 @@ internal fun dayGroupTransitionDistance(height: Float): Float {
 internal fun Modifier.weekGestureInput(state: WeekGestureState): Modifier =
     pointerInput(
         state.scrollMode,
-        state.bottomGestureInsetPx,
-        state.rightGestureInsetPx,
-        state.leftGestureInsetPx,
+        state.geometry,
+        state.contextKey,
         state.touchSlopPx,
         state.enabledDayIndices,
         state.minimumGroup,
@@ -34,33 +33,15 @@ internal fun Modifier.weekGestureInput(state: WeekGestureState): Modifier =
 private suspend fun PointerInputScope.handleWeekGesture(state: WeekGestureState) {
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
-        val dayAreaHeight = (size.height - state.bottomGestureInsetPx).coerceAtLeast(1f)
-        val isTouchInDayArea =
-            isInsideDayArea(
-                position = down.position,
-                width = size.width.toFloat(),
-                dayAreaHeight = dayAreaHeight,
-                state = state,
-            )
-        val touchDayIndex =
-            if (isTouchInDayArea) {
-                dayIndexAtPosition(
-                    y = down.position.y,
-                    height = dayAreaHeight.toInt(),
-                    weights = state.animatedDayWeights(),
-                )
-            } else {
-                -1
-            }
+        val geometry = state.geometry
+        // The protected bottom is not a peripheral drag strip. Do not consume its events.
+        if (!geometry.acceptsDrag(down.position.x, down.position.y)) return@awaitEachGesture
+        val downBounds = state.rowBounds()
+        val touchDayIndex = if (geometry.containsDay(down.position.x)) downBounds.dayAt(down.position.y) else -1
         val isDragAllowed =
             (touchDayIndex < 0 || touchDayIndex in state.enabledDayIndices) &&
                 (state.scrollMode == WeekScrollMode.LINEAR || touchDayIndex in expandedDayIndices(state.selectedDayIndex()))
-        val progress = WeekDragProgress(
-            initialPosition = down.position,
-            dayAreaHeight = dayAreaHeight,
-            touchDayIndex = touchDayIndex,
-            downWeights = state.animatedDayWeights(),
-        )
+        val progress = WeekDragProgress(down.position, touchDayIndex, downBounds)
         var completedNormally = false
         try {
             val released = consumeWeekDrag(
@@ -85,9 +66,8 @@ private suspend fun PointerInputScope.handleWeekGesture(state: WeekGestureState)
 
 private class WeekDragProgress(
     private val initialPosition: Offset,
-    private val dayAreaHeight: Float,
     private val touchDayIndex: Int,
-    private val downWeights: List<Float>,
+    private val downBounds: WeekRowBounds,
 ) {
     var hasStartedDrag = false
         private set
@@ -115,12 +95,11 @@ private class WeekDragProgress(
             if (drag.isDragAllowed) {
                 val direction = if (displacementFromDown < 0f) -1f else 1f
                 val threshold = if (state.scrollMode == WeekScrollMode.DISCRETE) {
-                    discreteDragThreshold(drag.initialY, touchDayIndex, downWeights,
-                        dayAreaHeight, direction, state.touchSlopPx)
+                    discreteDragThreshold(drag.initialY, touchDayIndex, downBounds, direction, state.touchSlopPx)
                 } else state.touchSlopPx
                 if (abs(displacementFromDown) <= threshold) return
                 state.startDrag()
-                path = WeekDragPath(groupIndexFor(state.selectedDayIndex()), state.animatedDayWeights(), dayAreaHeight,
+                path = WeekDragPath(groupIndexFor(state.selectedDayIndex()), state.animatedDayWeights(), downBounds.height.toFloat(),
                     state.minimumGroup, state.maximumGroup)
                 hasStartedDrag = true
                 accumulatedDrag = mapDirection(state, displacementFromDown - direction * threshold)
@@ -160,12 +139,3 @@ private suspend fun AwaitPointerEventScope.awaitActivePointerChange(
 ): PointerInputChange? =
     awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { change -> change.id == pointerId }
 
-private fun isInsideDayArea(
-    position: Offset,
-    width: Float,
-    dayAreaHeight: Float,
-    state: WeekGestureState,
-): Boolean =
-    position.x >= state.leftGestureInsetPx &&
-        position.x < width - state.rightGestureInsetPx &&
-        position.y < dayAreaHeight

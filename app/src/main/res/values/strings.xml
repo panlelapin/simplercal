@@ -36,7 +36,17 @@
     <string name="calendar_event_untitled">Untitled event</string>
     <string name="day_accessibility_description">%1$s, %2$s</string>
 
-    <string name="schedule_case">Case %1$d</string>
+    <string name="schedule_case">Slot %1$d</string>
+    <string name="schedule_slot_until">Slot %1$d — until</string>
+    <string name="schedule_slot_from">Slot %1$d — from</string>
+    <string name="schedule_time_action">%1$s: %2$s</string>
+    <string name="schedule_until">Until %1$s</string>
+    <string name="schedule_from">From %1$s</string>
+    <string name="schedule_line_content">%1$s · %2$s</string>
+    <string name="schedule_more_events">%1$s (+%2$d)</string>
+    <string name="schedule_explanation">Slot 1 starts at 00:01: choose its end time. Then choose the start of slots 2–5. Slots 2–4 end when the next starts; slot 5 ends at midnight.</string>
+    <string name="schedule_incomplete">Set all five times to arrange events in their slots. The complete event list stays available.</string>
+    <string name="schedule_invalid_order">Keep the times in order. Slot 1 must end after 00:01 and no later than slot 2 starts. Slots 2–5 must start at increasing times.</string>
     <string name="release_version">SimplerCal v%1$s</string>
 
     <string name="option_system">System</string>

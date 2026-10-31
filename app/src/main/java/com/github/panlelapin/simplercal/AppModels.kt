@@ -1,6 +1,5 @@
 package com.github.panlelapin.simplercal
 
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.text.AnnotatedString
@@ -83,6 +82,8 @@ internal data class WeekViewState(
     val onSelectionChanged: (Int) -> Unit,
     val dayMarkers: Map<LocalDate, DayMarkers> = emptyMap(),
     val allowedYear: Int? = null,
+    val scheduleTimes: List<Int> = List(SCHEDULE_SLOT_COUNT) { UNSET_SCHEDULE_TIME },
+    val referenceZone: java.time.ZoneId = java.time.ZoneId.systemDefault(),
 )
 
 internal data class DayRowState(
@@ -94,23 +95,21 @@ internal data class DayRowState(
     val isSelected: Boolean,
     val isExpanded: Boolean,
     val isContentExpanded: Boolean,
-    val weight: Float,
     val dayLabelColumnWidth: Dp,
     val separatorColor: Color,
-    val appBarBackground: Color,
+    val schedule: DaySchedule = DaySchedule.empty(),
 )
 
 internal data class WeekRowsState(
     val days: List<WeekDay>,
     val selectedDayIndex: Int,
     val contentExpandedDays: Set<Int>,
-    val animatedDayWeights: List<Float>,
     val highlightedDayIndex: Int?,
     val referenceDate: LocalDate,
     val isDarkTheme: Boolean,
     val dayLabelColumnWidth: Dp,
     val separatorColor: Color,
-    val appBarBackground: Color,
+    val schedules: List<DaySchedule>,
 )
 
 internal data class DayLabelState(
@@ -118,18 +117,16 @@ internal data class DayLabelState(
     val isExpanded: Boolean,
     val width: Dp,
     val textColor: Color,
-    val appBarBackground: Color,
 )
 
 internal data class DayContentState(
     val isExpanded: Boolean,
     val isWEorBankH: Boolean,
     val isHolidays: Boolean,
-    val events: List<CalendarEvent>,
-    val background: Color,
+    val schedule: DaySchedule,
+    val eventCount: Int,
     val accentColor: Color,
     val textColor: Color,
-    val modifier: Modifier,
 )
 
 internal data class DayAppearance(
@@ -138,7 +135,6 @@ internal data class DayAppearance(
     val dayAccentColor: Color,
     val dayTextColor: Color,
     val hasTopBorder: Boolean,
-    val hasBottomBorder: Boolean,
     val combinedShape: androidx.compose.foundation.shape.RoundedCornerShape,
 )
 
@@ -149,9 +145,9 @@ internal data class DayColors(
 
 internal data class WeekGestureState(
     val scrollMode: WeekScrollMode,
-    val bottomGestureInsetPx: Float,
-    val rightGestureInsetPx: Float,
-    val leftGestureInsetPx: Float,
+    val geometry: WeekViewportGeometry,
+    val rowBounds: () -> WeekRowBounds,
+    val contextKey: Any,
     val touchSlopPx: Float,
     val selectedDayIndex: () -> Int,
     val animatedDayWeights: () -> List<Float>,

@@ -76,6 +76,16 @@ class AppViewModelTest {
         assertEquals(123L, model.uiState.calendarSources.getValue(CalendarRole.MAIN).lastSuccessMillis)
     }
 
+    @Test fun fiveScheduleTimesUpdateTheUiAndSurviveRecreationWithoutImportingCalendars() = withModel {
+        create()
+        val times = listOf(480, 480, 720, 840, 1080)
+        times.forEachIndexed { index, minutes -> model.setScheduleTime(index, minutes) }
+        assertEquals(times, model.uiState.scheduleTimes)
+        create()
+        assertEquals(times, model.uiState.scheduleTimes)
+        assertEquals(0, fileReads)
+    }
+
     @Test fun threeRolesContributeTitlesAndMarkersIndependently() = withModel {
         CalendarRole.entries.forEach { cached(it, it.name) }
         create().onResume(); reload()

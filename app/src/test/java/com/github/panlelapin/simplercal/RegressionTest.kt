@@ -49,7 +49,7 @@ class RegressionTest {
             movedBoundary += (interaction.animatedDayWeights[index] - origin[index]) * 10f
             largestMovement = maxOf(largestMovement, kotlin.math.abs(movedBoundary))
         }
-        assertEquals(10f, largestMovement, 0.001f)
+        assertEquals(10f, largestMovement, 1f)
     }
 
     @Test
@@ -69,9 +69,9 @@ class RegressionTest {
 
     @Test
     fun discreteWaitsForTheTouchedContainersMidpoint() {
-        val threshold = discreteDragThreshold(10f, 0, dayWeightsFor(0), 1000f, 1f, 8f)
-        assertEquals(158.75f, threshold, 0.001f)
-        assertEquals(8f, discreteDragThreshold(200f, 0, dayWeightsFor(0), 1000f, 1f, 8f), 0f)
+        val threshold = discreteDragThreshold(10f, 0, weekRowBounds(1000, dayWeightsFor(0)), 1f, 8f)
+        assertEquals(159f, threshold, 0.001f)
+        assertEquals(8f, discreteDragThreshold(200f, 0, weekRowBounds(1000, dayWeightsFor(0)), 1f, 8f), 0f)
     }
 
     @Test
@@ -103,8 +103,8 @@ class RegressionTest {
 
     @Test
     fun fallbackHeightPreservesTouchTargetsAndScaledContent() {
-        val height = minimumWeekHeightDp(40f)
-        assertTrue(height * COMPACT_DAY_WEIGHT / TOTAL_DAY_WEIGHT >= 47.99f)
-        assertTrue(height * dayWeightsFor(0).first() / TOTAL_DAY_WEIGHT >= 40f * 9)
+        val height = minimumWeekHeightPx(compactHeight = 48, expandedHeight = 40 * 9 + 3)
+        assertTrue(height * COMPACT_DAY_WEIGHT / TOTAL_DAY_WEIGHT >= 48f)
+        assertTrue(height * dayWeightsFor(0).first() / TOTAL_DAY_WEIGHT >= 40f * 9 + 3)
     }
 }

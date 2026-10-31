@@ -1,13 +1,9 @@
 package com.github.panlelapin.simplercal
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,20 +15,26 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -57,10 +59,11 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-internal fun ColumnScope.DayRow(
+internal fun DayRow(
     state: DayRowState,
     onClick: () -> Unit,
     onShowDetails: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     val day = state.day
     val expansionDescription =
@@ -82,17 +85,20 @@ internal fun ColumnScope.DayRow(
         )
     val allEventsLabel = androidx.compose.ui.res.stringResource(R.string.action_all_events, day.events.size)
     val appearance = dayAppearance(state)
+    val borderColor = if (appearance.isHighlighted) MaterialTheme.colorScheme.primary else state.separatorColor
     Surface(
+        onClick = onClick,
+        enabled = day.isEnabled,
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
-                .weight(state.weight)
-                .clickable(enabled = day.isEnabled, role = Role.Button, onClick = onClick)
+                .dayOutline(appearance, borderColor)
                 .semantics(mergeDescendants = true) {
+                    role = Role.Button
                     contentDescription = accessibilityDescription
                     stateDescription = expansionDescription
                     selected = state.isSelected
-                    if (day.isEnabled && day.events.size > EXPANDED_CONTENT_LINE_COUNT) {
+                    if (day.isEnabled && day.events.isNotEmpty()) {
                         customActions = listOf(CustomAccessibilityAction(allEventsLabel) {
                             onShowDetails()
                             true
@@ -100,10 +106,50 @@ internal fun ColumnScope.DayRow(
                     }
                 },
         shape = appearance.combinedShape,
-        color = state.appBarBackground,
+        color = appearance.dayBackground,
     ) {
         DayRowLayout(state, appearance, onShowDetails)
     }
+}
+
+private fun Modifier.dayOutline(appearance: DayAppearance, borderColor: Color): Modifier = drawWithContent {
+    drawContent()
+    val stroke = DAY_SEPARATOR_THICKNESS.toPx()
+    if (size.width <= stroke || size.height <= stroke) return@drawWithContent
+    val outer = appearance.combinedShape.createOutline(size, layoutDirection, this)
+    val corners = (outer as? Outline.Rounded)?.roundRect
+    val inset = stroke / 2f
+    val tl = ((corners?.topLeftCornerRadius?.x ?: 0f) - inset).coerceAtLeast(0f)
+    val tr = ((corners?.topRightCornerRadius?.x ?: 0f) - inset).coerceAtLeast(0f)
+    val br = ((corners?.bottomRightCornerRadius?.x ?: 0f) - inset).coerceAtLeast(0f)
+    val bl = ((corners?.bottomLeftCornerRadius?.x ?: 0f) - inset).coerceAtLeast(0f)
+    val left = inset
+    val right = size.width - inset
+    val top = inset
+    val bottom = size.height - inset
+    if (appearance.isHighlighted) {
+        val outline = Outline.Rounded(RoundRect(left, top, right, bottom,
+            CornerRadius(tl), CornerRadius(tr), CornerRadius(br), CornerRadius(bl)))
+        drawOutline(outline, borderColor, style = Stroke(stroke))
+    } else {
+        // An open contour omits horizontal seams without clipping the vertical
+        // sides. Square weekend sides reach their shared edge with no gap.
+        val path = Path().apply {
+            if (br > 0f) {
+                moveTo(right - br, bottom)
+                arcTo(Rect(right - br * 2, bottom - br * 2, right, bottom), 90f, -90f, false)
+            } else moveTo(right, size.height)
+            lineTo(right, if (tr > 0f) top + tr else if (appearance.hasTopBorder) top else 0f)
+            if (tr > 0f) arcTo(Rect(right - tr * 2, top, right, top + tr * 2), 0f, -90f, false)
+            if (appearance.hasTopBorder) lineTo(left + tl, top) else moveTo(left + tl, top)
+            if (tl > 0f) arcTo(Rect(left, top, left + tl * 2, top + tl * 2), 270f, -90f, false)
+            else if (!appearance.hasTopBorder) moveTo(left, 0f)
+            lineTo(left, if (bl > 0f) bottom - bl else size.height)
+            if (bl > 0f) arcTo(Rect(left, bottom - bl * 2, left + bl * 2, bottom), 180f, -90f, false)
+        }
+        drawPath(path, borderColor, style = Stroke(stroke))
+    }
+
 }
 
 @Composable
@@ -112,47 +158,30 @@ private fun DayRowLayout(
     appearance: DayAppearance,
     onShowDetails: () -> Unit,
 ) {
-    val borderColor = if (appearance.isHighlighted) MaterialTheme.colorScheme.primary else state.separatorColor
-    Box(modifier = Modifier.fillMaxSize().drawWithContent {
-        drawContent()
-        val stroke = DAY_SEPARATOR_THICKNESS.toPx()
-        val outline = appearance.combinedShape.createOutline(
-            Size((size.width - stroke).coerceAtLeast(0f), (size.height - stroke).coerceAtLeast(0f)),
-            layoutDirection, this,
+    Row(modifier = Modifier.dayRowModifier(appearance)) {
+        DayLabelContainer(
+            state =
+                DayLabelState(
+                    day = state.day,
+                    isExpanded = state.isExpanded,
+                    width = state.dayLabelColumnWidth,
+                    textColor = appearance.dayTextColor,
+                ),
         )
-        clipRect(
-            top = if (appearance.isHighlighted || appearance.hasTopBorder) 0f else stroke,
-            bottom = if (appearance.isHighlighted || appearance.hasBottomBorder) size.height else (size.height - stroke).coerceAtLeast(stroke),
-        ) {
-            translate(stroke / 2f, stroke / 2f) { drawOutline(outline, borderColor, style = Stroke(stroke)) }
-        }
-    }) {
-        Row(modifier = Modifier.dayRowModifier(appearance)) {
-            DayLabelContainer(
-                state =
-                    DayLabelState(
-                        day = state.day,
-                        isExpanded = state.isExpanded,
-                        width = state.dayLabelColumnWidth,
-                        textColor = appearance.dayTextColor,
-                        appBarBackground = appearance.dayBackground,
-                    ),
-            )
-            DayContentContainer(
-                state =
-                    DayContentState(
-                        isExpanded = state.isContentExpanded,
-                        isWEorBankH = state.day.isWEorBankH,
-                        isHolidays = state.day.isHolidays,
-                        events = state.day.events,
-                        background = appearance.dayBackground,
-                        accentColor = appearance.dayAccentColor,
-                        textColor = appearance.dayTextColor,
-                        modifier = Modifier.fillMaxHeight().weight(1f),
-                    ),
-                onShowDetails = onShowDetails,
-            )
-        }
+        DayContentContainer(
+            state =
+                DayContentState(
+                    isExpanded = state.isContentExpanded,
+                    isWEorBankH = state.day.isWEorBankH,
+                    isHolidays = state.day.isHolidays,
+                    schedule = state.schedule,
+                    eventCount = state.day.events.size,
+                    accentColor = appearance.dayAccentColor,
+                    textColor = appearance.dayTextColor,
+                ),
+            onShowDetails = onShowDetails,
+            modifier = Modifier.fillMaxHeight().weight(1f),
+        )
     }
 }
 
@@ -180,7 +209,6 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
         dayTextColor = if (state.day.isEnabled) colors.foreground else colorScheme.onSurface.copy(alpha = 0.38f),
         hasTopBorder = state.dayIndex != 0 && state.dayIndex != WEEKEND_START_INDEX + 1 &&
             state.dayIndex - 1 != state.highlightedDayIndex,
-        hasBottomBorder = false, // Each ordinary seam belongs to the following row only.
         combinedShape = dayRowShape(state.dayIndex),
     )
 }
@@ -201,7 +229,6 @@ private fun dayColors(
         else -> DayColors(colorScheme.surfaceContainer, colorScheme.onSurfaceVariant)
     }
 
-@Composable
 private fun Modifier.dayRowModifier(
     appearance: DayAppearance,
 ): Modifier {
@@ -211,131 +238,111 @@ private fun Modifier.dayRowModifier(
                 start = DAY_SEPARATOR_THICKNESS,
                 end = DAY_SEPARATOR_THICKNESS,
                 top = if (appearance.isHighlighted || appearance.hasTopBorder) DAY_SEPARATOR_THICKNESS else 0.dp,
-                bottom = if (appearance.isHighlighted || appearance.hasBottomBorder) DAY_SEPARATOR_THICKNESS else 0.dp,
+                bottom = if (appearance.isHighlighted) DAY_SEPARATOR_THICKNESS else 0.dp,
             )
 }
 
 @Composable
 private fun DayLabelContainer(state: DayLabelState) {
-    Surface(
-        modifier = Modifier.width(state.width).fillMaxHeight(),
-        shape = RectangleShape,
-        color = state.appBarBackground,
+    Box(
+        modifier = Modifier.width(state.width).fillMaxHeight()
+            .padding(horizontal = DAY_LABEL_HORIZONTAL_PADDING)
+            .padding(top = if (state.isExpanded) DAY_LABEL_TOP_PADDING else 0.dp),
+        contentAlignment = if (state.isExpanded) Alignment.TopEnd else Alignment.CenterEnd,
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(
-                            start = DAY_LABEL_HORIZONTAL_PADDING,
-                            end = DAY_LABEL_HORIZONTAL_PADDING,
-                            top = if (state.isExpanded) 2.dp else 0.dp,
-                        ),
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = if (state.isExpanded) Arrangement.Top else Arrangement.Center,
-            ) {
-                Text(
-                    text = dayLabelText(state.day),
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Clip,
-                    style =
-                        MaterialTheme.typography.titleLarge.copy(
-                            fontSize = (MaterialTheme.typography.titleLarge.fontSize.value - 2f).sp,
-                        ),
-                    color = state.textColor,
-                    textAlign = TextAlign.End,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DayContentContainer(state: DayContentState, onShowDetails: () -> Unit) {
-    val accentWidth = if (state.isHolidays) DAY_ACCENT_STRIPE_WIDTH else 0.dp
-    Surface(
-        modifier = state.modifier,
-        shape = RectangleShape,
-        color = state.background,
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (state.isHolidays) {
-                Spacer(
-                    modifier =
-                        Modifier
-                            .align(Alignment.CenterStart)
-                            .fillMaxHeight()
-                            .width(accentWidth)
-                            .background(state.accentColor),
-                )
-            }
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(start = 8.dp + accentWidth, end = 8.dp),
-                verticalArrangement = Arrangement.Center,
-            ) {
-                val displayedEvents =
-                    state.events.take(
-                        if (state.isExpanded) {
-                            if (state.events.size > EXPANDED_CONTENT_LINE_COUNT) EXPANDED_CONTENT_LINE_COUNT - 1 else EXPANDED_CONTENT_LINE_COUNT
-                        } else {
-                            COMPACT_CONTENT_LINE_COUNT
-                        },
-                    )
-                displayedEvents.forEach { event ->
-                    Text(
-                        text = event.title,
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Clip,
-                        style =
-                            MaterialTheme.typography.bodyMedium.copy(
-                                fontStyle =
-                                    if (state.isWEorBankH) FontStyle.Italic else FontStyle.Normal,
-                                fontSynthesis = FontSynthesis.Style,
-                            ),
-                        color = state.textColor,
-                        textAlign = TextAlign.Start,
-                    )
-                }
-                if (state.isExpanded && state.events.size > EXPANDED_CONTENT_LINE_COUNT) {
-                    TextButton(onClick = onShowDetails, modifier = Modifier.clearAndSetSemantics {
-                        testTag = "all-events"
-                    }) {
-                        Text(androidx.compose.ui.res.stringResource(R.string.action_all_events, state.events.size))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun dayLabelColumnWidth(days: List<WeekDay>): Dp {
-    val textMeasurer = rememberTextMeasurer()
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val textStyle =
-        MaterialTheme.typography.titleLarge.copy(
-            fontSize = (MaterialTheme.typography.titleLarge.fontSize.value - 2f).sp,
+        Text(
+            text = dayLabelText(state.day),
+            modifier = Modifier.fillMaxWidth(),
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+            style = dayLabelStyle(),
+            color = state.textColor,
+            textAlign = TextAlign.End,
         )
-    val widestLabelWidth =
-        days.maxOf { day ->
-            val measuredText =
-                textMeasurer.measure(
-                    text = dayLabelText(day),
-                    style = textStyle,
-                )
-            val measuredSize = measuredText.size
-            measuredSize.width
-        }
-    return with(density) { widestLabelWidth.toDp() } + DAY_LABEL_HORIZONTAL_PADDING * 2
+    }
 }
+
+@Composable
+private fun DayContentContainer(state: DayContentState, onShowDetails: () -> Unit, modifier: Modifier) {
+    val accentWidth = if (state.isHolidays) DAY_ACCENT_STRIPE_WIDTH else 0.dp
+    Column(
+        modifier = modifier.drawBehind {
+            if (state.isHolidays) drawRect(state.accentColor, Offset.Zero, Size(accentWidth.toPx(), size.height))
+        }.padding(start = DAY_CONTENT_HORIZONTAL_PADDING + accentWidth, end = DAY_CONTENT_HORIZONTAL_PADDING),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        val lines = if (state.isExpanded) state.schedule.lines else listOf(
+            state.schedule.lines.firstOrNull { it.events.isNotEmpty() } ?: state.schedule.lines.first(),
+        )
+        lines.forEach { line ->
+            DayEventTitle(scheduleLineText(line), state.isWEorBankH, state.textColor)
+        }
+        if (state.isExpanded && state.eventCount > 0) {
+            AllEventsButton(state.eventCount, onShowDetails)
+        }
+    }
+}
+
+@Composable
+private fun scheduleLineText(line: ScheduleLine): String {
+    val clock = if (line.minutes in 0..1439) String.format(Locale.ROOT, "%02d:%02d", line.minutes / 60, line.minutes % 60) else "—"
+    val time = androidx.compose.ui.res.stringResource(if (line.index == 0) R.string.schedule_until else R.string.schedule_from, clock)
+    val first = line.events.firstOrNull() ?: return time
+    val title = if (line.events.size == 1) first.title else androidx.compose.ui.res.stringResource(
+        R.string.schedule_more_events, first.title, line.events.size - 1,
+    )
+    return androidx.compose.ui.res.stringResource(R.string.schedule_line_content, time, title)
+}
+
+/** Shared by the visible content and the unplaced minimum-height measurement probes. */
+@Composable
+internal fun DayEventTitle(title: String, italic: Boolean, color: Color = MaterialTheme.colorScheme.onSurface) {
+    Text(
+        text = title,
+        modifier = Modifier.fillMaxWidth(),
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Clip,
+        style = MaterialTheme.typography.bodyMedium.copy(
+            fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal,
+            fontSynthesis = FontSynthesis.Style,
+        ),
+        color = color,
+        textAlign = TextAlign.Start,
+    )
+}
+
+@Composable
+internal fun AllEventsButton(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier.clearAndSetSemantics { testTag = "all-events" }) {
+    TextButton(onClick = onClick, modifier = modifier) {
+        Text(androidx.compose.ui.res.stringResource(R.string.action_all_events, count))
+    }
+}
+
+internal data class DayLabelMetrics(val width: Dp, val height: Dp)
+
+@Composable
+internal fun rememberDayLabelMetrics(days: List<WeekDay>): DayLabelMetrics {
+    val measurer = rememberTextMeasurer()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val style = dayLabelStyle()
+    val labels = remember(days) { days.map(::dayLabelText) }
+    return remember(labels, style, density, direction, configuration, measurer) {
+        val sizes = labels.map { measurer.measure(it, style = style, maxLines = 1).size }
+        with(density) {
+            DayLabelMetrics((sizes.maxOf { it.width } + DAY_LABEL_HORIZONTAL_PADDING.roundToPx() * 2).toDp(),
+                sizes.maxOf { it.height }.toDp())
+        }
+    }
+}
+
+@Composable
+private fun dayLabelStyle() = MaterialTheme.typography.titleLarge.copy(
+    fontSize = (MaterialTheme.typography.titleLarge.fontSize.value - 2f).sp,
+)
 
 private fun dayLabelText(day: WeekDay): AnnotatedString =
     buildAnnotatedString {

@@ -1,11 +1,7 @@
 package com.github.panlelapin.simplercal
 
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.mandatorySystemGestures
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,14 +9,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.Dp
 import kotlin.math.abs
 
+@Stable
 internal class WeekInteraction(
     initialSelectedDayIndex: Int,
-    private var onSelectionChanged: (Int) -> Unit,
+    private val onSelectionChanged: (Int) -> Unit,
 ) {
     var selectedDayIndex by mutableStateOf(initialSelectedDayIndex.coerceIn(0, WEEK_DAY_COUNT - 1))
         private set
@@ -39,10 +33,6 @@ internal class WeekInteraction(
 
     val selectedGroupIndex: Int
         get() = groupIndexFor(selectedDayIndex)
-
-    fun updateSelectionListener(listener: (Int) -> Unit) {
-        onSelectionChanged = listener
-    }
 
     fun selectDay(dayIndex: Int) {
         if (isDragging) cancelDrag()
@@ -67,6 +57,7 @@ internal class WeekInteraction(
         isDragging = true
         dragOriginFocus = selectedGroupIndex.toFloat()
         dragOriginSelectedDay = selectedDayIndex
+        selectedWeekendDay = if (selectedDayIndex >= WEEKEND_START_INDEX) selectedDayIndex else WEEKEND_START_INDEX
         dragFocusPosition = dragOriginFocus
         dragOriginWeights = animatedDayWeights
         animationRequest += 1
@@ -84,9 +75,6 @@ internal class WeekInteraction(
         val roundedGroup = nearestDayGroup(animatedDayWeights, selectedGroupIndex)
         selectedDayIndex =
             if (roundedGroup == WEEKEND_START_INDEX) {
-                if (selectedGroupIndex != WEEKEND_START_INDEX) {
-                    selectedWeekendDay = WEEKEND_START_INDEX
-                }
                 selectedWeekendDay
             } else {
                 roundedGroup
@@ -110,11 +98,12 @@ internal class WeekInteraction(
     fun cancelDrag() {
         if (!isDragging) return
         selectedDayIndex = dragOriginSelectedDay
-        val settledGroup = groupIndexFor(dragOriginSelectedDay)
-        animatedDayWeights = dayWeightsFor(settledGroup)
-        contentExpandedDays = expandedDayIndices(selectedDayIndex)
-        dragFocusPosition = settledGroup.toFloat()
+        dragFocusPosition = groupIndexFor(dragOriginSelectedDay).toFloat()
         isDragging = false
+        // Keep the displayed geometry. Resume towards the original selection after
+        // cancellation, never replace an interrupted frame by its unvisited target.
+        contentExpandedDays = contentExpandedDays + expandedDayIndices(selectedDayIndex)
+        animationRequest += 1
     }
 
     private fun dragWeightsFromExactOrigin(focusPosition: Float): List<Float> {
@@ -141,90 +130,63 @@ internal class WeekInteraction(
 internal fun rememberWeekInteraction(
     requestedDayIndex: Int,
     selectionRequest: Int,
+    contextKey: Any = Unit,
     onSelectionChanged: (Int) -> Unit,
 ): WeekInteraction {
     val currentListener = rememberUpdatedState(onSelectionChanged)
     val interaction =
-        remember {
+        remember(contextKey) {
             WeekInteraction(requestedDayIndex) { dayIndex -> currentListener.value(dayIndex) }
         }
-    interaction.updateSelectionListener { dayIndex -> currentListener.value(dayIndex) }
-    LaunchedEffect(selectionRequest) {
+    LaunchedEffect(interaction, selectionRequest) {
         if (selectionRequest > 1) interaction.selectDay(requestedDayIndex)
     }
     return interaction
-}
-
-internal data class WeekInsets(
-    val bottom: Dp,
-    val right: Dp,
-    val bottomPx: Float,
-    val rightPx: Float,
-)
-
-@Composable
-internal fun rememberWeekInsets(): WeekInsets {
-    val layoutDirection = LocalLayoutDirection.current
-    val mandatory = WindowInsets.mandatorySystemGestures.asPaddingValues()
-    val navigation = WindowInsets.navigationBars.asPaddingValues()
-    val safeDrawing = WindowInsets.safeDrawing.asPaddingValues()
-    val requestedBottom =
-        mandatory.calculateBottomPadding() * BOTTOM_GESTURE_GUTTER_FRACTION
-    val bottom =
-        maxOf(
-            requestedBottom,
-            navigation.calculateBottomPadding(),
-            safeDrawing.calculateBottomPadding(),
-        )
-    val requestedSide =
-        maxOf(
-            MINIMUM_RIGHT_GESTURE_GUTTER,
-            mandatory.calculateRightPadding(layoutDirection),
-        ) * RIGHT_GESTURE_GUTTER_FRACTION
-    // Scaffold owns horizontal safeDrawing insets; these are visual gutters only.
-    val right = requestedSide
-    val density = LocalDensity.current
-    return WeekInsets(
-        bottom = bottom,
-        right = right,
-        bottomPx = with(density) { bottom.toPx() },
-        rightPx = with(density) { right.toPx() },
-    )
 }
 
 @Composable
 internal fun AnimateDayWeights(
     interaction: WeekInteraction,
     dayCount: Int,
+    onFrame: (List<Float>, Float) -> Unit = { weights, _ -> interaction.animatedDayWeights = weights },
+    onFinished: () -> Unit = {},
 ) {
-    LaunchedEffect(interaction.animationRequest) {
-        if (!interaction.isDragging) {
-            val startWeights = interaction.animatedDayWeights
-            val targetWeights = dayWeightsFor(interaction.selectedGroupIndex)
-            if (startWeights != targetWeights) {
-                val durationNanos = DAY_STATE_ANIMATION_DURATION_MILLIS * NANOS_PER_MILLISECOND
-                val startNanos = withFrameNanos { it }
-                var fraction = MIN_FRACTION
-                while (fraction < MAX_FRACTION) {
-                    val frameNanos = withFrameNanos { it }
-                    fraction =
-                        ((frameNanos - startNanos).toDouble() / durationNanos)
-                            .toFloat()
-                            .coerceIn(MIN_FRACTION, MAX_FRACTION)
-                    interaction.animatedDayWeights =
-                        List(dayCount) { dayIndex ->
-                            interpolateWeight(
-                                start = startWeights[dayIndex],
-                                end = targetWeights[dayIndex],
-                                fraction = fraction,
-                            )
-                        }
-                }
-                interaction.animatedDayWeights = targetWeights
-            }
-            interaction.contentExpandedDays = expandedDayIndices(interaction.selectedDayIndex)
+    val currentFrame = rememberUpdatedState(onFrame)
+    val currentFinished = rememberUpdatedState(onFinished)
+    val request = interaction.animationRequest
+    LaunchedEffect(interaction, request) {
+        runDayWeightAnimation(interaction, dayCount, request, { weights, fraction -> currentFrame.value(weights, fraction) }, { currentFinished.value() })
+    }
+}
+
+/** Shared with frame-clock tests; only the current request may publish a frame. */
+internal suspend fun runDayWeightAnimation(
+    interaction: WeekInteraction,
+    dayCount: Int,
+    request: Int,
+    onFrame: (List<Float>, Float) -> Unit,
+    onFinished: () -> Unit = {},
+) {
+    if (interaction.isDragging || interaction.animationRequest != request) return
+    val startWeights = interaction.animatedDayWeights
+    val targetWeights = dayWeightsFor(interaction.selectedGroupIndex)
+    if (startWeights != targetWeights) {
+        val durationNanos = DAY_STATE_ANIMATION_DURATION_MILLIS * NANOS_PER_MILLISECOND
+        val startNanos = withFrameNanos { it }
+        var fraction = MIN_FRACTION
+        while (fraction < MAX_FRACTION) {
+            val frameNanos = withFrameNanos { it }
+            // Pointer input may invalidate this request before recomposition cancels
+            // LaunchedEffect. A superseded timer must never overwrite a drag or tap.
+            if (interaction.isDragging || interaction.animationRequest != request) return
+            fraction = ((frameNanos - startNanos).toDouble() / durationNanos).toFloat().coerceIn(MIN_FRACTION, MAX_FRACTION)
+            onFrame(List(dayCount) { index -> interpolateWeight(startWeights[index], targetWeights[index], fraction) }, fraction)
         }
     }
+    if (interaction.isDragging || interaction.animationRequest != request) return
+    onFrame(targetWeights, MAX_FRACTION)
+    interaction.contentExpandedDays = expandedDayIndices(interaction.selectedDayIndex)
+    onFinished()
 }
 
 /** Compare actual row boundaries, including layouts interrupted between non-adjacent groups. */

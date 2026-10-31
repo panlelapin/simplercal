@@ -1,26 +1,38 @@
 # Tests de SimplerCal
 
-Le plan demandé le 30 octobre 2026 est repris et implémenté le 31 octobre 2026.
-**Validation locale et CI réussies le 31 octobre 2026** : 71 tests JVM et 18 tests
-Python réussis ; 34 tests Android/Compose exécutés avec succès sur chacune des
-API 34 et 36, sans échec, erreur ni test ignoré. Les deux démarrages smoke R8
-réussissent aussi. Révision applicative ec9adf3806f4b0790b99cb13a9b4f50808f7ae60 ;
-[preuves du run 41181942792](https://github.com/panlelapin/simplercal/actions/runs/41181942792).
-APK signé récupéré et vérifié. Aucun appareil ADB autorisé : aucune installation
-physique ni vérification visuelle manuelle. Voir VALIDATION.md pour les limites.
+La suite contient **110 tests JVM, 55 tests Android/Compose et 18 tests Python**,
+soit 183 méthodes définies. L'évolution des créneaux ajoute 30 tests : 22 de
+projection, un de préférences/ViewModel, six d'interface et un parcours de réglages.
+
+**Créneaux : IMPLEMENTED — NOT VALIDATED.** Aucun contrôle, compilation ou test
+n'a été exécuté dans cette passe. Les 55 tests Android ne sont pas annoncés comme
+compilés ni réussis pour ces nouvelles sources.
+
+Le dernier contrôle local, antérieur aux créneaux, avait réussi avec 87 tests JVM,
+18 Python, Detekt et compilation de 48 tests Android. Ces preuves concernent la
+refonte précédente des panneaux, pas le branchement des horaires décrit ici.
+
+La dernière preuve CI antérieure à cette refonte concerne 71 tests JVM et 18 tests
+Python, 34 tests Android par API 34/36 et deux démarrages smoke R8 : révision
+ec9adf3806f4b0790b99cb13a9b4f50808f7ae60,
+[run 41181942792](https://github.com/panlelapin/simplercal/actions/runs/41181942792).
+Cet ancien APK ne représente pas les panneaux modifiés. Voir VALIDATION.md.
 
 ## Inventaire défini dans les sources
 
-71 tests JVM, 34 tests Android/Compose et 18 tests Python : 123 méthodes de test
-au total, dont 92 ajoutées dans cette passe. Les deux démarrages smoke CI sont
-supplémentaires. Ce décompte décrit les définitions ; les résultats réellement obtenus sont
-distingués ci-dessus et dans VALIDATION.md.
+110 tests JVM, 55 tests Android/Compose et 18 tests Python : 183 méthodes définies.
+Les deux démarrages smoke CI sont supplémentaires. Définitions, compilation des
+sources Android, exécution sur Android et mesure physique sont des preuves distinctes.
 
 | Suite | Nombre | Scénarios |
 | --- | ---: | --- |
 | WeekLogicTest | 8 | Dates, simulation, proportions, identité de dimanche, horaires, titre et multijour ; suite préexistante |
+| WeekGeometryTest | 12 | Frontières pixel par pixel, tailles minimales mesurées, bandes latérales/basse, vendredi ancré sans saut, chemins arrondis, annulation continue, scroll manuel prioritaire, fin de semaine, taps rapides et retour au dimanche pendant un drag, jour partiellement rogné sans saut initial |
+| ScheduleSlotsTest | 22 | Cinq bornes, première fin et autres débuts, ordre/incomplétude, 1/2/3/4/5 créneaux, fins exclusives, 00:01/minuit/pause, collisions, changement d’horaires, plusieurs jours, UTC all-day, points/erreurs, fuseaux/DST, événements longs, snapshot immuable et annulation |
+| ScheduleSlotsUiTest (Compose) | 6 | Cinq positions vides/occupées, Until/From, événement sur deux/quatre créneaux, changement d’horaires sans ancienne affectation, détail conservé en configuration incomplète, plusieurs événements dans une ligne |
+| WeekAnimationTest | 4 | Horloge de frames contrôlée, durée 500 ms aux échelles 0/0,5/1/10, frames retardées, ancien timer sans annulation incapable d’écraser un drag et reprise continue après annulation |
 | RegressionTest | 10 | Gestes, curseur nul, all-day UTC, marqueurs, repli accessible ; suite préexistante |
-| AppViewModelTest | 23 | Trois rôles, activation indépendante, cache sans import au démarrage/reprise/navigation/recréation, Refresh par rôle, échecs réseau/parsing/écriture, timestamps, changement de source, imports interrompus, permission refusée/rétablie, lectures concurrentes et anciennes réponses, minuit/Nouvel An/DST, fuseau, restauration et simulation |
+| AppViewModelTest | 24 | Trois rôles, activation indépendante, cache sans import au démarrage/reprise/navigation/recréation, Refresh par rôle, échecs réseau/parsing/écriture, timestamps, changement de source, imports interrompus, permission refusée/rétablie, lectures concurrentes et anciennes réponses, minuit/Nouvel An/DST, fuseau, restauration et simulation |
 | IcalEventsTest | 14 | Dates UTC et fin exclusive, RRULE/EXDATE/RDATE, exceptions déplacées/annulées, SEQUENCE/timestamps, titres pliés/échappés, années bornées, ancien flux récurrent, fuseaux flottants et VTIMEZONE, durées nominales/exactes au DST, refus des formats invalides/avancés, invalidation du cache |
 | IcalRepositoryTest | 7 | Fermeture de flux, BOM, UTF-8 invalide, document indisponible, limite 20 Mio, redirections HTTPS et refus du downgrade/boucles, erreurs HTTP et annulation |
 | CalendarBoundaryTest | 6 | Années autorisées/bissextiles, sept lignes avec jours désactivés, bornage du drag, chevauchements à minuit/DST, identité de source et validation HTTPS |
@@ -28,10 +40,12 @@ distingués ci-dessus et dans VALIDATION.md.
 | CalendarRepositoryTest (Android) | 6 | Vrais curseurs/signaux Android, réponses contrôlées : curseur nul vs vide, calendrier masqué/supprimé, permission, annulation requête/itération et fermeture, identité/tri/fuseau |
 | CalendarPersistenceTest (Android) | 6 | Migration locale, stockage par rôle, séparation portable/device, snapshots persistants/identité/corruption, préférences invalides, nettoyage après restauration |
 | CalendarObserverLifecycleTest (Compose) | 1 | START/STOP, permission, sélection, notifications et destruction de composition |
-| CalendarFlowTest (Compose) | 5 | Vraie composition applicative : réglages → HTTPS sans permission Android → 12 événements → dernier titre complet ; sources désactivées/réactivées ; semaine absente des réglages ; aucun appui long ; brouillon du dialogue restauré |
+| CalendarFlowTest (Compose) | 6 | Vraie composition applicative : réglages → HTTPS sans permission Android → 12 événements → dernier titre complet ; sources désactivées/réactivées ; semaine absente des réglages ; aucun appui long ; brouillon du dialogue restauré |
 | AppRecreationTest (Android/Compose) | 1 | Recréation de MainActivity avec dimanche et réglages conservés |
 | DayRowAccessibilityTest (Compose) | 3 | Nœud unique, date complète, détail accessible, jour hors année désactivé sans appui long/détail |
 | WeekViewTest (Compose) | 4 | Repli dans les deux modes, viewport conservé, dimanche accessible avec police 200 % et faible hauteur |
+| WeekPanelIntegrationTest (Compose) | 11 | Vraie WeekView avec hauteur suffisante et insets non nuls, deux bandes latérales, seuil Discrete mesuré, bas inerte, resize/changement de semaine pendant drag, vendredi visible frame par frame en repli, cinq créneaux et détail à police 200 %, dimanche et limites d’année |
+| DayPanelRenderingTest (Compose) | 3 | Image pendant une pression : ripple découpé et contour préservé ; changement de poids mesurant les jours sans recomposer leur contenu ; continuité des côtés samedi/dimanche sans trait horizontal |
 | WeekGestureTest (Compose) | 8 | Taps, transition 500 ms, seuils et position finale ; suite préexistante |
 | tests/scripts/test_pipeline.py | 15 | Empreintes, suppression avant/après staging, modes/symlinks, fraîcheur avant/après commit, propagation d'échecs et mutation pendant contrôle, flush du log, wrapper, reprise SHA/run/worktree, appareil ADB fixé et absence d'uninstall, sauvegarde de signature hors dépôt et secrets non journalisés |
 | tests/scripts/test_project_contracts.py | 3 | Exclusions de sauvegarde, identité des scripts/snapshot, ordre des vérifications CI avant publication et rapports conservés en échec |
@@ -48,9 +62,9 @@ de gh/adb/keytool/openssl ; ils ne livrent ni clé ni APK réels.
 L'utilisateur lance les scripts suivis selon CONTRACT.md. Aucun de ces ajouts
 n'accorde une autorisation permanente à Codex pour exécuter les contrôles.
 
-- scripts/check-local appelle functionalCheck : Detekt potential-bugs, les 71 tests
+- scripts/check-local appelle functionalCheck : Detekt potential-bugs, les 110 tests
   JVM Release, les 18 tests Python via pipelineTests et la compilation des sources
-  de tests Android. Cela n'exécute pas les 34 tests Android sur le poste.
+  de tests Android. Cela n'exécute pas les 55 tests Android sur le poste.
 - Le workflow manuel rejoue functionalCheck sur le commit envoyé, construit Release
   et smoke, puis lance les tests Android sur les émulateurs Android 14/API 34 et
   Android 16/API 36 x86_64. Les tests sont forcés à se réexécuter pour chaque API.
@@ -83,7 +97,7 @@ nécessaires pour éviter de revendiquer une couverture inexistante :
   Android et son transfert vers une autre installation restent à vérifier.
 - Les tests HTTPS utilisent des connexions simulées. Les certificats, un serveur
   HTTPS réel, ses timeouts et les coupures réseau du système ne sont pas exercés.
-- Le détail complet est vérifié via le bouton tactile et l'action d'accessibilité.
+- Sur la dernière CI antérieure à la refonte, le détail complet est vérifié via le bouton tactile et l'action d'accessibilité.
   Un parcours TalkBack réel, les insets/navigation par boutons/gestes et
   l'apparence des contours/couleurs demandent encore une observation manuelle.
 - Smoke prouve, lorsqu'il passe, le démarrage minifié de sa variante de test.
@@ -93,3 +107,30 @@ nécessaires pour éviter de revendiquer une couverture inexistante :
 Mettre à jour les résultats, le SHA et les limites dans VALIDATION.md/PB1.md/PB2.md
 à chaque nouvelle exécution autorisée. Ne pas confondre compilation des tests
 Android et réussite de leur exécution sur un système Android.
+
+## Performance des panneaux
+
+Les tests à BroadcastFrameClock prouvent la durée et la protection des générations,
+avec MotionDurationScale injecté, sans modifier les réglages Android. Le test de
+phase mesure une modification réelle des limites et compte les compositions du
+contenu. Le test d’image attend que l’indication soit effectivement visible avant
+de comparer les coins et le contour ; l’horloge native Android peut différer de
+l’horloge Compose. Ces nouveaux tests Android restent à exécuter en CI.
+
+Le protocole d’appareil et de traces est dans [PERFORMANCE.md](PERFORMANCE.md).
+Aucun chiffre de cadence n’est déduit des tests fonctionnels ni d’un émulateur.
+
+## Évolution des créneaux — définitions non exécutées
+
+ScheduleSlotsTest contient les exemples confirmés, les limites temporelles et les
+changements d'heure. AppViewModelTest ajoute la mise à jour/restauration des cinq
+valeurs sans import de fichier. CalendarFlowTest vérifie les libellés accessibles
+Until/From et l'ouverture du vrai sélecteur existant. Les anciens tests de neuf
+titres visibles sont adaptés à cinq événements sur cinq créneaux ; le détail de
+cent événements conserve son assertion sur le dernier titre complet.
+
+Les tests Compose attendent une projection précise avec waitUntil, puisque le
+calcul s'effectue en arrière-plan, sans délai arbitraire. Le parcours de réglages
+ne change pas le sélecteur Material ni la persistance. Aucune assertion n'est
+supprimée pour masquer un échec d'exécution : aucun de ces nouveaux tests n'a été
+exécuté dans cette passe. Voir SCHEDULES.md pour la spécification complète.

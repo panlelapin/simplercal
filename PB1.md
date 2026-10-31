@@ -1,5 +1,18 @@
 # PB1 — Audit des sources Kotlin
 
+> Évolution suivante : cinq créneaux quotidiens reliés aux horaires des réglages,
+> 30 tests supplémentaires définis. IMPLEMENTED — NOT VALIDATED : aucun contrôle,
+> compilation, test ou build lancé pour cette évolution. Les preuves des panneaux
+> ci-dessous ne la valident pas. Voir [SCHEDULES.md](codex/SCHEDULES.md) et
+> [VALIDATION.md](codex/VALIDATION.md).
+
+> Reprise des panneaux du 31 octobre 2026 : corrections ciblées implémentées et
+> 30 tests ajoutés. scripts/check-local réussi : 87 JVM et 18 Python sans échec,
+> Detekt et contrôles du projet réussis. Les 48 tests Android sont compilés,
+> pas exécutés. Aucun APK de cette refonte ni validation physique. Voir
+> [l’état détaillé](codex/VALIDATION.md) et [l’audit ciblé](codex/AUDIT_PANNEAUX_COMPOSE.md).
+> Les entrées ci-dessous décrivent l’historique antérieur.
+
 Audit initial des fichiers Kotlin applicatifs de `app/src/main`. Les solutions ont été implémentées, mais les anciens marquages « FIXED » ne prouvaient pas une compilation ni un fonctionnement à l'écran. Ils sont remplacés par « IMPLEMENTED — NOT VALIDATED ». Voir PB2.md pour les trente corrections complémentaires et leurs limites. Aucune validation n'a été lancée par Codex, conformément à AGENTS.md.
 
 1. **IMPLEMENTED — NOT VALIDATED** — `WeekDay` ne conserve pas sa `LocalDate` et l'état passé/futur est déduit de `highlightedDayIndex`, ce qui colore incorrectement toutes les semaines non courantes ; stocker la date complète et la comparer à une date de référence explicite.

@@ -5,7 +5,7 @@
 Un module Gradle `app`, une activité exportée `MainActivity`, aucune activité de
 widget, aucun serveur, base de données applicative, compte distant, service de
 synchronisation ou écriture dans le calendrier. L’application combine trois sources en lecture seule : principal, fériés et vacances.
-Chacune utilise Android (READ_CALENDAR), un document iCalendar ou HTTPS (INTERNET). Les cinq horaires sont des préférences ; ils ne
+Chacune utilise Android (READ_CALENDAR), un document iCalendar ou HTTPS (INTERNET). Les cinq horaires pilotent les cinq lignes de créneaux du calendrier ; ils ne
 programment ni alarme ni notification. Kotlin/Compose/Material 3 ; versions exactes
 dans les Gradle suivis, minSdk 34, compileSdk/targetSdk 36. Le workflow est manuel.
 
@@ -31,11 +31,14 @@ Tous les fichiers Kotlin applicatifs ci-dessous sont dans
 | CalendarChanges.kt | Adaptateur Android et activation des observateurs selon permission, sélection et lifecycle STARTED |
 | CalendarObservation.kt | Propriété des inscriptions partielles, annulation et backoff borné, testables avec temps virtuel |
 | ThemeModels.kt | Enums persistées, palette d'accents unique et génération du ColorScheme HCT complet |
-| WeekLayout.kt | Dates ISO, titre annoté, groupes et poids, géométrie semaine, insets et repli défilant |
+| WeekLayout.kt | Dates ISO, titre annoté, groupes et poids, assemblage des sept jours et des interactions |
+| WeekGeometry.kt | Géométrie en pixels, limites cumulatives arrondies partagées par le rendu et le hit-test, hauteur minimale mesurée et ancrage |
+| WeekViewport.kt | Insets lus en mesure, sondes typographiques/Material non placées, viewport standard verticalScroll, mesure des jours et coordination du scroll animé |
 | WeekInteraction.kt | État visuel de sélection/animation/drag, progression par frames, stabilisation selon les limites réelles |
 | WeekGestures.kt | Arbitrage parent des mouvements ; enfant seul responsable du tap ; dernière position up |
 | WeekDragPath.kt | Correspondance distance pixels/focus, première étape depuis les poids interrompus, bornage sans overscroll et seuil Discrete |
-| DayRow.kt | Libellé mesuré, fonds des deux conteneurs, titres, vacances, contours à propriétaire unique et sémantique du jour |
+| DayRow.kt | Surface Material cliquable et arrondie, deux conteneurs simples, libellé mémorisé, titres/bouton partagés avec les sondes, vacances dessinées et contour unique |
+| ScheduleSlots.kt | Validation des cinq heures, lignes fixes et projection temporelle ; règle du dernier créneau exclu, plusieurs jours et transitions de fuseau |
 | DayDetails.kt | Liste complète des événements et heures, lecture seule, sans édition de marqueurs |
 | SettingsScreen.kt | Permission, calendriers avec compte/propriétaire, horaires Material, choix persistés, lien projet |
 
@@ -108,9 +111,33 @@ et du contour courant sont détaillées dans CONTRACT.md.
 
 Scaffold possède les insets horizontaux sûrs. WeekView ajoute les deux bandes
 visuelles égales et protège le bas avec le maximum des insets prescrits. La hauteur
-virtuelle permet au moins 48 dp par ligne compacte et neuf lignes de texte dans les
+virtuelle permet au moins 48 dp par ligne compacte et cinq lignes de créneaux plus le bouton de détail dans les
 jours développés. Son minimum est donc environ 738,46 dp même à police normale.
 En dessous, verticalScroll remplace la loupe ; un retour d'écran conserve le viewport.
+
+Depuis la reprise des panneaux : WeekViewport utilise SubcomposeLayout pour lire les
+insets en phase de mesure et mesurer des sondes non placées : une/cinq lignes, ou
+cinq lignes plus le vrai bouton All events, en styles normal et italique. Le minimum
+inclut aussi la hauteur réelle du libellé, ses espacements et les traits. Les sondes
+n'ont pas d'action accessible et ne sont jamais placées. La largeur du libellé est
+mémorisée selon ses textes, le style, la densité, le sens de lecture et le mesureur.
+Les paddings du Scaffold sont explicitement consommés ; les formules de protection
+conservent les valeurs brutes des insets, sans deuxième padding horizontal.
+
+WeekDayLayout lit les poids dans son MeasurePolicy, pas dans la composition des
+textes. WeekRowBounds arrondit les limites cumulées une fois : chaque enfant reçoit
+sa hauteur exacte et le détecteur utilise les mêmes limites. La géométrie du viewport
+et le lundi sont des clés du détecteur ; leurs changements annulent le geste actif.
+Le bas protégé est inerte, tandis que les bandes latérales acceptent Linear.
+
+WeekScrollCoordinator ancre le jour touché à sa position visible, puis adapte cet
+ancrage à sa hauteur courante pour le garder entièrement visible quand il tient
+dans le viewport. ScrollState et poids sont modifiés dans une même transaction
+Snapshot depuis la coroutine d'animation, jamais pendant la mesure. Le scroll brut
+est limité à ce suivi ; il s'arrête dès qu'un scroll utilisateur prend la main.
+verticalScroll conserve le fling, la sémantique, bring-into-view et la restauration.
+L'arrivée initiale rend la sélection visible ; un retour d'écran ne réinitialise
+pas le viewport sauvegardé.
 
 Le parent de gestes arbitre en passe Initial avant le clickable enfant. Un mouvement
 2D au-delà du touchSlop annule le tap, même sans drag autorisé ; le drag reste
@@ -125,8 +152,22 @@ courants. Le drag suit les pixels, sans animation temporelle ; à la fin le grou
 est choisi par la distance quadratique entre limites cumulées réelles et cibles,
 avec préférence pour le groupe actuel en cas d'égalité.
 
+L'annulation d'un drag garde ses derniers poids, restaure l'identité de départ et
+reprend ensuite une transition de 500 ms vers cette sélection. Aucun timer ne pilote
+un drag actif. La boucle temporelle vérifie la génération de demande après chaque
+attente de frame : une ancienne coroutine ne peut pas publier au-dessus d'un nouveau
+drag avant même l'annulation de LaunchedEffect. La logique suspendue est partagée
+avec les tests à BroadcastFrameClock et MotionDurationScale contrôlés.
+
+Le jour utilise Surface(onClick, enabled), qui place l'indication sous son clip.
+Son modifier de contour dessine après la surface et son indication. Le contenu est
+une Row : un Box alignant le seul libellé et une Column des événements. Le fond
+est peint une seule fois par la Surface du jour ; les deux conteneurs carrés sont
+transparents et la bande de vacances est dessinée à gauche
+de la colonne droite. Aucun contour ou clip indépendant sur ces deux conteneurs.
+
 Chaque jour annonce date anglaise avec année, sélection, expansion et nombre
-d'événements. Avec plus de neuf événements : huit titres et bouton All events.
+d'événements. Avec des événements : cinq créneaux et bouton All events, même sous neuf événements.
 Le bouton reste tactile, tandis que son action TalkBack est portée par le nœud du
 jour. Il n'y a aucune action d'appui long ni case d'édition des marqueurs. Aucun nœud de jour ne doit rester derrière
 l'écran de réglages, qui remplace effectivement sa composition.
@@ -208,3 +249,51 @@ utilise le suffixe .smoke et la clé de test Android explicite pour l'émulateur
 x86_64. L'APK Release livré garde son identité et sa signature stable. Le script
 ci-device-tests est réservé à GitHub Actions, cible uniquement emulator-5554 et
 crée un émulateur jetable par API. Aucun uninstall ni installation physique.
+
+Le contour ordinaire est désormais un chemin ouvert : il omet les seules arêtes
+horizontales interdites sans masque rectangulaire coupant les côtés du weekend.
+Le contour courant garde un RoundRect fermé, dont les rayons intérieurs sont
+réduits d’un demi-trait pour suivre exactement la forme extérieure. Le fond unique
+du jour évite aussi une lisière de fond de barre entre le trait et le contenu lors
+des arrondis au pixel des paddings. Un jour partiellement rogné en haut conserve
+sa position initiale, puis son en-tête est ramené progressivement à zéro avec la
+même fraction temporelle que les poids ; il ne saute pas à la première frame.
+
+Une modification de géométrie garde visible une sélection qui l’était auparavant,
+notamment lors du passage normal → défilant. Une sélection déjà hors viewport à
+cause d’un scroll manuel n’est pas ramenée de force. Cette politique est distincte
+de l’arrivée initiale et du retour des réglages, qui conserve le viewport sauvegardé.
+
+## Créneaux reliés au calendrier
+
+SCHEDULES.md détaille les cinq plages et les exemples confirmés. Les anciennes
+clés de préférences sont conservées : schedule_time_0 est la fin du premier
+créneau commençant à 00:01, les quatre suivantes sont des débuts. Le dernier
+créneau finit à minuit. H1 ≤ H2 puis H2 < H3 < H4 < H5 ; un ensemble incomplet
+ou non chronologique reste éditable mais ne produit pas d'affectation inventée.
+
+MainScreen transmet scheduleTimes et referenceZone dans WeekViewState. WeekView
+capture WeekScheduleInput (lundi, événements déjà filtrés par année, cinq valeurs,
+fuseau) et produit WeekScheduleProjection sur Dispatchers.Default avec produceState.
+Les boucles du ScheduleProjector vérifient l'annulation ; l'affichage rejette toute
+projection dont l'entrée ne correspond plus à l'entrée courante. Le cache des
+fenêtres est limité à une projection. Aucun chargement provider/iCalendar n'est
+ajouté par cette opération ; les callbacks de réglage restent ceux du ViewModel.
+
+Les plages horaires sont intersectées avec les segments d'offset constant du jour,
+les fenêtres contiguës d'un même créneau sont réunies, puis comparées aux instants
+originaux des événements. Le premier/dernier créneau global est retrouvé depuis
+les dates extrêmes, sans parcourir chaque jour d'un événement long. Si plusieurs
+créneaux sont touchés, seul le dernier est retiré ; un événement n'apparaît jamais
+deux fois dans une même ligne. Les all-day gardent leurs dates UTC flottantes.
+
+DaySchedule possède cinq ScheduleLine, chacune avec son index, l'heure réglée et
+les événements affectés. DayRow affiche le libellé Until/From et le premier titre,
+avec (+N) en cas de plusieurs événements ; les créneaux vides gardent leur place.
+Le jour compact prend le premier créneau occupé, ou le premier s'il n'y en a pas.
+Le bouton et l'action accessible All events sont disponibles pour tout jour ayant
+des événements, même en configuration incomplète ou pour un événement hors plage.
+Le détail reste fondé sur les instances originales du jour et reçoit referenceZone.
+
+Statut de cette évolution : IMPLEMENTED — NOT VALIDATED. Aucun contrôle ni test
+exécuté dans cette passe ; voir VALIDATION.md.

@@ -50,6 +50,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -243,20 +245,32 @@ private fun ScheduleSection(
     onOpenTimePicker: (Int) -> Unit,
 ) {
     Text(stringResource(R.string.section_schedules), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.schedule_explanation), style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
     Spacer(Modifier.height(8.dp))
     scheduleTimes.forEachIndexed { index, minutes ->
+        val label = stringResource(if (index == 0) R.string.schedule_slot_until else R.string.schedule_slot_from, index + 1)
+        val buttonDescription = stringResource(R.string.schedule_time_action, label, formatScheduleTime(minutes))
         Row(
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.schedule_case, index + 1),
+                text = label,
                 modifier = Modifier.weight(1f),
             )
-            OutlinedButton(onClick = { onOpenTimePicker(index) }) {
+            OutlinedButton(onClick = { onOpenTimePicker(index) },
+                modifier = Modifier.semantics { contentDescription = buttonDescription }) {
                 Text(formatScheduleTime(minutes))
             }
         }
+    }
+    when (scheduleStatus(scheduleTimes)) {
+        ScheduleStatus.INVALID -> Text(stringResource(R.string.schedule_invalid_order),
+            color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        ScheduleStatus.INCOMPLETE -> Text(stringResource(R.string.schedule_incomplete),
+            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        ScheduleStatus.READY -> Unit
     }
     Spacer(Modifier.height(24.dp))
 }

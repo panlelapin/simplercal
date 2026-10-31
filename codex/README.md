@@ -16,6 +16,14 @@ d'un agent. Les sources suivies par Git restent la preuve de l'implémentation r
 5. [DECISIONS.md](DECISIONS.md) : raisons des choix structurants et frontières à préserver.
 6. [TESTS.md](TESTS.md) : inventaire des tests ajoutés, répartition local/CI et limites encore manuelles.
 
+Créneaux quotidiens : [SCHEDULES.md](SCHEDULES.md), définition des cinq heures,
+affectation des événements aux lignes, limites et règles de reprise.
+
+Audit ciblé : [panneaux Compose](AUDIT_PANNEAUX_COMPOSE.md), structure, espacements,
+animation, gestes et corrections proposées ; diagnostic statique puis reprise du 31 octobre 2026.
+[PERFORMANCE.md](PERFORMANCE.md) décrit les parcours et mesures de fluidité restant
+à effectuer sur appareil.
+
 ## Autorité et périmètre
 
 Les instructions explicites de l'utilisateur priment. AGENTS.md impose la lecture

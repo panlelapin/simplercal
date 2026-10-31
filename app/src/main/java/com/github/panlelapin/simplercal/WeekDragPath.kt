@@ -2,6 +2,7 @@ package com.github.panlelapin.simplercal
 
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 /** Pixel-to-layout mapping, including a tap animation interrupted between frames. */
 internal class WeekDragPath(
@@ -11,49 +12,46 @@ internal class WeekDragPath(
     private val minimumGroup: Int = 0,
     private val maximumGroup: Int = WEEKEND_START_INDEX,
 ) {
-    private val normalStep = dayGroupTransitionDistance(height).coerceAtLeast(1f)
-    private val previousStep = distanceTo(originWeights, originGroup - 1, height)
-    private val nextStep = distanceTo(originWeights, originGroup + 1, height)
-    val minimumDistance = if (originGroup <= minimumGroup) 0f else -(previousStep + normalStep * (originGroup - minimumGroup - 1))
-    val maximumDistance = if (originGroup >= maximumGroup) 0f else
-        nextStep + normalStep * (maximumGroup - originGroup - 1)
+    private val pixelHeight = height.roundToInt().coerceAtLeast(0)
+    private val forward = steps(originWeights, (originGroup + 1..maximumGroup).toList())
+    private val backward = steps(originWeights, (originGroup - 1 downTo minimumGroup).toList())
+    val minimumDistance = -backward.sum()
+    val maximumDistance = forward.sum()
 
     fun bound(distance: Float): Float = distance.coerceIn(minimumDistance, maximumDistance)
 
     fun focusAt(distance: Float): Float {
         val bounded = bound(distance)
-        if (bounded == 0f) return originGroup.toFloat()
+        val steps = if (bounded < 0f) backward else forward
         val direction = if (bounded < 0f) -1f else 1f
-        val firstStep = if (bounded < 0f) previousStep else nextStep
-        val travelled = abs(bounded)
-        val groups = if (travelled <= firstStep) travelled / firstStep else
-            1f + (travelled - firstStep) / normalStep
-        return originGroup + direction * groups
+        var remaining = abs(bounded)
+        steps.forEachIndexed { index, length ->
+            if (remaining <= length) return originGroup + direction * (index + remaining / length)
+            remaining -= length
+        }
+        return originGroup + direction * steps.size
     }
 
-    private fun distanceTo(origin: List<Float>, group: Int, height: Float): Float {
-        if (group !in 0..WEEKEND_START_INDEX) return 1f
-        val target = dayWeightsFor(group)
-        var boundaryDelta = 0f
-        var largestDelta = 0f
-        origin.indices.forEach { index ->
-            boundaryDelta += target[index] - origin[index]
-            largestDelta = max(largestDelta, abs(boundaryDelta))
+    private fun steps(origin: List<Float>, groups: List<Int>): List<Float> {
+        var previous = weekRowBounds(pixelHeight, origin)
+        return groups.map { group ->
+            val target = weekRowBounds(pixelHeight, dayWeightsFor(group))
+            val distance = previous.edges.indices.maxOf { abs(target.edges[it] - previous.edges[it]) }.toFloat().coerceAtLeast(1f)
+            previous = target
+            distance
         }
-        return (height * largestDelta / TOTAL_DAY_WEIGHT).coerceAtLeast(1f)
     }
+
 }
 
 internal fun discreteDragThreshold(
     initialY: Float,
     dayIndex: Int,
-    weights: List<Float>,
-    height: Float,
+    bounds: WeekRowBounds,
     direction: Float,
     touchSlop: Float,
 ): Float {
-    if (dayIndex !in weights.indices) return Float.POSITIVE_INFINITY
-    val top = height * weights.take(dayIndex).sum() / weights.sum()
-    val middle = top + height * weights[dayIndex] / weights.sum() / 2f
+    if (dayIndex !in 0 until bounds.edges.lastIndex) return Float.POSITIVE_INFINITY
+    val middle = bounds.top(dayIndex) + bounds.height(dayIndex) / 2f
     return max(touchSlop, (middle - initialY) * direction)
 }

@@ -1,6 +1,8 @@
 package com.github.panlelapin.simplercal
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -121,9 +123,12 @@ class WeekGestureTest {
                 interaction = current
                 touchSlop = LocalViewConfiguration.current.touchSlop
                 AnimateDayWeights(current, WEEK_DAY_COUNT)
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                val pixelHeight = with(LocalDensity.current) { maxHeight.roundToPx() }
+                val pixelWidth = with(LocalDensity.current) { maxWidth.roundToPx() }
                 Box(Modifier.fillMaxSize().weekGestureInput(WeekGestureState(
-                    scrollMode = mode, bottomGestureInsetPx = 0f, rightGestureInsetPx = 0f,
-                    leftGestureInsetPx = 0f, touchSlopPx = touchSlop,
+                    scrollMode = mode, geometry = WeekViewportGeometry(pixelWidth, pixelHeight, 0, 0, pixelHeight),
+                    rowBounds = { weekRowBounds(pixelHeight, current.animatedDayWeights) }, contextKey = date, touchSlopPx = touchSlop,
                     selectedDayIndex = { current.selectedDayIndex }, animatedDayWeights = { current.animatedDayWeights },
                     startDrag = current::startDrag, dragToFocus = current::dragToFocus,
                     endDrag = current::endDrag, cancelDrag = current::cancelDrag,
@@ -133,12 +138,14 @@ class WeekGestureTest {
                             DayRow(
                                 DayRowState(index, null, date, false, day,
                                     index == current.selectedDayIndex, index in expandedDayIndices(current.selectedDayIndex),
-                                    index in current.contentExpandedDays, current.animatedDayWeights[index],
-                                    80.dp, colors.outlineVariant, colors.surfaceContainer),
+                                    index in current.contentExpandedDays,
+                                    80.dp, colors.outlineVariant),
                                 onClick = { current.selectDay(index) },
+                                modifier = Modifier.weight(current.animatedDayWeights[index]),
                             )
                         }
                     }
+                }
                 }
             }
         }

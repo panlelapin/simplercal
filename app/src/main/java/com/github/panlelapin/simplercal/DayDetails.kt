@@ -23,6 +23,7 @@ import java.util.Locale
 internal fun DayDetailsDialog(
     day: WeekDay,
     onDismiss: () -> Unit,
+    zone: ZoneId = ZoneId.systemDefault(),
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -35,7 +36,7 @@ internal fun DayDetailsDialog(
                     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                         Text(event.title, style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            if (event.allDay) stringResource(R.string.event_all_day) else eventTimeRange(event),
+                            if (event.allDay) stringResource(R.string.event_all_day) else eventTimeRange(event, zone),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

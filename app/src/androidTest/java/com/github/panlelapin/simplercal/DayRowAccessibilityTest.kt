@@ -34,7 +34,7 @@ class DayRowAccessibilityTest {
                 Column(Modifier.fillMaxSize()) {
                     DayRow(DayRowState(0, null, date, false,
                         WeekDay(date, "Mon", false, false, emptyList(), isEnabled = false),
-                        false, false, false, 1f, 80.dp, Color.Gray, Color.LightGray),
+                        false, false, false, 80.dp, Color.Gray),
                         onClick = { error("Disabled day was selected") },
                         onShowDetails = { error("Disabled details were opened") })
                 }
@@ -59,7 +59,7 @@ class DayRowAccessibilityTest {
                             WeekDay(date, "Sun", true, false, List(10) {
                                 CalendarEvent(it.toLong(), "$it:0", "Event $it", 0, 1, true)
                             }),
-                            true, true, true, 1f, 80.dp, Color.Gray, Color.LightGray,
+                            true, true, true, 80.dp, Color.Gray,
                         ),
                         onClick = {},
                         onShowDetails = { detailsOpened = true },
@@ -109,10 +109,8 @@ class DayRowAccessibilityTest {
                                 isSelected = true,
                                 isExpanded = true,
                                 isContentExpanded = true,
-                                weight = 1f,
                                 dayLabelColumnWidth = 80.dp,
                                 separatorColor = Color.Gray,
-                                appBarBackground = Color.LightGray,
                             ),
                         onClick = { clicked = true },
                     )

@@ -71,10 +71,19 @@
   user's font scale, use a vertically scrollable week with a sufficient virtual
   height. Preserve proportions, tap behavior and selection; ordinary scrolling
   replaces the magnification gesture in this accessibility fallback.
-- Right containers show real selected-calendar event titles, clipped single-line,
-  left-aligned and vertically centered. Expanded: up to nine rows; compact: one.
-  Beyond nine events, show eight plus an All events button opening the full list.
-  That list includes complete titles and times. Days have no long-press action.
+- Measure the actual normal/italic event text, day labels and Material overflow
+  button to establish this minimum. Use shared cumulatively rounded pixel boundaries
+  for day placement and gesture thresholds. During tap expansion in the scrolling
+  fallback, keep the selected day visible using its current animated boundaries;
+  manual scrolling takes precedence and saved viewports survive screen replacement.
+- Right containers show exactly five fixed schedule lines when expanded, including
+  empty slots; compact shows the first occupied slot, or the first slot if none is
+  occupied. Text is single-line, clipped, left-aligned and vertically centered.
+  Each line includes Until/From plus its configured time and the first assigned
+  event title; additional events in that slot are indicated by a count.
+  Any nonempty day exposes All events below the five expanded lines and as a custom
+  accessibility action, including events outside configured slots. The complete list
+  retains all original titles/times once each. Days have no long-press action.
 - Entire day surface has Material interaction feedback and one merged semantic
   node with full English date including year, selected/expanded state and event count.
   All events keeps its touch action and is exposed as a custom accessibility action
@@ -91,10 +100,16 @@
 - Linear: drag can start anywhere in the week, including peripheral strips;
   after touchSlop, it starts immediately from the current expanded group.
   Upward page-like motion advances groups; downward motion reverses them.
+- Peripheral drag strips are lateral only. The protected bottom band never starts
+  an application drag and its pointer events are not consumed by the week detector.
 - Drag uses pixel distance and actual current weights, including an interrupted
   animation. No timed drag animation. Discard overscroll so reversal responds
   immediately. Include final up-event displacement. Release settles immediately
   to the nearest group; cancellation safely leaves drag state.
+- Cancel an active drag when the measured viewport or displayed week changes.
+  Pointer cancellation retains the last displayed weights, restores the original
+  selected identity and resumes a 500ms transition towards that selection after
+  the drag has ended. A superseded timer must never overwrite a newer tap or drag.
 - In a settled layout, one group transition equals expanded minus compact height.
   The shared expanded row retains height; boundaries follow the pixel movement.
 - Left/right visual strips have equal width: 22.5% of max(24dp, mandatory right
@@ -192,10 +207,29 @@
   list with account/owner details. iCalendar requires no READ_CALENDAR permission.
   Source refresh errors/timestamps are independent; file Refresh never reloads the
   other file sources. The file picker and HTTPS dialog are saveable transient UI.
-- Schedules: exactly five rows, Case 1–Case 5 and Material time selector;
-  independently persisted minutes in 0..1439, or unset. Validate stored values.
-  These are stored values only; no alarm or notification is scheduled.
+- Schedules: exactly five common daily slots with Material time selectors, stored
+  in the existing five minute preferences (0..1439, or unset). Slot 1 starts at
+  00:01; its setting is its exclusive end (Until). Slots 2–5 are configured by
+  inclusive start (From). Slots 2–4 end at the next start; slot 5 ends at midnight.
+  Slot 1 must end after 00:01 and no later than slot 2 starts; starts 2–5 strictly
+  increase. A pause between slots 1 and 2 is allowed. Preserve valid stored clock
+  values even when unordered, report incomplete/invalid configuration, and do not
+  guess event assignments until all five times form a valid configuration.
+  No alarm or notification is scheduled.
   Use Material numeric time input in low windows and allow picker content to scroll.
+- Match real event intervals to slot intervals, with exclusive event ends. One
+  touched slot: display there. Two touched slots: display only in the first. Three
+  or more: display in every touched slot except the last. Across multiple days,
+  omit only the event's final slot globally, not the last slot of each day. A single
+  event is listed at most once per displayed line. Timed events use referenceZone;
+  all-day events keep floating UTC dates and use the same slot rule. Handle missing
+  and repeated clock hours using actual time-zone transitions. Events touching no
+  slot remain in the complete day details. A zero-duration event is a point at its
+  start; reversed intervals are not projected into slots.
+- Slot projection runs on Dispatchers.Default, is cancellable, and is keyed by
+  Monday, original events, schedule times and reference zone. Reject superseded
+  projections without briefly showing another context's assignments. Schedule
+  edits must neither reread iCalendar sources nor trigger a calendar import.
 - Theme segmented control: System (default), Light, Dark.
 - Accent list is defined once by AccentTheme.entries: System (default), Royal blue,
   Indigo, Teal, Material violet, Plum, Raspberry, Mandarin, Emerald green, second
