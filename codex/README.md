@@ -14,6 +14,7 @@ d'un agent. Les sources suivies par Git restent la preuve de l'implémentation r
 4. [VALIDATION.md](VALIDATION.md) : preuves connues, portée des tests, scénarios manuels
    et règles de transmission au prochain agent.
 5. [DECISIONS.md](DECISIONS.md) : raisons des choix structurants et frontières à préserver.
+6. [TESTS.md](TESTS.md) : inventaire des tests ajoutés, répartition local/CI et limites encore manuelles.
 
 ## Autorité et périmètre
 

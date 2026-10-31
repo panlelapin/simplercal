@@ -1,8 +1,10 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="calendar_device.xml" />
+        <exclude domain="file" path="ical_sources/" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="calendar_device.xml" />
+        <exclude domain="file" path="ical_sources/" />
     </device-transfer>
 </data-extraction-rules>

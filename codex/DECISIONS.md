@@ -33,3 +33,30 @@
 - **Entrée agent courte** : AGENTS.md route vers codex/ ; le contrat complet déplacé
   depuis l'ancien AGENTS.md est conservé dans CONTRACT.md. Cette réorganisation ne
   modifie pas le comportement de l'app. Les audits PB1/PB2 restent historiques.
+
+
+## Évolution calendrier convenue
+
+- Trois rôles indépendants : données principales (titres), jours fériés
+  (isWEorBankH) et vacances scolaires (isHolidays). Les deux derniers ne rajoutent
+  pas de titres dans la liste principale. Le weekend reste reconnu indépendamment.
+- Chaque rôle accepte un calendrier Android, un fichier iCalendar local ou une
+  URL HTTPS. Pour Android, la synchronisation Internet est la responsabilité d'une
+  autre application alimentant le provider système.
+- Les trois sources se superposent dans la même vue et sont désactivables
+  séparément dans les réglages, en conservant leur configuration.
+- iCalendar : lecture lors du choix de la source, puis Refresh manuel par source,
+  aucune actualisation au démarrage. Afficher la date de la dernière réussite ;
+  conserver les dernières données valides et afficher l'erreur lors d'un échec.
+- Prendre uniquement l'année réelle en cours et la suivante. Bloquer la navigation
+  hors période ; conserver les sept lignes des semaines limites, dates hors période
+  grisées et désactivées.
+- Pas d'appui long sur les jours et pas d'édition manuelle de marqueurs. Le bouton
+  All events et son action accessible restent le moyen d'ouvrir la liste complète.
+
+Implémentation du 31 octobre 2026 : trois sources, désactivation indépendante,
+iCalendar manuel, copies atomiques et dates bornées sont codés, sans compilation
+ni validation en exécution. Les anciens marqueurs manuels ne sont plus lus pour
+l'affichage ; leurs valeurs ne sont pas effacées. Aucun test n'a été ajouté ni lancé,
+conformément à la décision de différer le chantier de TESTS.md.
+Les limites de l'importeur sont explicites dans CONTRACT.md et ARCHITECTURE.md.

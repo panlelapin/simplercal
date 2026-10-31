@@ -51,8 +51,15 @@ tasks.register("qualityCheck") {
     dependsOn(ktlintCheck, ":app:detektRelease", ":app:lintRelease")
 }
 
+val pipelineTests = tasks.register<Exec>("pipelineTests") {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = "Test delivery scripts in isolated temporary repositories without external side effects."
+    workingDir(rootDir)
+    commandLine("python3", "-B", "-m", "unittest", "discover", "-s", "tests/scripts", "-p", "test_*.py", "-v")
+}
+
 tasks.register("functionalCheck") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     description = "Run the non-cosmetic Kotlin checks used locally and in CI."
-    dependsOn(":app:detektRelease", ":app:testReleaseUnitTest", ":app:compileDebugAndroidTestKotlin")
+    dependsOn(pipelineTests, ":app:detektRelease", ":app:testReleaseUnitTest", ":app:compileDebugAndroidTestKotlin")
 }

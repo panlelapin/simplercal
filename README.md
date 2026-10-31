@@ -1,8 +1,14 @@
 # SimplerCal
 
 Application Android Kotlin / Jetpack Compose, interface anglaise, une semaine à
-sept jours dont deux agrandis. Calendrier Android sélectionné, marqueurs vacances
-et jours fériés par date, thèmes Material You et gestes Discrete/Linear.
+sept jours dont deux agrandis. Trois sources : événements principaux, jours fériés et vacances scolaires,
+chacune sélectionnable dans Android, un fichier iCalendar local ou une URL HTTPS
+et désactivable séparément. Refresh iCalendar manuel avec date de dernière réussite,
+thèmes Material You et gestes Discrete/Linear. Vue limitée à l'année réelle en cours
+et à la suivante, sans appui long.
+
+L'évolution trois sources est implémentée mais pas encore compilée/testée ; les
+résultats de validation antérieurs ne valident pas ces modifications.
 Android 14 minimum ; identifiant `com.github.panlelapin.simplercal`.
 
 ## Cloner et construire à distance

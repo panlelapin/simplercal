@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# CI-only disposable emulator. No physical device discovery or production installation.
+set -Eeuo pipefail
+
+[[ $# -eq 1 && ( "$1" == 34 || "$1" == 36 ) ]] || { echo 'Usage: ci-device-tests <34|36>' >&2; exit 2; }
+api=$1
+[[ "${GITHUB_ACTIONS:-}" == true && -n "${RUNNER_TEMP:-}" && -n "${ANDROID_HOME:-}" ]] || {
+  echo 'This script requires a disposable GitHub Actions runner.' >&2; exit 1;
+}
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+cd "$ROOT"
+diagnostics="$ROOT/build/ci-diagnostics/api-$api"
+mkdir -p "$diagnostics"
+export ANDROID_USER_HOME="$RUNNER_TEMP/android-user-$api"
+export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME"
+export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+mkdir -p "$ANDROID_AVD_HOME"
+serial=emulator-5554
+emulator_pid=''
+cleanup() {
+  result=$?
+  trap - EXIT
+  if [[ -n "$emulator_pid" ]]; then
+    if (( result != 0 )); then
+      tail -n 150 "$diagnostics/emulator.log" || true
+      adb -s "$serial" logcat -d -b crash > "$diagnostics/crash.log" 2>&1 || true
+    fi
+    kill "$emulator_pid" 2>/dev/null || true
+    wait "$emulator_pid" 2>/dev/null || true
+  fi
+  exit "$result"
+}
+trap cleanup EXIT
+sdkmanager "emulator" "system-images;android-$api;google_apis;x86_64"
+# Input comes from a finite printf, avoiding a SIGPIPE from yes under pipefail.
+printf 'no\n' | avdmanager create avd -n "tests-$api" -k "system-images;android-$api;google_apis;x86_64" --force
+"$ANDROID_HOME/emulator/emulator" -avd "tests-$api" -port 5554 -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$diagnostics/emulator.log" 2>&1 &
+emulator_pid=$!
+booted=false
+for attempt in $(seq 1 240); do
+  kill -0 "$emulator_pid" 2>/dev/null || { wait "$emulator_pid"; exit 1; }
+  if [[ "$(adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; then
+    booted=true
+    break
+  fi
+  sleep 1
+done
+[[ "$booted" == true ]] || { echo 'Emulator boot timed out.' >&2; exit 1; }
+adb -s "$serial" shell input keyevent 82
+export ANDROID_SERIAL="$serial"
+./gradlew :app:connectedDebugAndroidTest --rerun-tasks --no-daemon --stacktrace
+# Preserve separate reports before the second API run can replace Gradle's output.
+cp -R app/build/reports/androidTests "$diagnostics/compose-reports"
+cp -R app/build/outputs/androidTest-results "$diagnostics/compose-results"
+
+[[ -s app/build/outputs/mapping/smoke/mapping.txt ]] || { echo 'Missing R8 smoke mapping.' >&2; exit 1; }
+mapfile -t smoke_apks < <(find app/build/outputs/apk/smoke -type f -name '*.apk' -print)
+[[ ${#smoke_apks[@]} -eq 1 ]] || { echo 'Expected one minified smoke APK.' >&2; exit 1; }
+smoke_package=com.github.panlelapin.simplercal.smoke
+adb -s "$serial" install -r "${smoke_apks[0]}"
+adb -s "$serial" shell am start -W -n "$smoke_package/com.github.panlelapin.simplercal.MainActivity" > "$diagnostics/smoke-start.log"
+grep -q '^Status: ok' "$diagnostics/smoke-start.log"
+ui_ready=false
+for attempt in $(seq 1 20); do
+  adb -s "$serial" shell uiautomator dump /sdcard/simplercal-smoke.xml > /dev/null
+  adb -s "$serial" pull /sdcard/simplercal-smoke.xml "$diagnostics/smoke-ui.xml" > /dev/null
+  if python3 - "$diagnostics/smoke-ui.xml" <<'PY'
+import sys
+from xml.etree import ElementTree
+
+nodes = list(ElementTree.parse(sys.argv[1]).getroot().iter("node"))
+app = [node for node in nodes if node.get("package") == "com.github.panlelapin.simplercal.smoke"]
+descriptions = {node.get("content-desc") for node in app}
+sys.exit(0 if {"Settings", "Today"} <= descriptions else 1)
+PY
+  then ui_ready=true; break; fi
+  sleep 1
+done
+[[ "$ui_ready" == true ]] || { echo 'Minified app did not render its controls.' >&2; exit 1; }
+# No uninstall. The separate smoke ID and this fresh emulator own only synthetic data.
+printf 'Android API %s: Compose and minified smoke checks completed.\n' "$api"

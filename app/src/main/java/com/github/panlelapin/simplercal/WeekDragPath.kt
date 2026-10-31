@@ -8,13 +8,15 @@ internal class WeekDragPath(
     val originGroup: Int,
     originWeights: List<Float>,
     height: Float,
+    private val minimumGroup: Int = 0,
+    private val maximumGroup: Int = WEEKEND_START_INDEX,
 ) {
     private val normalStep = dayGroupTransitionDistance(height).coerceAtLeast(1f)
     private val previousStep = distanceTo(originWeights, originGroup - 1, height)
     private val nextStep = distanceTo(originWeights, originGroup + 1, height)
-    val minimumDistance = if (originGroup == 0) 0f else -(previousStep + normalStep * (originGroup - 1))
-    val maximumDistance = if (originGroup == WEEKEND_START_INDEX) 0f else
-        nextStep + normalStep * (WEEKEND_START_INDEX - originGroup - 1)
+    val minimumDistance = if (originGroup <= minimumGroup) 0f else -(previousStep + normalStep * (originGroup - minimumGroup - 1))
+    val maximumDistance = if (originGroup >= maximumGroup) 0f else
+        nextStep + normalStep * (maximumGroup - originGroup - 1)
 
     fun bound(distance: Float): Float = distance.coerceIn(minimumDistance, maximumDistance)
 

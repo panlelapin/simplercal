@@ -27,15 +27,11 @@
     <string name="calendar_error_provider">The Android Calendar Provider could not be read.</string>
     <string name="calendar_error_missing">The selected calendar is unavailable. Choose a calendar in Settings.</string>
     <string name="browser_unavailable">No app can open this web link.</string>
-    <string name="action_day_details">Show day details and markers</string>
     <string name="action_all_events">All %1$d events</string>
     <string name="action_close">Close</string>
-    <string name="marker_vacation">Vacation</string>
-    <string name="marker_bank_holiday">Bank holiday</string>
-    <string name="simulation_markers_explanation">Simulation controls the vacation and bank holiday markers.</string>
     <string name="no_events">No events</string>
     <string name="event_all_day">All day</string>
-    <string name="week_accessibility_description">Calendar week. Long press a day for details and markers.</string>
+    <string name="week_accessibility_description">Calendar week. Select a day to expand it.</string>
     <string name="calendar_unnamed">Unnamed calendar</string>
     <string name="calendar_event_untitled">Untitled event</string>
     <string name="day_accessibility_description">%1$s, %2$s</string>
@@ -69,4 +65,25 @@
         <item quantity="one">%1$d event</item>
         <item quantity="other">%1$d events</item>
     </plurals>
+    <string name="calendar_main">Main events</string>
+    <string name="calendar_bank_holidays">Bank holidays</string>
+    <string name="calendar_school_holidays">School holidays</string>
+    <string name="source_none">Not configured</string>
+    <string name="source_android">Android calendar</string>
+    <string name="source_local">Local iCalendar file</string>
+    <string name="source_https">HTTPS iCalendar</string>
+    <string name="source_choose_android">Choose Android calendar</string>
+    <string name="source_choose_local">Choose iCalendar file</string>
+    <string name="source_choose_https">Set HTTPS URL</string>
+    <string name="source_https_url">https://…</string>
+    <string name="source_refresh">Refresh</string>
+    <string name="source_refreshing">Refreshing…</string>
+    <string name="source_last_success">Last successful refresh: %1$s</string>
+    <string name="source_never_refreshed">Never</string>
+    <string name="source_error_url">Enter a valid HTTPS URL without embedded credentials.</string>
+    <string name="source_error_ical">Could not import this calendar. The last successful copy, if any, is retained. Check the source, reselect a local file if needed, and try Refresh again.</string>
+    <string name="source_error_access">Could not keep access to this document. Choose another local file.</string>
+    <string name="source_local_selected">iCalendar document selected</string>
+    <string name="source_android_selected">Android calendar selected</string>
+    <string name="sources_explanation">Main events provide titles. Bank holidays and school holidays change day appearance. Android calendars are synchronized by another app. iCalendar files update only when selected or with Refresh.</string>
 </resources>

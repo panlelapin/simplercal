@@ -24,6 +24,9 @@ internal fun Modifier.weekGestureInput(state: WeekGestureState): Modifier =
         state.rightGestureInsetPx,
         state.leftGestureInsetPx,
         state.touchSlopPx,
+        state.enabledDayIndices,
+        state.minimumGroup,
+        state.maximumGroup,
     ) {
         handleWeekGesture(state)
     }
@@ -50,8 +53,8 @@ private suspend fun PointerInputScope.handleWeekGesture(state: WeekGestureState)
                 -1
             }
         val isDragAllowed =
-            state.scrollMode == WeekScrollMode.LINEAR ||
-                touchDayIndex in expandedDayIndices(state.selectedDayIndex())
+            (touchDayIndex < 0 || touchDayIndex in state.enabledDayIndices) &&
+                (state.scrollMode == WeekScrollMode.LINEAR || touchDayIndex in expandedDayIndices(state.selectedDayIndex()))
         val progress = WeekDragProgress(
             initialPosition = down.position,
             dayAreaHeight = dayAreaHeight,
@@ -117,7 +120,8 @@ private class WeekDragProgress(
                 } else state.touchSlopPx
                 if (abs(displacementFromDown) <= threshold) return
                 state.startDrag()
-                path = WeekDragPath(groupIndexFor(state.selectedDayIndex()), state.animatedDayWeights(), dayAreaHeight)
+                path = WeekDragPath(groupIndexFor(state.selectedDayIndex()), state.animatedDayWeights(), dayAreaHeight,
+                    state.minimumGroup, state.maximumGroup)
                 hasStartedDrag = true
                 accumulatedDrag = mapDirection(state, displacementFromDown - direction * threshold)
                 updateDrag(state)

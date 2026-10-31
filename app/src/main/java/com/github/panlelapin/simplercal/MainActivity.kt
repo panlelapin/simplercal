@@ -52,11 +52,16 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.LifecycleEventObserver
 
 /** Hosts the single launcher screen for SimplerCal. */
 class MainActivity : ComponentActivity() {
-    private val appViewModel: AppViewModel by viewModels()
+    private val appViewModel: AppViewModel by viewModels {
+        viewModelFactory { initializer { AppViewModel(application, createSavedStateHandle()) } }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,7 +79,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun SimplerCalApp(viewModel: AppViewModel) {
+internal fun SimplerCalApp(viewModel: AppViewModel) {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
     val state = viewModel.uiState
@@ -98,7 +103,8 @@ private fun SimplerCalApp(viewModel: AppViewModel) {
 
     CalendarChangesEffect(
         context = context,
-        calendarId = state.selectedCalendarId,
+        calendarIds = state.calendarSources.values.filter { it.source.enabled && it.source.kind == CalendarSourceKind.ANDROID }
+            .map { it.source.calendarId }.filter { it >= 0L }.toSet(),
         hasPermission = state.hasCalendarPermission,
         onCalendarChanged = viewModel::onCalendarProviderChanged,
         onPermissionRevoked = { viewModel.onCalendarPermissionResult(false) },
@@ -199,7 +205,6 @@ private fun AppSurface(
                     onToday = viewModel::selectToday,
                 ),
             onDaySelected = viewModel::onDaySelected,
-            onDayMarkersChange = viewModel::setDayMarkers,
         )
         }
         if (state.isSettingsVisible) {
@@ -211,6 +216,9 @@ private fun AppSurface(
                         onCalendarPermissionResult = viewModel::onCalendarPermissionResult,
                         onCalendarSelected = viewModel::selectCalendar,
                         onRefreshCalendars = viewModel::refreshCalendars,
+                        onSourceSelected = viewModel::selectFileSource,
+                        onSourceEnabled = viewModel::setSourceEnabled,
+                        onRefreshSource = viewModel::refreshFileSource,
                         onScheduleTimeChange = viewModel::setScheduleTime,
                         onAccentThemeChange = viewModel::setAccentTheme,
                         onThemeModeChange = viewModel::setThemeMode,
@@ -232,7 +240,6 @@ private fun MainScreen(
     isDarkTheme: Boolean,
     actions: MainScreenActions,
     onDaySelected: (Int) -> Unit,
-    onDayMarkersChange: (java.time.LocalDate, DayMarkers) -> Unit,
 ) {
     val appBarBackground = MaterialTheme.colorScheme.surfaceContainer
     val snackbarHostState = remember { SnackbarHostState() }
@@ -260,9 +267,7 @@ private fun MainScreen(
                             eventsByDay =
                                 if (
                                     state.loadedEventsMonday == state.displayedMonday &&
-                                        state.loadedEventsCalendarId == state.selectedCalendarId &&
-                                        state.loadedEventsZone == java.time.ZoneId.systemDefault() &&
-                                        state.hasCalendarPermission
+                                        state.loadedEventsZone == java.time.ZoneId.systemDefault()
                                 ) {
                                     state.eventsByDay
                                 } else {
@@ -278,7 +283,7 @@ private fun MainScreen(
                             selectionRequest = state.selectionRequest,
                             onSelectionChanged = onDaySelected,
                             dayMarkers = state.dayMarkers,
-                            onDayMarkersChange = onDayMarkersChange,
+                            allowedYear = state.allowedYear,
                         ),
                 )
                 if (state.isCalendarLoading) {
@@ -309,7 +314,7 @@ private fun MainTopBar(
                         contentDescription = stringResource(R.string.action_settings),
                     )
                 }
-                IconButton(onClick = actions.onPreviousWeek) {
+                IconButton(onClick = actions.onPreviousWeek, enabled = state.displayedMonday > firstAllowedMonday(state.allowedYear)) {
                     Icon(
                         painter = painterResource(R.drawable.ic_arrow_back),
                         contentDescription = stringResource(R.string.action_previous_week),
@@ -318,7 +323,7 @@ private fun MainTopBar(
             }
         },
         actions = {
-            IconButton(onClick = actions.onNextWeek) {
+            IconButton(onClick = actions.onNextWeek, enabled = state.displayedMonday < lastAllowedMonday(state.allowedYear)) {
                 Icon(
                     painter = painterResource(R.drawable.ic_arrow_forward),
                     contentDescription = stringResource(R.string.action_next_week),
@@ -343,5 +348,7 @@ private fun calendarFailureMessage(reason: CalendarFailureReason?): String? =
             stringResource(R.string.calendar_error_provider)
         CalendarFailureReason.CALENDAR_UNAVAILABLE ->
             stringResource(R.string.calendar_error_missing)
+        CalendarFailureReason.INVALID_SOURCE -> stringResource(R.string.source_error_url)
+        CalendarFailureReason.ICAL_UNAVAILABLE -> stringResource(R.string.source_error_ical)
         null -> null
     }

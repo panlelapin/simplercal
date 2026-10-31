@@ -19,6 +19,9 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.CompositionLocalProvider
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -62,6 +65,25 @@ class WeekViewTest {
         composeRule.waitForIdle()
         val after = scroll.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value()
         assertEquals(before, after, 1f)
+    }
+
+    @Test fun largeFontInALowLandscapeWindowKeepsSundayReachable() {
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                MaterialTheme {
+                    Box(Modifier.fillMaxWidth().height(220.dp)) {
+                        val monday = LocalDate.of(2026, 8, 3)
+                        WeekView(WeekViewState(monday, monday, emptyEventDays(), 0, false,
+                            WeekScrollMode.LINEAR, SimulationMode.OFF, Debug1OutlineColor.APP_BAR_BACKGROUND,
+                            MaterialTheme.colorScheme.surfaceContainer, selected, 1, { selected = it }))
+                    }
+                }
+            }
+        }
+        composeRule.onNodeWithContentDescription("Sunday, August 9, 2026, 0 events")
+            .performScrollTo().performClick().assertIsSelected()
+        composeRule.runOnIdle { assertEquals(6, selected) }
     }
 
     private fun setWeek(mode: WeekScrollMode) {

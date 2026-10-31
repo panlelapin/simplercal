@@ -59,6 +59,16 @@ android {
                 "proguard-rules.pro",
             )
         }
+        create("smoke") {
+            // Disposable CI fixture: exercise R8/resource shrinking on x86_64.
+            // Its separate ID and explicit test key cannot sign a production release.
+            initWith(getByName("release"))
+            applicationIdSuffix = ".smoke"
+            signingConfig = signingConfigs.getByName("debug")
+            ndk.abiFilters.clear()
+            ndk.abiFilters += "x86_64"
+            matchingFallbacks += "release"
+        }
     }
 
     compileOptions {
@@ -93,7 +103,12 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.4.0")
     implementation("com.google.android.material:material:1.14.0")
 
+    implementation("net.sf.biweekly:biweekly:0.6.8")
+    // Biweekly exposes optional JSON types; keep the runtime classpath complete for R8.
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
+
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.9.2")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.9.2")
 }

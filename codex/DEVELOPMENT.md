@@ -49,14 +49,14 @@ Les opérations restent réservées à l'utilisateur sauf délégation explicite
 
 1. check-local : syntaxe shell, découverte JDK/SDK, functionalCheck (Detekt
    potential-bugs avec résolution de types, tests JVM Release et compilation des
-   tests Compose), XML/YAML et contrat projet/snapshots. Son log est check-local.log.
+   tests Android et suites Python isolées), XML/YAML et contrat projet/snapshots. Son log est check-local.log.
 2. Empreinte des chemins, contenu, modes exécutables et cibles symlink ; refus si
    le contenu change pendant le contrôle ou avant/après staging/commit.
 3. make-remote : préflight ADB, contrôle de fraîcheur, commit/push, dispatch du
    workflow et suivi d'un nouveau run correspondant au SHA envoyé.
 4. CI : JDK/SDK, functionalCheck, clé stable venant des secrets, APK Release réduit
-   et non débogable, tests Compose Debug sur émulateur Android 14 x86_64, vérification
-   APK, SHA-256, publication de l'artefact. Échec des tests = pas de publication.
+   et non débogable, tests Compose Debug et démarrage smoke réduit sur émulateurs
+   Android 14/16 x86_64, vérification APK, SHA-256, publication de l'artefact. Échec des tests = pas de publication.
 5. Téléchargement de l'unique APK et checksum, vérification du hash, package, SDK,
    caractère non débogable et signature. Destination : build/android-app-arm64-v8a.apk.
 6. Si un appareil autorisé a été choisi au préflight : adb install -r, vérification
@@ -112,3 +112,26 @@ partie de la commande normale. Aucun build APK local.
 `scripts/cleanup-github-actions.sh` est un outil séparé portant sur les dépôts
 publics du compte, pas uniquement SimplerCal. Ne pas l'appeler dans la livraison ;
 suppression et changement de rétention ont chacun leur confirmation explicite.
+
+
+## Suites de tests définies
+
+Voir TESTS.md pour les fichiers et scénarios. functionalCheck inclut pipelineTests,
+qui appelle Python unittest dans tests/scripts (Python 3, PyYAML, Bash et Git).
+Les doublures gh/adb/keytool/openssl et les dépôts temporaires ne touchent pas aux
+services, appareils et clés réels. Aucun SDK n'est invoqué par ces doublures.
+Les suites JVM utilisent kotlinx-coroutines-test 1.9.0 et son temps virtuel.
+
+La CI prépare Python/PyYAML, construit aussi assembleSmoke, puis exécute
+scripts/ci-device-tests 34 et 36 sur des émulateurs distincts. Ce script est réservé
+au runner Actions ; l'utilisateur continue à utiliser les points d'entrée habituels.
+Il force la réexécution des tests Android sur chaque API et vérifie que l'interface
+smoke réduite affiche Settings et Today. L'artefact android-test-reports conserve
+les rapports JVM/Android et build/ci-diagnostics même en échec. La rétention de
+l'APK existant reste de 14 jours ; le rapport utilise aussi 14 jours.
+
+Validation locale demandée et réussie le 31 octobre 2026 : scripts/check-local,
+71 tests JVM, 18 tests Python et compilation des sources des 34 tests Android.
+La CI, les démarrages R8/smoke et l'exécution des tests Android restent non exécutés
+pour ce nouvel état ; voir VALIDATION.md. Ces résultats locaux ne constituent pas
+une validation visuelle de l'application ni une livraison.

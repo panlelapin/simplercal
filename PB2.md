@@ -115,3 +115,59 @@ La compilation des tests Compose ne prouve pas leur exécution ; celle-ci appart
 à la CI Android 14. La livraison distante et les vérifications manuelles visuelles
 restent distinctes de ce résultat local. Les statuts non validés ci-dessus décrivent
 l'état avant cette exécution, et ne doivent pas être interprétés comme des résultats CI.
+
+
+## Suppression de l'appui long — demande utilisateur ultérieure
+
+**IMPLEMENTED — NOT VALIDATED** : les jours utilisent un simple clickable Material,
+sans action d'appui long ni annonce d'accessibilité associée. Le détail All events
+est en lecture seule ; les cases Vacation/Bank holiday et leurs callbacks/setters
+sont supprimés. Les anciennes préférences ne sont pas effacées. Les mentions d'appui
+long et d'édition manuelle plus haut dans ce rapport décrivent l'ancien comportement.
+Aucun contrôle, test, build, commit ou push exécuté pour cette modification.
+Les nouvelles règles des trois sources calendrier sont consignées dans
+codex/DECISIONS.md comme restant à implémenter.
+
+
+## Trois calendriers et période bornée — 31 octobre 2026
+
+**IMPLEMENTED — NOT VALIDATED**. Chaque rôle principal/fériés/vacances possède sa
+source Android, document iCalendar ou HTTPS et son activation indépendante. Seul
+le principal fournit les titres. Les autres marquent les dates recoupées ; aucune
+édition manuelle et aucun appui long. Les anciennes valeurs ne sont pas effacées,
+mais ne servent plus à l'affichage.
+
+iCalendar : import initial explicite puis Refresh manuel, jamais au démarrage ;
+snapshot atomique privé, droit document persistant et date de dernière réussite,
+conservation de la dernière copie en échec. IDs Android/documents non portables,
+snapshots exclus des sauvegardes. Parsing/récurrences par biweekly, limites et
+formats avancés explicitement refusés dans codex/ARCHITECTURE.md.
+
+La navigation et la sélection sont bornées à l'année réelle courante et suivante,
+y compris les gestes. Dates hors période grisées et désactivées dans les semaines
+limites, recalcul au changement d'année. Les lectures et imports cessent à ON_STOP.
+
+Aucune compilation, aucun test, aucun contrôle local, commit/push ou build distant
+lancé pour cette évolution. Les dépendances et empreintes ont été renseignées par
+lecture des artefacts officiels Maven Central. Les contrôles habituels et scénarios
+réels (imports, récurrences, annulations, permission, cache, frontière des années)
+restent à exécuter. À cette étape, l'ajout de tests était différé ; sa reprise est décrite ci-dessous.
+
+
+Ajout des tests du 31 octobre 2026 — IMPLEMENTED — NOT VALIDATED : 92 méthodes
+supplémentaires, soit 71 JVM, 34 Android/Compose et 18 Python définies au total.
+Temps/repositories injectables, provider et transport contrôlés, suites de scripts
+isolées, CI Android 14/16 et démarrage smoke R8 avant publication. Le calcul des
+récurrences DATE utilise une copie UTC indépendante du fuseau du processus.
+Aucun test, contrôle, build, commit/push ou déploiement exécuté pour cette passe.
+Voir codex/TESTS.md et codex/VALIDATION.md pour la portée et les limites manuelles.
+
+
+Validation locale du 31 octobre 2026, déléguée par « valide » : scripts/check-local
+réussi, 71 tests JVM et 18 tests Python réussis, zéro échec/erreur/ignoré. Detekt,
+compilation des sources des 34 tests Android, shell/XML/YAML et contrats réussis.
+Corrections du sélecteur Compose, du nettoyage des minuteurs de test, d'une fixture
+SavedStateHandle et de quatre empreintes Maven vérifiées. Détails dans
+codex/VALIDATION.md. Worktree non commité ; aucun push, workflow, APK ou installation.
+Les tests Android restent compilés mais non exécutés, et le rendu sur appareil,
+le démarrage réduit par R8 ainsi que les parcours système restent non validés.

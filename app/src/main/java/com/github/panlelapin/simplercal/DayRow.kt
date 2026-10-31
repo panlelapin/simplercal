@@ -1,7 +1,7 @@
 package com.github.panlelapin.simplercal
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -86,14 +87,12 @@ internal fun ColumnScope.DayRow(
             Modifier
                 .fillMaxWidth()
                 .weight(state.weight)
-                .combinedClickable(role = Role.Button, onClick = onClick,
-                    onLongClick = onShowDetails,
-                    onLongClickLabel = androidx.compose.ui.res.stringResource(R.string.action_day_details))
+                .clickable(enabled = day.isEnabled, role = Role.Button, onClick = onClick)
                 .semantics(mergeDescendants = true) {
                     contentDescription = accessibilityDescription
                     stateDescription = expansionDescription
                     selected = state.isSelected
-                    if (day.events.size > EXPANDED_CONTENT_LINE_COUNT) {
+                    if (day.isEnabled && day.events.size > EXPANDED_CONTENT_LINE_COUNT) {
                         customActions = listOf(CustomAccessibilityAction(allEventsLabel) {
                             onShowDetails()
                             true
@@ -160,7 +159,7 @@ private fun DayRowLayout(
 @Composable
 private fun dayAppearance(state: DayRowState): DayAppearance {
     val colorScheme = MaterialTheme.colorScheme
-    val isHighlighted = state.dayIndex == state.highlightedDayIndex
+    val isHighlighted = state.day.isEnabled && state.dayIndex == state.highlightedDayIndex
     val temporalState = temporalStateFor(state.day.date, state.referenceDate)
     val colors =
         dayColors(
@@ -171,14 +170,14 @@ private fun dayAppearance(state: DayRowState): DayAppearance {
         )
     return DayAppearance(
         isHighlighted = isHighlighted,
-        dayBackground = colors.background,
+        dayBackground = if (state.day.isEnabled) colors.background else colorScheme.surfaceContainer,
         dayAccentColor =
             if (temporalState == DayTemporalState.PAST) {
                 colorScheme.secondary
             } else {
                 colorScheme.primary
             },
-        dayTextColor = colors.foreground,
+        dayTextColor = if (state.day.isEnabled) colors.foreground else colorScheme.onSurface.copy(alpha = 0.38f),
         hasTopBorder = state.dayIndex != 0 && state.dayIndex != WEEKEND_START_INDEX + 1 &&
             state.dayIndex - 1 != state.highlightedDayIndex,
         hasBottomBorder = false, // Each ordinary seam belongs to the following row only.
@@ -306,7 +305,9 @@ private fun DayContentContainer(state: DayContentState, onShowDetails: () -> Uni
                     )
                 }
                 if (state.isExpanded && state.events.size > EXPANDED_CONTENT_LINE_COUNT) {
-                    TextButton(onClick = onShowDetails, modifier = Modifier.clearAndSetSemantics {}) {
+                    TextButton(onClick = onShowDetails, modifier = Modifier.clearAndSetSemantics {
+                        testTag = "all-events"
+                    }) {
                         Text(androidx.compose.ui.res.stringResource(R.string.action_all_events, state.events.size))
                     }
                 }
@@ -349,10 +350,12 @@ internal fun currentWeek(
     simulationMode: SimulationMode = SimulationMode.OFF,
     eventsByDay: List<List<CalendarEvent>> = emptyList(),
     markers: Map<LocalDate, DayMarkers> = emptyMap(),
+    allowedYear: Int? = null,
 ): List<WeekDay> {
     return (0 until WEEK_DAY_COUNT).map { dayIndex ->
         val date = monday.plusDays(dayIndex.toLong())
         val isSimulation = simulationMode == SimulationMode.SIMULATION
+        val enabled = allowedYear == null || allowedDate(date, allowedYear)
         WeekDay(
             date = date,
             abbreviation = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
@@ -366,12 +369,13 @@ internal fun currentWeek(
                         date.dayOfWeek == DayOfWeek.SUNDAY
                 },
             isHolidays =
-                if (isSimulation) {
+                if (!enabled) false else if (isSimulation) {
                     dayIndex <= 3
                 } else {
                     markers[date]?.isHolidays == true
                 },
-            events = eventsByDay.getOrNull(dayIndex).orEmpty(),
+            events = if (enabled) eventsByDay.getOrNull(dayIndex).orEmpty() else emptyList(),
+            isEnabled = enabled,
         )
     }
 }

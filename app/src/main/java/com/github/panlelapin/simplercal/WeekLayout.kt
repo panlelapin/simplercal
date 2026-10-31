@@ -124,20 +124,30 @@ internal fun WeekView(state: WeekViewState) {
             state.simulationMode,
             state.eventsByDay,
             state.dayMarkers,
+            state.allowedYear,
         ) {
             currentWeek(
                 monday = state.weekMonday,
                 simulationMode = state.simulationMode,
                 eventsByDay = state.eventsByDay,
                 markers = state.dayMarkers,
+                allowedYear = state.allowedYear,
             )
         }
     val interaction =
         rememberWeekInteraction(
             requestedDayIndex = state.requestedDayIndex,
             selectionRequest = state.selectionRequest,
-            onSelectionChanged = state.onSelectionChanged,
+            onSelectionChanged = { index ->
+                if (days[index].isEnabled) state.onSelectionChanged(index)
+            },
         )
+    LaunchedEffect(interaction.selectedDayIndex, state.weekMonday, state.allowedYear) {
+        if (!days[interaction.selectedDayIndex].isEnabled) {
+            val valid = days.indices.filter { days[it].isEnabled }.minBy { kotlin.math.abs(it - interaction.selectedDayIndex) }
+            interaction.selectDay(valid)
+        }
+    }
     val currentAnimatedDayWeights = rememberUpdatedState(interaction.animatedDayWeights)
     val currentSelectedDayIndex = rememberUpdatedState(interaction.selectedDayIndex)
     val currentStartDrag = rememberUpdatedState(interaction::startDrag)
@@ -148,13 +158,10 @@ internal fun WeekView(state: WeekViewState) {
         state.debug1OutlineColor.resolve(MaterialTheme.colorScheme, state.appBarBackground)
     val insets = rememberWeekInsets()
     var detailEpochDay by rememberSaveable { mutableStateOf<Long?>(null) }
-    val detailDay = days.firstOrNull { it.date.toEpochDay() == detailEpochDay }
+    val detailDay = days.firstOrNull { it.isEnabled && it.date.toEpochDay() == detailEpochDay }
     detailDay?.let { day ->
         DayDetailsDialog(
             day = day,
-            markers = state.dayMarkers[day.date] ?: DayMarkers(),
-            isSimulation = state.simulationMode == SimulationMode.SIMULATION,
-            onMarkersChange = state.onDayMarkersChange,
             onDismiss = { detailEpochDay = null },
         )
     }
@@ -190,9 +197,20 @@ internal fun WeekView(state: WeekViewState) {
                 selectedDayIndex = { currentSelectedDayIndex.value },
                 animatedDayWeights = { currentAnimatedDayWeights.value },
                 startDrag = { currentStartDrag.value() },
-                dragToFocus = { focus -> currentDragToFocus.value(focus) },
-                endDrag = { currentEndDrag.value() },
+                dragToFocus = { focus ->
+                    val validGroups = days.indices.filter { days[it].isEnabled }.map(::groupIndexFor)
+                    currentDragToFocus.value(focus.coerceIn(validGroups.min().toFloat(), validGroups.max().toFloat()))
+                },
+                endDrag = {
+                    currentEndDrag.value()
+                    if (!days[interaction.selectedDayIndex].isEnabled) {
+                        interaction.selectDay(days.indices.first { days[it].isEnabled })
+                    }
+                },
                 cancelDrag = interaction::cancelDrag,
+                enabledDayIndices = days.indices.filter { days[it].isEnabled }.toSet(),
+                minimumGroup = days.indices.filter { days[it].isEnabled }.minOf(::groupIndexFor),
+                maximumGroup = days.indices.filter { days[it].isEnabled }.maxOf(::groupIndexFor),
             ),
         )
         Row(
@@ -226,7 +244,7 @@ internal fun WeekView(state: WeekViewState) {
                                 separatorColor = separatorColor,
                                 appBarBackground = state.appBarBackground,
                             ),
-                        onSelectDay = interaction::selectDay,
+                        onSelectDay = { index -> if (days[index].isEnabled) interaction.selectDay(index) },
                         onShowDetails = { detailEpochDay = it.toEpochDay() },
                     )
                 }

@@ -45,3 +45,27 @@ Le résultat JVM historique du 30 septembre ne valide pas ces modifications.
 Validation locale déléguée le 30 octobre 2026 : scripts/check-local réussi après
 correction des tests Compose ; 18 tests JVM réussis et tests Compose compilés.
 Cela ne valide pas les comportements visuels manuels ; voir le suivi de PB2.md.
+
+
+Évolution du 31 octobre 2026 : les trois sources remplacent l'ancien calendrier
+unique et les marqueurs manuels. Statut IMPLEMENTED — NOT VALIDATED ; voir PB2.md
+et codex/ARCHITECTURE.md. Les résultats historiques ne valident pas ce nouvel état.
+
+
+Ajout des tests du 31 octobre 2026 — IMPLEMENTED — NOT VALIDATED : 92 méthodes
+supplémentaires, soit 71 JVM, 34 Android/Compose et 18 Python définies au total.
+Temps/repositories injectables, provider et transport contrôlés, suites de scripts
+isolées, CI Android 14/16 et démarrage smoke R8 avant publication. Le calcul des
+récurrences DATE utilise une copie UTC indépendante du fuseau du processus.
+Aucun test, contrôle, build, commit/push ou déploiement exécuté pour cette passe.
+Voir codex/TESTS.md et codex/VALIDATION.md pour la portée et les limites manuelles.
+
+
+Validation locale du 31 octobre 2026, déléguée par « valide » : scripts/check-local
+réussi, 71 tests JVM et 18 tests Python réussis, zéro échec/erreur/ignoré. Detekt,
+compilation des sources des 34 tests Android, shell/XML/YAML et contrats réussis.
+Corrections du sélecteur Compose, du nettoyage des minuteurs de test, d'une fixture
+SavedStateHandle et de quatre empreintes Maven vérifiées. Détails dans
+codex/VALIDATION.md. Worktree non commité ; aucun push, workflow, APK ou installation.
+Les tests Android restent compilés mais non exécutés, et le rendu sur appareil,
+le démarrage réduit par R8 ainsi que les parcours système restent non validés.

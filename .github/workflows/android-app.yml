@@ -10,7 +10,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 80
     permissions:
       contents: read
     steps:
@@ -28,6 +28,15 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+      - name: Prepare Python tests and emulator host
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo chmod 666 /dev/kvm
+          sudo apt-get update -qq
+          sudo apt-get install -y python3-yaml libpulse0 libasound2t64 libxcb-cursor0
+      - name: Create diagnostics directory
+        run: mkdir -p build/ci-diagnostics
       - name: Run functional bug checks
         run: ./gradlew functionalCheck --no-daemon --stacktrace
       - name: Restore stable signing key
@@ -52,36 +61,12 @@ jobs:
           ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
           ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
         run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
-      - name: Run Compose device tests on Android 14
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          export ANDROID_USER_HOME="$RUNNER_TEMP/android-user"
-          export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME"
-          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
-          mkdir -p "$ANDROID_AVD_HOME"
-          sudo chmod 666 /dev/kvm
-          sudo apt-get update -qq
-          sudo apt-get install -y libpulse0 libasound2t64 libxcb-cursor0
-          sdkmanager "emulator" "system-images;android-34;google_apis;x86_64"
-          echo no | avdmanager create avd -n tests -k "system-images;android-34;google_apis;x86_64" --force
-          "$ANDROID_HOME/emulator/emulator" -avd tests -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
-          emulator_pid=$!
-          trap 'result=$?; if (( result != 0 )); then tail -n 150 "$RUNNER_TEMP/emulator.log"; fi; kill "$emulator_pid" 2>/dev/null || true; exit "$result"' EXIT
-          for attempt in $(seq 1 180); do
-            kill -0 "$emulator_pid" 2>/dev/null || { wait "$emulator_pid"; exit 1; }
-            if adb get-state 2>/dev/null | grep -qx device; then break; fi
-            sleep 1
-          done
-          test "$(adb get-state 2>/dev/null)" == device
-          booted=false
-          for attempt in $(seq 1 180); do
-            if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; then booted=true; break; fi
-            sleep 1
-          done
-          test "$booted" == true || { tail -n 100 "$RUNNER_TEMP/emulator.log"; exit 1; }
-          adb shell input keyevent 82
-          ./gradlew :app:connectedDebugAndroidTest --no-daemon --stacktrace
+      - name: Build minified emulator smoke fixture
+        run: ./gradlew :app:assembleSmoke --no-daemon --stacktrace
+      - name: Run Compose and minified smoke tests on Android 14
+        run: ./scripts/ci-device-tests 34
+      - name: Run Compose and minified smoke tests on Android 16
+        run: ./scripts/ci-device-tests 36
       - name: Verify, collect, and checksum exactly one APK
         shell: bash
         run: |
@@ -100,6 +85,19 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+      - name: Upload test reports and emulator diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+            build/ci-diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Remove temporary signing key
         if: always()
         run: rm -f -- "$RUNNER_TEMP/release.jks"

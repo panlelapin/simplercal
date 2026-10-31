@@ -62,7 +62,22 @@ internal fun SettingsScreen(
     state: AppUiState,
     actions: SettingsActions,
 ) {
-    var calendarPickerVisible by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    val sourceContext = LocalContext.current
+    var calendarPickerRole by rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    var pendingPermissionRole by rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    var pendingFileRole by rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val role = pendingFileRole?.let(CalendarRole::valueOf)
+        pendingFileRole = null
+        if (uri != null && role != null) {
+            try {
+                sourceContext.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                actions.onSourceSelected(role, CalendarSourceKind.LOCAL, uri.toString())
+            } catch (_: SecurityException) {
+                Toast.makeText(sourceContext, R.string.source_error_access, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
     var accentPickerVisible by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     var selectedScheduleSlot by rememberSaveable {
         androidx.compose.runtime.mutableStateOf<Int?>(null)
@@ -70,6 +85,8 @@ internal fun SettingsScreen(
     val permissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             actions.onCalendarPermissionResult(granted)
+            if (granted) calendarPickerRole = pendingPermissionRole
+            pendingPermissionRole = null
         }
     val appBarBackground = MaterialTheme.colorScheme.surfaceContainer
 
@@ -91,12 +108,18 @@ internal fun SettingsScreen(
     ) { innerPadding ->
         SettingsContent(
             state = state,
-            onRequestCalendarPermission = {
-                permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+            onOpenCalendarPicker = { role ->
+                if (state.hasCalendarPermission) {
+                    actions.onRefreshCalendars()
+                    calendarPickerRole = role.name
+                } else {
+                    pendingPermissionRole = role.name
+                    permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                }
             },
-            onOpenCalendarPicker = {
-                actions.onRefreshCalendars()
-                calendarPickerVisible = true
+            onOpenLocalFile = { role ->
+                pendingFileRole = role.name
+                fileLauncher.launch(arrayOf("text/calendar", "text/plain", "application/ics", "application/octet-stream"))
             },
             onOpenTimePicker = { selectedScheduleSlot = it },
             onOpenAccentPicker = { accentPickerVisible = true },
@@ -105,14 +128,14 @@ internal fun SettingsScreen(
         )
     }
 
-    if (calendarPickerVisible) {
+    calendarPickerRole?.let { roleName ->
         CalendarPickerDialog(
             state = state,
             onSelect = {
-                actions.onCalendarSelected(it)
-                calendarPickerVisible = false
+                actions.onCalendarSelected(CalendarRole.valueOf(roleName), it)
+                calendarPickerRole = null
             },
-            onDismiss = { calendarPickerVisible = false },
+            onDismiss = { calendarPickerRole = null },
         )
     }
     if (accentPickerVisible) {
@@ -140,8 +163,8 @@ internal fun SettingsScreen(
 @Composable
 private fun SettingsContent(
     state: AppUiState,
-    onRequestCalendarPermission: () -> Unit,
-    onOpenCalendarPicker: () -> Unit,
+    onOpenCalendarPicker: (CalendarRole) -> Unit,
+    onOpenLocalFile: (CalendarRole) -> Unit,
     onOpenTimePicker: (Int) -> Unit,
     onOpenAccentPicker: () -> Unit,
     actions: SettingsActions,
@@ -155,11 +178,7 @@ private fun SettingsContent(
                 .verticalScroll(rememberScrollState()),
     ) {
         Spacer(Modifier.height(24.dp))
-        CalendarSection(
-            state = state,
-            onRequestPermission = onRequestCalendarPermission,
-            onOpenPicker = onOpenCalendarPicker,
-        )
+        CalendarSourcesSection(state, actions, onOpenCalendarPicker, onOpenLocalFile)
         ScheduleSection(state.scheduleTimes, onOpenTimePicker)
         SingleChoiceSection(
             title = stringResource(R.string.section_theme),
@@ -216,36 +235,6 @@ private fun SettingsContent(
         )
         Spacer(Modifier.height(24.dp))
     }
-}
-
-@Composable
-private fun CalendarSection(
-    state: AppUiState,
-    onRequestPermission: () -> Unit,
-    onOpenPicker: () -> Unit,
-) {
-    Text(stringResource(R.string.section_calendar), style = MaterialTheme.typography.titleMedium)
-    Spacer(Modifier.height(8.dp))
-    if (!state.hasCalendarPermission) {
-        Text(stringResource(R.string.calendar_permission_explanation))
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = onRequestPermission) { Text(stringResource(R.string.action_allow)) }
-    } else {
-        val selectedCalendar = state.calendars.firstOrNull { it.id == state.selectedCalendarId }
-        Button(
-            onClick = onOpenPicker,
-            enabled = !state.isCalendarListLoading,
-        ) {
-            Text(selectedCalendar?.name ?: stringResource(R.string.action_choose_calendar))
-        }
-        if (state.isCalendarListLoading) {
-            CircularProgressIndicator()
-        } else if (state.calendars.isEmpty() && state.calendarListFailure == null) {
-            Text(stringResource(R.string.calendar_none_available))
-        }
-        calendarFailureMessage(state.calendarListFailure ?: state.calendarFailure)?.let { Text(it) }
-    }
-    Spacer(Modifier.height(24.dp))
 }
 
 @Composable
@@ -318,7 +307,13 @@ private fun CalendarPickerDialog(
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
         title = { Text(stringResource(R.string.action_choose_calendar)) },
         text = {
+            val failureMessage = calendarFailureMessage(state.calendarListFailure)
             LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
+                if (state.isCalendarListLoading) item { CircularProgressIndicator() }
+                failureMessage?.let { message -> item { Text(message) } }
+                if (!state.isCalendarListLoading && state.calendars.isEmpty() && state.calendarListFailure == null) {
+                    item { Text(stringResource(R.string.calendar_none_available)) }
+                }
                 items(state.calendars, key = { it.id }) { calendar ->
                     TextButton(
                         modifier = Modifier.fillMaxWidth(),
@@ -440,5 +435,7 @@ private fun calendarFailureMessage(reason: CalendarFailureReason?): String? =
             stringResource(R.string.calendar_error_provider)
         CalendarFailureReason.CALENDAR_UNAVAILABLE ->
             stringResource(R.string.calendar_error_missing)
+        CalendarFailureReason.INVALID_SOURCE -> stringResource(R.string.source_error_url)
+        CalendarFailureReason.ICAL_UNAVAILABLE -> stringResource(R.string.source_error_ical)
         null -> null
     }

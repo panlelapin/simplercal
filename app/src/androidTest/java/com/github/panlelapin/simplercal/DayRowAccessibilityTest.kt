@@ -12,6 +12,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
@@ -24,6 +25,26 @@ import org.junit.Test
 class DayRowAccessibilityTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun outsideYearDayIsDisabledAndHasNoLongPressOrDetailsAction() {
+        val date = LocalDate.of(2025, 12, 29)
+        composeRule.setContent {
+            MaterialTheme {
+                Column(Modifier.fillMaxSize()) {
+                    DayRow(DayRowState(0, null, date, false,
+                        WeekDay(date, "Mon", false, false, emptyList(), isEnabled = false),
+                        false, false, false, 1f, 80.dp, Color.Gray, Color.LightGray),
+                        onClick = { error("Disabled day was selected") },
+                        onShowDetails = { error("Disabled details were opened") })
+                }
+            }
+        }
+        composeRule.onNodeWithContentDescription("Monday, December 29, 2025, 0 events")
+            .assertIsNotEnabled()
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnLongClick))
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.CustomActions))
+    }
 
     @Test
     fun overflowEventsKeepOneClickableNodeAndAnAccessibleDetailsAction() {

@@ -1,7 +1,6 @@
 package com.github.panlelapin.simplercal
 
 import android.Manifest
-import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
 import android.database.Cursor
@@ -14,6 +13,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -57,32 +57,44 @@ internal enum class CalendarFailureReason {
     PERMISSION_REVOKED,
     PROVIDER_UNAVAILABLE,
     CALENDAR_UNAVAILABLE,
+    INVALID_SOURCE,
+    ICAL_UNAVAILABLE,
+}
+
+internal fun interface CalendarQuery {
+    fun query(uri: android.net.Uri, projection: Array<String>, selection: String?, arguments: Array<String>?,
+        order: String?, cancellation: CancellationSignal): Cursor?
 }
 
 internal class CalendarRepository(
     private val context: Context,
-) {
-    fun hasPermission(): Boolean =
-        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) ==
-            PackageManager.PERMISSION_GRANTED
+    private val query: CalendarQuery = CalendarQuery { uri, projection, selection, arguments, order, signal ->
+        context.contentResolver.query(uri, projection, selection, arguments, order, signal)
+    },
+    private val permission: () -> Boolean = {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
+    },
+    private val io: CoroutineDispatcher = Dispatchers.IO,
+) : CalendarGateway {
+    override fun hasPermission(): Boolean = permission()
 
-    suspend fun loadWeek(
+    override suspend fun loadWeek(
         calendarId: Long,
         monday: LocalDate,
-        zoneId: ZoneId = ZoneId.systemDefault(),
+        zoneId: ZoneId,
     ): CalendarWeekResult =
-        withContext(Dispatchers.IO) {
+        withContext(io) {
             if (calendarId < 0L) return@withContext CalendarWeekResult.Success(emptyEventDays())
             if (!hasPermission()) return@withContext CalendarWeekResult.PermissionRequired
             try {
                 val weekStart = monday.atStartOfDay(zoneId)
                 val weekEnd = monday.plusDays(WEEK_DAY_COUNT.toLong()).atStartOfDay(zoneId)
                 val instances = cancellableProviderRead { cancellation ->
-                    if (!calendarExists(context.contentResolver, calendarId, cancellation)) {
+                    if (!calendarExists(query, calendarId, cancellation)) {
                         return@cancellableProviderRead null
                     }
                     readCalendarInstances(
-                        resolver = context.contentResolver,
+                        query = query,
                         calendarId = calendarId,
                         beginMillis = weekStart.toInstant().toEpochMilli(),
                         endMillis = weekEnd.toInstant().toEpochMilli(),
@@ -104,13 +116,13 @@ internal class CalendarRepository(
             }
         }
 
-    suspend fun loadCalendars(): CalendarChoicesResult =
-        withContext(Dispatchers.IO) {
+    override suspend fun loadCalendars(): CalendarChoicesResult =
+        withContext(io) {
             if (!hasPermission()) return@withContext CalendarChoicesResult.PermissionRequired
             try {
                 CalendarChoicesResult.Success(
                     cancellableProviderRead { cancellation -> readCalendars(
-                        resolver = context.contentResolver,
+                        query = query,
                         unnamedCalendarName = context.getString(R.string.calendar_unnamed),
                         cancellation = cancellation,
                     ) },
@@ -142,8 +154,8 @@ private suspend fun <T> cancellableProviderRead(read: (CancellationSignal) -> T)
 internal fun requireCalendarCursor(cursor: Cursor?): Cursor =
     checkNotNull(cursor) { "Calendar Provider returned no cursor" }
 
-private fun calendarExists(resolver: ContentResolver, id: Long, cancellation: CancellationSignal): Boolean =
-    resolver.query(
+private fun calendarExists(query: CalendarQuery, id: Long, cancellation: CancellationSignal): Boolean =
+    query.query(
         CalendarContract.Calendars.CONTENT_URI,
         arrayOf(CalendarContract.Calendars._ID),
         "${CalendarContract.Calendars._ID} = ?",
@@ -155,7 +167,7 @@ private fun calendarExists(resolver: ContentResolver, id: Long, cancellation: Ca
     }
 
 private fun readCalendarInstances(
-    resolver: ContentResolver,
+    query: CalendarQuery,
     calendarId: Long,
     beginMillis: Long,
     endMillis: Long,
@@ -181,7 +193,7 @@ private fun readCalendarInstances(
         "${CalendarContract.Instances.BEGIN} ASC, " +
             "${CalendarContract.Instances.END} ASC, " +
             "${CalendarContract.Instances.EVENT_ID} ASC"
-    return resolver.query(
+    return query.query(
         uri,
         projection,
         selection,
@@ -215,7 +227,7 @@ private fun Cursor.readEvents(untitledEventName: String, cancellation: Cancellat
     }
 
 private fun readCalendars(
-    resolver: ContentResolver,
+    query: CalendarQuery,
     unnamedCalendarName: String,
     cancellation: CancellationSignal,
 ): List<CalendarChoice> {
@@ -229,7 +241,7 @@ private fun readCalendars(
     val sortOrder =
         "${CalendarContract.Calendars.CALENDAR_DISPLAY_NAME} COLLATE NOCASE ASC, " +
             "${CalendarContract.Calendars.ACCOUNT_NAME} COLLATE NOCASE ASC"
-    return resolver.query(
+    return query.query(
         CalendarContract.Calendars.CONTENT_URI,
         projection,
         null,

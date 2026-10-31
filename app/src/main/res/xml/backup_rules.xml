@@ -1,3 +1,4 @@
 <full-backup-content>
     <exclude domain="sharedpref" path="calendar_device.xml" />
+    <exclude domain="file" path="ical_sources/" />
 </full-backup-content>

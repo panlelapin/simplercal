@@ -145,7 +145,7 @@ run_check() {
 # shellcheck disable=SC2317
 check_shell_syntax() {
     local script
-    for script in scripts/check-github-stuff scripts/check-local scripts/make-remote scripts/verify-apk gradlew scripts/configure-signing scripts/cleanup-github-actions.sh scripts/build-remote; do
+    for script in scripts/check-github-stuff scripts/check-local scripts/make-remote scripts/verify-apk gradlew scripts/configure-signing scripts/cleanup-github-actions.sh scripts/build-remote scripts/ci-device-tests; do
         [[ -f "$script" ]] || continue
         bash -n "$script" || return 1
     done
@@ -154,7 +154,7 @@ check_shell_syntax() {
 # shellcheck disable=SC2317
 check_shellcheck() {
     local script
-    for script in scripts/check-github-stuff scripts/check-local scripts/make-remote scripts/verify-apk gradlew scripts/configure-signing scripts/cleanup-github-actions.sh scripts/build-remote; do
+    for script in scripts/check-github-stuff scripts/check-local scripts/make-remote scripts/verify-apk gradlew scripts/configure-signing scripts/cleanup-github-actions.sh scripts/build-remote scripts/ci-device-tests; do
         [[ -f "$script" ]] || continue
         shellcheck "$script" || return 1
     done

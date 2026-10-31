@@ -20,20 +20,18 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.isActive
 
 /** Refreshes the displayed week when the Android Calendar Provider changes. */
 @Composable
 internal fun CalendarChangesEffect(
     context: Context,
-    calendarId: Long,
+    calendarIds: Set<Long>,
     hasPermission: Boolean,
     onCalendarChanged: () -> Unit,
     onPermissionRevoked: () -> Unit,
     lifecycle: Lifecycle?,
     onObservationFailed: (Boolean) -> Unit,
+    registrationFactory: ((() -> Unit) -> CalendarObserverRegistration)? = null,
 ) {
     val currentOnCalendarChanged = rememberUpdatedState(onCalendarChanged)
     val currentOnPermissionRevoked = rememberUpdatedState(onPermissionRevoked)
@@ -48,55 +46,27 @@ internal fun CalendarChangesEffect(
         lifecycle?.addObserver(listener)
         onDispose { lifecycle?.removeObserver(listener) }
     }
-    DisposableEffect(context, calendarId, hasPermission, isStarted) {
-        if (calendarId < 0L || !hasPermission || !isStarted) {
+    DisposableEffect(context, calendarIds, hasPermission, isStarted, registrationFactory) {
+        if (calendarIds.isEmpty() || !hasPermission || !isStarted) {
             currentOnObservationFailed.value(false)
             onDispose {}
         } else {
-            val observer = CalendarContentObserver {
-                currentOnCalendarChanged.value()
-            }
-            var registered = false
-            var eventsRegistered = false
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-            scope.launch {
-                var retryDelay = 1_000L
-                while (isActive && !registered) {
-                    try {
-                        if (!eventsRegistered) {
-                            context.contentResolver.registerContentObserver(
-                                CalendarContract.Events.CONTENT_URI, true, observer,
-                            )
-                            eventsRegistered = true
-                        }
-                        context.contentResolver.registerContentObserver(
-                            CalendarContract.Calendars.CONTENT_URI, true, observer,
-                        )
-                        registered = true
-                        currentOnObservationFailed.value(false)
-                    } catch (error: SecurityException) {
-                        Log.e(LOG_TAG, "Calendar observer registration was denied", error)
-                        currentOnPermissionRevoked.value()
-                        break
-                    } catch (error: RuntimeException) {
-                        Log.e(LOG_TAG, "Calendar observer registration failed", error)
-                        currentOnObservationFailed.value(true)
-                    }
-                    if (!registered) {
-                        delay(retryDelay)
-                        retryDelay = (retryDelay * 2).coerceAtMost(30_000L)
-                    }
+            val changed = { currentOnCalendarChanged.value() }
+            val registration = registrationFactory?.invoke(changed) ?: object : CalendarObserverRegistration {
+                private val observer = CalendarContentObserver(changed)
+                override fun events() = context.contentResolver.registerContentObserver(CalendarContract.Events.CONTENT_URI, true, observer)
+                override fun calendars() = context.contentResolver.registerContentObserver(CalendarContract.Calendars.CONTENT_URI, true, observer)
+                override fun close() {
+                    try { context.contentResolver.unregisterContentObserver(observer) }
+                    catch (error: RuntimeException) { Log.w(LOG_TAG, "Calendar observer cleanup failed", error) }
                 }
             }
+            val observation = CalendarObservation(scope, registration,
+                { currentOnPermissionRevoked.value() }, { currentOnObservationFailed.value(it) })
             onDispose {
+                observation.close()
                 scope.cancel()
-                if (eventsRegistered) {
-                    try {
-                        context.contentResolver.unregisterContentObserver(observer)
-                    } catch (error: RuntimeException) {
-                        Log.w(LOG_TAG, "Calendar observer cleanup failed", error)
-                    }
-                }
             }
         }
     }
