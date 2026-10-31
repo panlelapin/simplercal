@@ -171,3 +171,9 @@ SavedStateHandle et de quatre empreintes Maven vérifiées. Détails dans
 codex/VALIDATION.md. Worktree non commité ; aucun push, workflow, APK ou installation.
 Les tests Android restent compilés mais non exécutés, et le rendu sur appareil,
 le démarrage réduit par R8 ainsi que les parcours système restent non validés.
+
+
+Première tentative distante du 31 octobre 2026 : run 41180654110 échoué à cause
+de ripgrep absent du runner pour les tests de scripts. Installation explicite
+ajoutée au workflow ; nouvel essai requis. Aucun APK publié par ce run, aucun
+appareil ADB autorisé. Les résultats locaux précédents restent distincts.

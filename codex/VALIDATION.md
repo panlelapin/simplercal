@@ -119,3 +119,14 @@ Scripts/CI et variantes modifiés, avec snapshot check-local mis à jour. Aucun
 contrôle, test, compilation, commit/push, dispatch, récupération ou installation
 exécuté pour cette passe. **IMPLEMENTED — NOT VALIDATED**. Les limites du plan sont
 consignées dans TESTS.md ; une relecture des sources ne vaut pas exécution.
+
+
+## Première tentative CI des trois sources — 31 octobre 2026
+
+Commit e7779a1e68af3a0f7b9ae683831b69cde9d5a96b, run
+https://github.com/panlelapin/simplercal/actions/runs/41180654110 : échec dans
+pipelineTests, car ripgrep n'était pas installé sur le runner Ubuntu. Les trois
+tests qui exécutent check-local dans leur fixture ont détecté le prérequis absent.
+Correction : installation explicite du paquet ripgrep dans la préparation CI.
+Aucun APK publié pour ce run ; aucun appareil ADB autorisé détecté localement.
+La tentative suivante doit valider la correction et exécuter les émulateurs.
