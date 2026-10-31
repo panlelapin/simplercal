@@ -57,7 +57,8 @@ internal class AppViewModel(
         savedStateHandle[STATE_SELECTED_DAY] = selected
         uiState = uiState.copy(
             title = weekTitle(monday), displayedMonday = monday, selectedDayIndex = selected,
-            allowedYear = year, referenceDate = reference, highlightedDayIndex = dayIndexInWeek(reference, monday)?.takeIf { allowedDate(reference, year) },
+            allowedYear = year, referenceZone = environment.zone(), referenceDate = reference,
+            highlightedDayIndex = dayIndexInWeek(reference, monday)?.takeIf { allowedDate(reference, year) },
             hasCalendarPermission = calendarRepository.hasPermission() && !providerPermissionDenied,
             selectionRequest = uiState.selectionRequest + if (selected != uiState.selectedDayIndex) 1 else 0,
         )
@@ -282,7 +283,8 @@ internal class AppViewModel(
             isSettingsVisible = savedStateHandle[STATE_SETTINGS_VISIBLE] ?: false,
             accentTheme = preferences.accentTheme(), themeMode = preferences.themeMode(), scrollMode = preferences.scrollMode(),
             simulationMode = simulation, debug1OutlineColor = preferences.debug1OutlineColor(), scheduleTimes = preferences.scheduleTimes(),
-            calendarSources = CalendarRole.entries.associateWith { CalendarSourceState(sources.source(it)) }, allowedYear = year)
+            calendarSources = CalendarRole.entries.associateWith { CalendarSourceState(sources.source(it)) },
+            allowedYear = year, referenceZone = environment.zone())
     }
 
     private fun setDisplayedMonday(monday: LocalDate) {

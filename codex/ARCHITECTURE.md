@@ -67,7 +67,8 @@ provider sont indépendants de l'écran visible et actifs seulement au lifecycle
 STARTED avec permission et au moins un calendrier Android actif ; ils sont démontés à l'arrêt et
 lorsque leurs clés changent. Le retry d'inscription double de 1 à 30 secondes.
 
-Le repository capture un fuseau pour la requête de semaine. Les résultats sont
+Le ViewModel expose aussi referenceZone à la vue, qui le compare à loadedEventsZone
+sans relire un autre fuseau global. Le repository capture un fuseau pour la requête de semaine. Les résultats sont
 rejetés si la révision, le calendrier, le lundi ou le fuseau ont changé. Les données
 affichées doivent aussi porter le bon lundi/calendrier/fuseau et une permission
 valide. Une erreur transitoire garde les anciennes données uniquement dans ce

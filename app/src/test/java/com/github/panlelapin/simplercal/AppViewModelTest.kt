@@ -257,6 +257,7 @@ class AppViewModelTest {
         assertTrue(model.uiState.eventsByDay.all { it.isEmpty() })
         reload()
         assertEquals(date, model.uiState.referenceDate)
+        assertEquals(zone, model.uiState.referenceZone)
         assertEquals(zone, model.uiState.loadedEventsZone)
         assertEquals("Europe/Paris", model.uiState.eventsByDay[0].single().title)
     }

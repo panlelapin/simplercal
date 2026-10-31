@@ -130,3 +130,20 @@ tests qui exécutent check-local dans leur fixture ont détecté le prérequis a
 Correction : installation explicite du paquet ripgrep dans la préparation CI.
 Aucun APK publié pour ce run ; aucun appareil ADB autorisé détecté localement.
 La tentative suivante doit valider la correction et exécuter les émulateurs.
+
+
+## Deuxième tentative CI — 31 octobre 2026
+
+Commit a0e5dc47dd4b1c5b799029667de0600c80878e6e, run
+https://github.com/panlelapin/simplercal/actions/runs/41180946984 : functionalCheck,
+construction Release signée/réduite et construction smoke réussis. Android 14 :
+34 tests exécutés, 32 réussis et 2 échecs dans les parcours All events. Les rapports
+JVM confirment les 71 réussites sans échec/ignoré sur le runner propre.
+
+La garde d'affichage de MainScreen comparait loadedEventsZone au fuseau système
+global, alors que le ViewModel de ces parcours utilise ZoneOffset.UTC injecté.
+Correction : le ViewModel expose referenceZone à l'initialisation et à update ;
+la vue valide ses données avec ce même contexte. Les tests de changement de
+fuseau vérifient aussi referenceZone. Les assertions des parcours UI sont conservées.
+Nouvel essai requis pour les deux API et le démarrage smoke ; aucun APK publié
+par ce run, aucune installation physique.

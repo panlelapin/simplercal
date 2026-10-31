@@ -267,7 +267,7 @@ private fun MainScreen(
                             eventsByDay =
                                 if (
                                     state.loadedEventsMonday == state.displayedMonday &&
-                                        state.loadedEventsZone == java.time.ZoneId.systemDefault()
+                                        state.loadedEventsZone == state.referenceZone
                                 ) {
                                     state.eventsByDay
                                 } else {

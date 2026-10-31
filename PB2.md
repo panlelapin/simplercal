@@ -177,3 +177,11 @@ Première tentative distante du 31 octobre 2026 : run 41180654110 échoué à ca
 de ripgrep absent du runner pour les tests de scripts. Installation explicite
 ajoutée au workflow ; nouvel essai requis. Aucun APK publié par ce run, aucun
 appareil ADB autorisé. Les résultats locaux précédents restent distincts.
+
+
+Deuxième tentative distante du 31 octobre 2026 : run 41180946984. Release signée
+et smoke construits, contrôles fonctionnels réussis. Android 14 : 32/34 tests
+réussis ; les deux parcours All events détectent un mélange entre fuseau injecté
+du ViewModel et fuseau global relu par la vue. referenceZone est désormais transmis
+par l'état du ViewModel et utilisé dans la garde d'affichage. Assertions conservées,
+validation des deux API et smoke à refaire. Aucun APK publié par ce run.

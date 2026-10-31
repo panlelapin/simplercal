@@ -55,6 +55,7 @@ internal data class AppUiState(
     val scheduleTimes: List<Int>,
     val calendarSources: Map<CalendarRole, CalendarSourceState> = emptyMap(),
     val allowedYear: Int = LocalDate.now().year,
+    val referenceZone: java.time.ZoneId = java.time.ZoneId.systemDefault(),
     val loadedEventsZone: java.time.ZoneId? = null,
     val dayMarkers: Map<LocalDate, DayMarkers> = emptyMap(),
     val hasCalendarObserverFailure: Boolean = false,
