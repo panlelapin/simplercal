@@ -240,9 +240,9 @@ avec des réponses contrôlées, sans lire les comptes du téléphone.
 La normalisation privée des DATE iCalendar en dates-heures UTC pour l'itérateur
 évite le fuseau global imposé par biweekly à ses itérateurs DATE. Les modèles
 retournés restent allDay et gardent leur fin UTC exclusive. La suite JVM de parsing
-passe lors des validations locale et CI du 31 octobre 2026. Les 34 tests Android
-par API et le démarrage smoke passent sur Android 14/16 ; les parcours manuels
-restent distincts, voir VALIDATION.md.
+passe lors des validations locale et CI. La dernière validation complète du
+1er novembre 2026 réussit avec 55 tests Android par API et le démarrage smoke sur
+Android 14/16 ; les parcours manuels restent distincts, voir VALIDATION.md.
 
 La variante smoke reprend minification/réduction des ressources de Release,
 utilise le suffixe .smoke et la clé de test Android explicite pour l'émulateur
@@ -296,6 +296,7 @@ des événements, même en configuration incomplète ou pour un événement hors
 Le détail reste fondé sur les instances originales du jour et reçoit referenceZone.
 
 Contrôle local des panneaux et des créneaux réussi le 1er novembre 2026 :
-110 tests JVM et 18 Python, Detekt et compilation des 55 tests Android.
-L'exécution sur Android, l'APK et les limites physiques restent des preuves
-distinctes consignées dans VALIDATION.md.
+110 tests JVM et 19 Python, Detekt et compilation des 55 tests Android.
+Les 55 tests Android réussissent sur chacune des API 34/36, avec démarrage smoke
+minifié. L'APK signé est récupéré et vérifié ; aucune installation physique.
+Révision, rapports et limites sont consignés dans VALIDATION.md.

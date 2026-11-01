@@ -76,6 +76,7 @@ Les limites de l'importeur sont explicites dans CONTRACT.md et ARCHITECTURE.md.
   notamment si les horaires sont incomplets ou si un événement ne touche aucune plage.
 - Projection asynchrone annulable, sans nouvelle lecture des sources ; données
   métier originales conservées et anciens résultats de projection rejetés.
-- Statut : implémenté, contrôle local réussi le 1er novembre 2026 ; compilation
-  des tests Android distincte de leur exécution. SCHEDULES.md et VALIDATION.md
-  contiennent les règles, preuves datées et limites actuelles.
+- Statut : implémenté, contrôle local et CI réussis le 1er novembre 2026 ;
+  55 tests Android par API 34/36, démarrages smoke, APK signé récupéré/vérifié.
+  SCHEDULES.md et VALIDATION.md contiennent les règles, preuves datées et limites
+  physiques encore présentes.

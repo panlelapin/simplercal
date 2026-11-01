@@ -4,12 +4,17 @@ La suite contient **110 tests JVM, 55 tests Android/Compose et 19 tests Python**
 soit 184 méthodes définies. L'évolution des créneaux ajoute 30 tests : 22 de
 projection, un de préférences/ViewModel, six d'interface et un parcours de réglages.
 
-**Contrôle local réussi le 1er novembre 2026** : 110 tests JVM et 18 tests Python,
+**Contrôle local réussi le 1er novembre 2026** : 110 tests JVM et 19 tests Python,
 zéro échec/erreur/ignoré ; Detekt potential-bugs, compilation des 55 tests Android
 et contrats shell/XML/YAML/projet réussis via scripts/build-remote.
-Ces résultats couvrent les panneaux et les créneaux ; le 19e test Python, ajouté
-après l'incident de démarrage émulateur, reste à exécuter. L'exécution Android et l'APK
-de la nouvelle CI restent en cours ; voir VALIDATION.md pour les preuves datées.
+Ces résultats couvrent les panneaux, les créneaux et l'échec borné du démarrage
+émulateur malgré une commande ADB bloquée. La CI réussit également :
+**55 tests sur API 34 et 55 sur API 36**, zéro échec/erreur/ignoré, plus les deux
+démarrages smoke minifiés. Révision applicative
+938a6569b8f2f9d8a27352346dc47c8d7fb7cbf6,
+[run 41253981642](https://github.com/panlelapin/simplercal/actions/runs/41253981642).
+APK signé récupéré et vérifié ; aucune installation physique. Voir VALIDATION.md
+pour les preuves détaillées et les limites.
 
 ## Inventaire défini dans les sources
 
@@ -91,7 +96,7 @@ nécessaires pour éviter de revendiquer une couverture inexistante :
   Android et son transfert vers une autre installation restent à vérifier.
 - Les tests HTTPS utilisent des connexions simulées. Les certificats, un serveur
   HTTPS réel, ses timeouts et les coupures réseau du système ne sont pas exercés.
-- Sur la dernière CI antérieure à la refonte, le détail complet est vérifié via le bouton tactile et l'action d'accessibilité.
+- En CI, le détail complet est vérifié via le bouton tactile et l'action d'accessibilité.
   Un parcours TalkBack réel, les insets/navigation par boutons/gestes et
   l'apparence des contours/couleurs demandent encore une observation manuelle.
 - Smoke prouve, lorsqu'il passe, le démarrage minifié de sa variante de test.

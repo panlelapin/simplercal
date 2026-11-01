@@ -145,10 +145,10 @@ minutes et conservent les diagnostics même en échec.
 Voir les [options officielles de l'émulateur](https://developer.android.com/studio/run/emulator-commandline)
 pour -partition-size et -no-metrics.
 
-Validation locale et distante réussie le 31 octobre 2026 : scripts/check-local,
-71 tests JVM et 18 tests Python, 34 tests Android par API (34 et 36), constructions
+Validation locale et distante réussie le 1er novembre 2026 : scripts/check-local,
+110 tests JVM et 19 tests Python, 55 tests Android par API (34 et 36), constructions
 Release/smoke réduites et démarrage smoke sur les deux API.
-[Run 41181942792](https://github.com/panlelapin/simplercal/actions/runs/41181942792),
-révision applicative ec9adf3806f4b0790b99cb13a9b4f50808f7ae60. APK récupéré et vérifié par
+[Run 41253981642](https://github.com/panlelapin/simplercal/actions/runs/41253981642),
+révision applicative 938a6569b8f2f9d8a27352346dc47c8d7fb7cbf6. APK récupéré et vérifié par
 les scripts. Aucun appareil ADB autorisé, donc aucune installation physique.
 Ces preuves ne constituent pas une validation visuelle manuelle ; voir VALIDATION.md.

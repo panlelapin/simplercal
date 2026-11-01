@@ -2,9 +2,11 @@
 
 > Évolution ultérieure : les cinq horaires pilotent désormais cinq lignes fixes
 > de créneaux. Voir [SCHEDULES.md](SCHEDULES.md). Le contrôle local commun aux
-> panneaux et créneaux a réussi le 1er novembre 2026 : 110 tests JVM, 18 Python,
-> Detekt, compilation des 55 tests Android et contrats du projet. L'exécution
-> Android, la CI et l'APK sont consignés dans [VALIDATION.md](VALIDATION.md).
+> panneaux et créneaux a réussi le 1er novembre 2026 : 110 tests JVM, 19 Python,
+> Detekt, compilation des 55 tests Android et contrats du projet. Les 55 tests
+> passent sur chacune des API 34/36, avec les deux démarrages smoke minifiés.
+> APK signé récupéré/vérifié ; aucune mesure physique. Les preuves sont dans
+> [VALIDATION.md](VALIDATION.md).
 
 > Les constats ci-dessous décrivent la révision auditée. Une reprise applicative
 > a ensuite été implémentée ; son statut et ses preuves sont consignés dans
@@ -437,7 +439,7 @@ dans TESTS.md et VALIDATION.md. Aucun résultat de fluidité physique n’est re
 
 Le premier contrôle local de cette reprise avait réussi avec 87 tests JVM,
 18 Python et compilation de 48 tests Android. Le contrôle commun ultérieur aux
-panneaux et aux créneaux réussit avec 110 JVM, 18 Python et compilation des
+panneaux et aux créneaux réussit avec 110 JVM, 19 Python et compilation des
 55 tests Android ; voir VALIDATION.md pour les preuves locales/distantes datées.
 Le trait ordinaire est un chemin ouvert, sans masque supprimant les côtés à la
 jointure du weekend ; le contour courant suit exactement le rayon extérieur.

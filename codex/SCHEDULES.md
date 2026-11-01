@@ -96,5 +96,7 @@ La projection publiée porte son entrée (semaine, données, heures, fuseau), qu
 toujours correspondre à l'entrée courante avant affichage.
 
 Contrôle local des panneaux et des créneaux réussi le 1er novembre 2026 :
-110 tests JVM et 18 Python, Detekt et compilation des 55 tests Android.
-L'exécution Android et l'APK sont consignés séparément dans VALIDATION.md.
+110 tests JVM et 19 Python, Detekt et compilation des 55 tests Android.
+CI réussie : 55 tests Android sur chaque API 34/36, plus démarrage smoke minifié.
+L'APK signé est récupéré et vérifié ; aucune installation physique. Révision,
+rapports, SHA-256 et limites sont consignés dans VALIDATION.md.

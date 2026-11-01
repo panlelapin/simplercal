@@ -1,5 +1,46 @@
 # Validation et passage de relais
 
+## Dernière validation complète — 1er novembre 2026
+
+Révision applicative **938a6569b8f2f9d8a27352346dc47c8d7fb7cbf6**,
+[run 41253981642](https://github.com/panlelapin/simplercal/actions/runs/41253981642)
+terminé avec success via scripts/build-remote. Les changements documentaires
+suivants conservent le même code applicatif, les mêmes tests et le même pipeline.
+
+- Contrôle local et functionalCheck sur runner propre réussis : **110 tests JVM
+  Release et 19 tests Python**, zéro échec/erreur/ignoré ; Detekt potential-bugs,
+  compilation des tests Android et contrats shell/XML/YAML/projet réussis.
+  Empreinte locale attestée :
+  `cfda5de0f0b1c5c74f791d869e090030eb32a94c51ef84d80589c2ae968a2b0b`.
+- Rapports XML Android 14/API 34 et Android 16/API 36 inspectés : **55 tests par
+  API**, zéro échec, erreur ou test ignoré, soit **110 exécutions Android réussies**.
+  Cela inclut les cinq créneaux, les images des contours/ripple, les gestes dans
+  WeekView et le véritable redimensionnement pendant un glissement.
+- Release de production signée, réduite par R8 et non débogable construite.
+  Variante smoke réduite démarrée à froid sur chaque API : Status: ok,
+  LaunchState: COLD, Settings et Today présents dans les deux hiérarchies UI.
+- Partition de 2048 Mio utilisée sur les deux émulateurs. Les diagnostics
+  confirment la suppression des deux AVD ; nettoyage des images SDK sans erreur.
+  Le test Python de lanceur fatal/ADB bloqué réussit aussi localement et en CI.
+- APK publié après ces contrôles, récupéré et vérifié par les scripts : package
+  com.github.panlelapin.simplercal, minSdk 34, targetSdk 36, debuggable=false,
+  signature et SHA-256 vérifiés. Fichier local : build/android-app-arm64-v8a.apk.
+  SHA-256 de ce run :
+  `f1a4361359b77775a54a48837cb71c4ebe7810b20606c68ded260537b16dd3cf`.
+- L'artefact android-test-reports contient les rapports JVM, les résultats séparés
+  api-34/api-36, les journaux d'émulateur, smoke-start.log, smoke-ui.xml et cleanup.log.
+  GitHub réduit la rétention demandée de quatorze jours à sa limite existante
+  d'un jour ; aucune rétention n'a été changée.
+
+Aucun appareil ADB autorisé au préflight : **aucune installation physique**.
+Les parcours automatisés utilisent des données contrôlées. Ils ne remplacent ni
+les comptes/permissions/Documents/HTTPS réels, ni une vraie mort de processus ou
+un transfert de sauvegarde, ni une observation manuelle de tous les rendus.
+Aucun chiffre de cadence physique ou trace Perfetto : voir PERFORMANCE.md.
+
+Les sections suivantes sont historiques et décrivent les états successifs avant
+cette réussite ; leurs mentions « non validé » ne sont pas l'état actuel.
+
 ## Incident de démarrage émulateur — 1er novembre 2026
 
 Le [run 41252284692](https://github.com/panlelapin/simplercal/actions/runs/41252284692),
@@ -16,7 +57,11 @@ en conservant rapports/diagnostics/APK. Les deux étapes Android ont un plafond
 de vingt minutes. Aucun adb uninstall ni modification d'un appareil physique.
 Un test Python isolé reproduit un lanceur fatal restant vivant et une sonde ADB
 bloquée ; il exige un échec borné, sans lancement de Gradle, avec nettoyage.
-Cette correction doit encore passer le contrôle local et la CI.
+Le contrôle local de la correction a réussi : 110 tests JVM et 19 Python,
+zéro échec/erreur/ignoré ; Detekt, compilation des 55 tests Android et contrats
+réussis. Empreinte cfda5de0f0b1c5c74f791d869e090030eb32a94c51ef84d80589c2ae968a2b0b,
+révision 938a6569b8f2f9d8a27352346dc47c8d7fb7cbf6. La CI réussie de cette révision,
+décrite en tête de ce document, confirme ensuite le boot et les résultats Android.
 
 Les journaux révèlent aussi une limite GitHub existante à **un jour** pour les
 artefacts : le workflow demande quatorze jours mais GitHub réduit cette durée.
@@ -36,7 +81,8 @@ hauteur réelle. Le geste n'était donc pas annulé et sa validation sélectionn
 normalement le jour suivant. La fixture réduit maintenant la hauteur depuis les
 pixels réellement mesurés et exige qu'elle ait changé avant de relâcher le pointeur.
 L'assertion de retour au jour initial et celle du maintien hors repli sont conservées.
-Le comportement applicatif n'est pas modifié. Une nouvelle exécution reste requise.
+Le comportement applicatif n'est pas modifié. Le test corrigé réussit ensuite sur
+les deux API dans la validation complète décrite en tête de ce document.
 
 ## Contrôle local et première tentative distante — 1er novembre 2026
 
@@ -53,13 +99,13 @@ runner, avant functionalCheck distant. Le journal s'arrête sur apt-get update ;
 il ne permet pas d'identifier le miroir en cause. Aucun test Android ni APK de
 cette tentative. La préparation utilise désormais les seuls dépôts Ubuntu,
 avec délais réseau bornés, tentatives limitées, échec explicite et sortie visible ;
-la prochaine exécution doit encore confirmer la CI et l'APK.
+les exécutions ultérieures sont décrites plus haut, jusqu'à la réussite complète.
 
 Aucun appareil ADB autorisé au préflight : aucune installation physique.
 Les sections « non validé » ci-dessous décrivent les états antérieurs à cette
 exécution ; elles ne remplacent pas cette preuve locale datée.
 
-## Créneaux quotidiens — implémentés, non validés
+## Créneaux quotidiens — état initial avant validation
 
 La vue calendrier est reliée aux cinq horaires persistés : première ligne depuis
 00:01 jusqu'à sa valeur Until, quatre lignes réglées par leur début From, dernière
@@ -189,7 +235,7 @@ ultérieures. Le répertoire build/ et check-local.log sont locaux et ignorés ;
 nouveau clone doit refaire les contrôles. Consulter les résultats du run portant
 le SHA courant avant de revendiquer un résultat plus récent.
 
-## Carte des tests définis — 31 octobre 2026
+## Carte initiale des tests définis — 31 octobre 2026
 
 L'inventaire détaillé et la portée figurent dans [TESTS.md](TESTS.md) : 71 tests JVM,
 34 tests Android/Compose, 18 tests Python, plus un démarrage smoke minifié sur deux

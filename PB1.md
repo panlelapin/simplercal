@@ -1,8 +1,11 @@
 # PB1 — Audit des sources Kotlin
 
 > Panneaux et cinq créneaux : implémentés. Contrôle local réussi le 1er novembre
-> 2026 : 110 tests JVM et 18 Python, zéro échec/erreur/ignoré ; Detekt, compilation
-> des 55 tests Android et contrats du projet réussis. Voir
+> 2026 : 110 tests JVM et 19 Python, zéro échec/erreur/ignoré ; Detekt, compilation
+> des 55 tests Android et contrats du projet réussis.
+> Les 55 tests Android réussissent sur chaque API 34/36, ainsi que les deux
+> démarrages smoke minifiés. APK signé récupéré/vérifié ; aucune installation
+> physique ni mesure de cadence. Voir
 > [SCHEDULES.md](codex/SCHEDULES.md), [l’audit ciblé](codex/AUDIT_PANNEAUX_COMPOSE.md)
 > et [VALIDATION.md](codex/VALIDATION.md) pour les résultats Android, CI, APK
 > et les limites physiques. Les entrées ci-dessous sont des états historiques.
